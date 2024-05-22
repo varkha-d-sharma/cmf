@@ -580,7 +580,7 @@ class CmfQuery(object):
             df = pd.concat([df, d1], sort=True, ignore_index=True)
         return df
 
-    def get_one_hop_child_artifacts(self, artifact_name: str, pipeline_id: str = None) -> pd.DataFrame:
+    def get_one_hop_child_artifacts(self, artifact_name: str, execution_list: set, pipeline_id: str = None) ->  tuple[list, pd.DataFrame]:
         """Get artifacts produced by executions that consume given artifact.
 
         Args:
@@ -591,12 +591,25 @@ class CmfQuery(object):
         artifact: t.Optional = self._get_artifact(artifact_name)
         if not artifact:
             return pd.DataFrame()
-
+        artifacts_df = pd.DataFrame()
         # Get output artifacts of executions consumed the above artifact.
-        artifacts_ids = self._get_output_artifacts(self._get_executions_by_input_artifact_id(artifact.id,pipeline_id))
-        return self._as_pandas_df(
-            self.store.get_artifacts_by_id(artifacts_ids), lambda _artifact: self.get_artifact_df(_artifact)
-        )
+        executions = self._get_executions_by_input_artifact_id(artifact.id,pipeline_id)
+        #print(executions)
+        not_iterated_executions = [exe for exe in executions if exe not in execution_list]
+        #print("not_iterated_executions")
+        #print(not_iterated_executions)
+        for execution in not_iterated_executions:
+            artifacts_ids = self._get_output_artifacts([execution])
+            #print(artifacts_ids)
+            artifact_df = self._as_pandas_df(
+                self.store.get_artifacts_by_id(artifacts_ids), lambda _artifact: self.get_artifact_df(_artifact)
+            )
+            #print(artifact_df)
+            artifacts_df = pd.concat([artifacts_df, artifact_df],sort=True, ignore_index=True)
+
+        #print(not_iterated_executions)
+        #print(artifacts_df)
+        return not_iterated_executions, artifacts_df
 
     def get_one_hop_parent_executions(self, execution_id: t.List[int], pipeline_id: str = None) -> t.List[int]:
         """Get artifacts produced by executions that consume given artifact.
@@ -633,7 +646,7 @@ class CmfQuery(object):
             for id in list_exec:
                 self._transform_to_dataframe(id).Execution_type_name
 
-    def get_all_child_artifacts(self, artifact_name: str) -> pd.DataFrame:
+    def get_all_child_artifacts(self, artifact_name: str, executions:set()=set()) -> pd.DataFrame:
         """Return all downstream artifacts starting from the given artifact.
 
         Args:
@@ -642,11 +655,11 @@ class CmfQuery(object):
             Data frame containing all child artifacts.
         """
         df = pd.DataFrame()
-        d1 = self.get_one_hop_child_artifacts(artifact_name)
+        exe,d1 = self.get_one_hop_child_artifacts(artifact_name, executions)
         # df = df.append(d1, sort=True, ignore_index=True)
         df = pd.concat([df, d1], sort=True, ignore_index=True)
-        for row in d1.itertuples():
-            d1 = self.get_all_child_artifacts(row.name)
+        for row in df.itertuples():
+            d1 = self.get_all_child_artifacts(row.name, executions)
             # df = df.append(d1, sort=True, ignore_index=True)
             df = pd.concat([df, d1], sort=True, ignore_index=True)
         df = df.drop_duplicates(subset=None, keep="first", inplace=False)
