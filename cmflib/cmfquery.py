@@ -580,7 +580,7 @@ class CmfQuery(object):
             df = pd.concat([df, d1], sort=True, ignore_index=True)
         return df
 
-    def get_one_hop_child_artifacts(self, artifact_name: str, execution_list: set, pipeline_id: str = None) ->  tuple[list, pd.DataFrame]:
+    def get_one_hop_child_artifacts(self, artifact_name: str, execution_list: set(), pipeline_id: str = None) ->  t.Tuple[list, pd.DataFrame]:
         """Get artifacts produced by executions that consume given artifact.
 
         Args:
@@ -588,6 +588,7 @@ class CmfQuery(object):
         Return:
             Output artifacts of all executions that consumed given artifact.
         """
+        #print("Inside")
         artifact: t.Optional = self._get_artifact(artifact_name)
         if not artifact:
             return pd.DataFrame()
