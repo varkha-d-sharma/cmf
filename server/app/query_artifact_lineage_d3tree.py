@@ -4,7 +4,7 @@ from collections import deque, defaultdict
 import pandas as pd
 import json
 
-async def query_artifact_tree_lineage(mlmd_path,pipeline_name, dict_of_art_ids,lineagetype):
+async def query_artifact_lineage_d3tree(mlmd_path,pipeline_name, dict_of_art_ids,lineagetype):
     query = cmfquery.CmfQuery(mlmd_path)
     pipeline_id = query.get_pipeline_id(pipeline_name)
     id_name = {}

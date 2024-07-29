@@ -112,7 +112,6 @@ const Lineage = () => {
 
   const fetchArtifactTree = (pipelineName,lineageType) => {
     client.getArtiTreeLineage(pipelineName,lineageType).then((data) => {    
-    console.log(data,"fetchArtifact");
     if (data === null) { 
         setArtiTreeData(null);
     }
