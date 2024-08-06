@@ -1,5 +1,5 @@
 ###
-# Copyright (2022) Hewlett Packard Enterprise Development LP
+# Copyright (2024) Hewlett Packard Enterprise Development LP
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # You may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ import os
 import subprocess
 import dvc.api
 import dvc.exceptions
-
+from typing import List, Optional
 
 def check_git_remote() -> bool:
     process = ""
@@ -74,6 +74,12 @@ def dvc_get_url(folder: str, retry: bool = False, repo: str = "") -> str:
             url = dvc_get_url(folder, True)
         else:
             print(f"dvc.exceptions.PathMissingError Caught  Unexpected {err}, {type(err)}")
+    except dvc.exceptions.OutputNotFoundError as err:
+        if not retry:
+            filename = folder.split('/')[-1]
+            folder = os.path.join(os.getcwd() , filename)
+            url = dvc_get_url(folder, True)
+
     except Exception as err:
         print(f"Unexpected {err}, {type(err)}")
     return url
@@ -137,6 +143,7 @@ def git_checkout_new_branch(branch_name: str):
     except Exception as err:
         process.kill()
         outs, errs = process.communicate()
+        
         print(f"Unexpected {err}, {type(err)}")
         print(f"Unexpected {outs}")
         print(f"Unexpected {errs}")
@@ -230,14 +237,19 @@ def commit_output(folder: str, execution_id: str) -> str:
     commit = ""
     process = ""
     try:
-        process = subprocess.Popen(['dvc', 'add', folder],
-                                   stdout=subprocess.PIPE,
-                                   universal_newlines=True)
-
+        if os.path.exists(os.getcwd() + '/' + folder):
+            process = subprocess.Popen(['dvc', 'add', folder],
+                                    stdout=subprocess.PIPE,
+                                    universal_newlines=True)
+        else:
+            process = subprocess.Popen(['dvc', 'import-url', '--to-remote', folder],
+                                stdout=subprocess.PIPE,
+                                universal_newlines=True)
+            
         # To-Do : Parse the output and report if error
         output, errs = process.communicate()
         commit = output.strip()
-        process = subprocess.Popen(['git', 'add', folder + '.dvc'],
+        process = subprocess.Popen(['git', 'add', folder.split('/')[-1] + '.dvc'],
                                    stdout=subprocess.PIPE,
                                    universal_newlines=True)
         # To-Do : Parse the output and report if error
@@ -429,20 +441,39 @@ def dvc_get_config() -> str:
 
 
 # dvc push
-def dvc_push() -> str:
+def dvc_push(file_list: Optional[List[str]] = None) -> str:
     commit = ""
-    try:
-        process = subprocess.Popen(['dvc', 'push'],
+    if file_list is None:
+       try:
+           process = subprocess.Popen(['dvc', 'push'],
+                                  stdout=subprocess.PIPE,
+                                   universal_newlines=True)
+           output, errs = process.communicate()
+           commit = output.strip()
+
+       except Exception as err:
+           print(f"Unexpected {err}, {type(err)}")
+           if isinstance(object, subprocess.Popen):
+              process.kill()
+              outs, errs = process.communicate()
+              print(f"Unexpected {outs}")
+              print(f"Unexpected {errs}")
+
+    else:
+        file_list.insert(0, 'dvc')
+        file_list.insert(1, 'push')
+        try:
+            process = subprocess.Popen(file_list,
                                    stdout=subprocess.PIPE,
                                    universal_newlines=True)
-        output, errs = process.communicate()
-        commit = output.strip()
+            output, errs = process.communicate()
+            commit = output.strip()
 
-    except Exception as err:
-        print(f"Unexpected {err}, {type(err)}")
-        if isinstance(object, subprocess.Popen):
-           process.kill()
-           outs, errs = process.communicate()
-           print(f"Unexpected {outs}")
-           print(f"Unexpected {errs}")
+        except Exception as err:
+           print(f"Unexpected {err}, {type(err)}")
+           if isinstance(object, subprocess.Popen):
+              process.kill()
+              outs, errs = process.communicate()
+              print(f"Unexpected {outs}")
+              print(f"Unexpected {errs}")
     return commit
