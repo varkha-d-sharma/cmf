@@ -6,8 +6,8 @@ from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 import pandas as pd
 from typing import List, Dict, Any
-
-from cmflib import cmfquery, cmf_merger
+import time
+from cmflib import cmfquery
 from server.app.get_data import (
     get_artifacts,
     get_lineage_data,
@@ -17,7 +17,9 @@ from server.app.get_data import (
     get_all_artifact_ids,
     get_all_exe_ids,
     get_executions,
+    async_api,
     get_model_data
+
 )
 from server.app.query_artifact_lineage_d3force import query_artifact_lineage_d3force
 from server.app.query_execution_lineage_d3force import query_execution_lineage_d3force
@@ -26,6 +28,7 @@ from server.app.query_artifact_lineage_d3tree import query_artifact_lineage_d3tr
 from pathlib import Path
 import os
 import json
+from ml_metadata.proto import metadata_store_pb2 as mlpb
 
 server_store_path = "/cmf-server/data/mlmd"
 
@@ -39,9 +42,9 @@ async def lifespan(app: FastAPI):
     global dict_of_exe_ids
     if os.path.exists(server_store_path):
         # loaded execution ids with names into memory
-        dict_of_exe_ids = await get_all_exe_ids(server_store_path)
+        dict_of_exe_ids = await async_api(get_all_exe_ids, server_store_path)
         # loaded artifact ids into memory
-        dict_of_art_ids = await get_all_artifact_ids(server_store_path, dict_of_exe_ids)
+        dict_of_art_ids = await async_api(get_all_artifact_ids, server_store_path, dict_of_exe_ids)
     yield
     dict_of_art_ids.clear()
     dict_of_exe_ids.clear()
@@ -75,7 +78,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 @app.get("/")
 async def read_root(request: Request):
     return {"cmf-server"}
@@ -87,7 +89,7 @@ async def mlmd_push(info: Request):
     print("......................")
     req_info = await info.json()
     pipeline_name = req_info["pipeline_name"]
-    status = await create_unique_executions(server_store_path, req_info)
+    status = await async_api(create_unique_executions, server_store_path, req_info)
     if status == "version_update":
         # Raise an HTTPException with status code 422
         raise HTTPException(status_code=422, detail="version_update")
@@ -96,7 +98,6 @@ async def mlmd_push(info: Request):
     await update_global_art_dict(pipeline_name)
     return {"status": status, "data": req_info}
 
-
 # api to get mlmd file from cmf-server
 @app.get("/mlmd_pull/{pipeline_name}", response_class=HTMLResponse)
 async def mlmd_pull(info: Request, pipeline_name: str):
@@ -104,7 +105,7 @@ async def mlmd_pull(info: Request, pipeline_name: str):
     req_info = await info.json()
     if os.path.exists(server_store_path):
         #json_payload values can be json data, NULL or no_exec_id.
-        json_payload= await get_mlmd_from_server(server_store_path, pipeline_name, req_info['exec_id'])
+        json_payload= await async_api(get_mlmd_from_server, server_store_path, pipeline_name, req_info['exec_id'])
     else:
         print("No mlmd file submitted.")
         json_payload = ""
@@ -158,11 +159,10 @@ async def artifact_lineage(request: Request, pipeline_name: str):
 
     '''
     # checks if mlmd file exists on server
- 
     if os.path.exists(server_store_path):
         query = cmfquery.CmfQuery(server_store_path)
         if (pipeline_name in query.get_pipeline_names()):
-            response=await get_lineage_data(server_store_path,pipeline_name,"Artifacts",dict_of_art_ids,dict_of_exe_ids)
+            response=await async_api(get_lineage_data, server_store_path,pipeline_name,"Artifacts",dict_of_art_ids,dict_of_exe_ids)
             #response = None
             return response
         else:
@@ -181,7 +181,7 @@ async def list_of_executions(request: Request, pipeline_name: str):
     if os.path.exists(server_store_path):
         query = cmfquery.CmfQuery(server_store_path)
         if (pipeline_name in query.get_pipeline_names()):
-            response = await get_lineage_data(server_store_path,pipeline_name,"Execution",dict_of_art_ids,dict_of_exe_ids)
+            response = await async_api(get_lineage_data, server_store_path,pipeline_name,"Execution",dict_of_art_ids,dict_of_exe_ids)
             return response
         else:
             return f"Pipeline name {pipeline_name} doesn't exist."
@@ -202,11 +202,11 @@ async def execution_lineage(request: Request, exec_type: str, pipeline_name: str
     if os.path.exists(server_store_path):
         query = cmfquery.CmfQuery(server_store_path)
         if (pipeline_name in query.get_pipeline_names()):
-            response = await query_execution_lineage_d3force(server_store_path, pipeline_name, dict_of_exe_ids, exec_type, uuid)
+            response = await async_api(query_execution_lineage_d3force, server_store_path, pipeline_name, dict_of_exe_ids, exec_type, uuid)
     else:
         response = None
     return response
-    
+
 @app.get("/execution-lineage/tangled-tree/{uuid}/{pipeline_name}")
 async def execution_lineage(request: Request,uuid, pipeline_name: str):
     '''
@@ -267,7 +267,7 @@ async def artifacts(
         if total_items < end_idx:
             end_idx = total_items
         artifact_id_list = list(art_ids)[start_idx:end_idx]
-        artifact_df = await get_artifacts(server_store_path, pipeline_name, art_type, artifact_id_list)
+        artifact_df = await async_api(get_artifacts, server_store_path, pipeline_name, art_type, artifact_id_list)
         data_paginated = artifact_df
         #data_paginated is returned None if artifact df is None or {}
         #it will load empty page, without this condition it will load 
@@ -309,7 +309,7 @@ async def display_arti_tree_lineage(request: Request, pipeline_name: str)-> List
 async def artifact_types(request: Request):
     # checks if mlmd file exists on server
     if os.path.exists(server_store_path):
-        artifact_types = get_artifact_types(server_store_path)
+        artifact_types = await async_api(get_artifact_types, server_store_path)
         return artifact_types
     else:
         artifact_types = ""
@@ -371,17 +371,18 @@ async def model_card(request:Request, modelId: int, response_model=List[Dict[str
 
 async def update_global_art_dict(pipeline_name):
     global dict_of_art_ids
-    output_dict = await get_all_artifact_ids(server_store_path, dict_of_exe_ids, pipeline_name)
+    output_dict = await async_api(get_all_artifact_ids, server_store_path, dict_of_exe_ids, pipeline_name)
     if pipeline_name in dict_of_art_ids:
         dict_of_art_ids[pipeline_name].update(output_dict[pipeline_name])
     else:
         dict_of_art_ids[pipeline_name] = output_dict[pipeline_name]
+    #execution_ids = await async_api(get_all_exe_ids, server_store_path)
     return
 
 
 async def update_global_exe_dict(pipeline_name):
     global dict_of_exe_ids
-    output_dict = await get_all_exe_ids(server_store_path, pipeline_name)
+    output_dict = await async_api(get_all_exe_ids, server_store_path, pipeline_name)
     if pipeline_name in dict_of_exe_ids:
         dict_of_exe_ids[pipeline_name].update(output_dict[pipeline_name])
     else:
