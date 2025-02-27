@@ -12,7 +12,7 @@ dependencies = [
 	"click",
 	"minio",
 	"paramiko",
-	"scikit_learn",
+	"scikit-learn",
 	"scitokens", 
 	"cryptography",   
 	"ray==2.34.0"
