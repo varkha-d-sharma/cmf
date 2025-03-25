@@ -20,10 +20,17 @@ import pandas as pd
 import textwrap
 
 from tabulate import tabulate
+from typing import Union, List
 from cmflib.cli.command import CmdBase
 from cmflib import cmfquery
-from cmflib.dvc_wrapper import dvc_get_config
-from typing import Union, List
+from cmflib.cmf_exception_handling import ( 
+    PipelineNotFound,
+    FileNotFound,
+    ArtifactNotFound,
+    DuplicateArgumentNotAllowed,
+    MissingArgument,
+    MsgSuccess
+)
 
 class CmdArtifactsList(CmdBase):
     def convert_to_datetime(self, df: pd.DataFrame, col_name: str) -> pd.DataFrame:
@@ -128,50 +135,43 @@ class CmdArtifactsList(CmdBase):
         return -1
 
     def run(self):
-        # Check if 'cmf' is configured.
-        msg = "'cmf' is not configured.\nExecute 'cmf init' command."
-        result = dvc_get_config()
-        if len(result) == 0:
-                return msg
-        
+        cmd_args = {
+            "file_name": self.args.file_name,
+            "pipeline_name": self.args.pipeline_name,
+            "artifact_name": self.args.artifact_name
+        }
+        for arg_name, arg_value in cmd_args.items():
+            if arg_value:
+                if arg_value[0] == "":
+                    raise MissingArgument(arg_name)
+                elif len(arg_value) > 1:
+                    raise DuplicateArgumentNotAllowed(arg_name,("-"+arg_name[0]))
+
+        # default path for mlmd file name
+        mlmd_file_name = "./mlmd"
         current_directory = os.getcwd()
         if not self.args.file_name:         # If self.args.file_name is None or an empty list ([]). 
             mlmd_file_name = "./mlmd"       # Default path for mlmd file name.
-        elif len(self.args.file_name) > 1:  # If the user provided more than one file name. 
-                return "Error: You can only provide one file name using the -f flag."
-        elif not self.args.file_name[0]:    # self.args.file_name[0] is an empty string ("").
-                return "Error: Missing File name"
         else:
             mlmd_file_name = self.args.file_name[0].strip()
             if mlmd_file_name == "mlmd":
                 mlmd_file_name = "./mlmd"
-        
         current_directory = os.path.dirname(mlmd_file_name)
         if not os.path.exists(mlmd_file_name):
-             return f"Error: {mlmd_file_name} doesn't exists in {current_directory} directory."
-
+            raise FileNotFound(mlmd_file_name, current_directory)
+        
         # Creating cmfquery object.
         query = cmfquery.CmfQuery(mlmd_file_name)
         
         # Check if pipeline exists in mlmd.
-        if self.args.pipeline_name is not None and len(self.args.pipeline_name) > 1:
-                return "Error: You can only provide one pipeline name using the -p flag."
-        elif not self.args.pipeline_name[0]:    # self.args.pipeline_name[0] is an empty string ("").
-                return "Error: Missing pipeline name"
-        else:
-            pipeline_name = self.args.pipeline_name[0]
-        
+        pipeline_name = self.args.pipeline_name[0]
         df = query.get_all_artifacts_by_context(pipeline_name)
 
         if df.empty:
-            return "Pipeline name doesn't exists..."
+            raise PipelineNotFound(pipeline_name)
         else:
             if not self.args.artifact_name:         # If self.args.artifact_name is None or an empty list ([]). 
                 pass
-            elif len(self.args.artifact_name) > 1:  # If the user provided more than one artifact_name. 
-                 return "Error: You can only provide one artifact name using the -a flag."
-            elif not self.args.artifact_name[0]:    # self.args.artifact_name[0] is an empty string ("").
-                 return "Error: Missing artifact name"
             else:
                 artifact_ids = self.search_artifact(df)
                 if(artifact_ids != -1):
@@ -219,14 +219,14 @@ class CmdArtifactsList(CmdBase):
                         user_input = input("Press Enter to see more records if exists or 'q' to quit: ").strip().lower()
                         if user_input == 'q':
                             break
-                    return "End of records.."
+                    return MsgSuccess(msg_str = "End of records..")
                 else:
-                    return "Artifact name does not exist.."
+                    raise ArtifactNotFound(self.args.artifact_name[0])
         
         df = self.convert_to_datetime(df, "create_time_since_epoch")
         self.display_table(df)
 
-        return "Done."
+        return MsgSuccess(msg_str = "Done.")
 
 
 def add_parser(subparsers, parent_parser):
