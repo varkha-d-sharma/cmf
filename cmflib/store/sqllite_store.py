@@ -8,10 +8,10 @@ class SqlliteStore(CmfStore):
 
         self.connection_config = mlpb.ConnectionConfig()
         self.connection_config.sqlite.filename_uri = config["filename"]
-        self.connection_config.sqlite.connection_mode  = 3
+        self.connection_config.sqlite.connection_mode  = 3 # READWRITE_OPENCREATE
         super().__init__(self.connection_config)
 
-    def connect(self)-> metadata_store:
+    def connect(self) -> metadata_store.MetadataStore:
         cmf_store = super().connect()
         return cmf_store
 
