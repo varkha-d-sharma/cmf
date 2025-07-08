@@ -122,7 +122,7 @@ cmf dvc ingest
 > ⚠️ **Troubleshooting:**  
 > If you see an error like the one below, your Neo4j server might not be running properly.
 
-![neo4j-error](neo4j.PNG)
+![neo4j-error](../assets/neo4j.PNG)
 
 
 ## 8. Push/Pull Metadata and Artifacts

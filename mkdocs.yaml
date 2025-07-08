@@ -93,6 +93,7 @@ nav:
       - Guide for the cmf dvc ingest command: cmf_client/cmf-dvc-ingest-guide.md
   - Server:
       - Getting started with cmf-server: cmf_server/cmf-server.md
+      - Introduction to Metahub feature: cmf_server/metahub-tab-usage.md
   - TensorBoard:
       - Getting started with tensorboard: cmf_client/tensorflow_guide.md
   - Public API:
