@@ -90,6 +90,7 @@ nav:
       - Overview: cmf_client/cmf_client.md
       - Quick start with cmf-client: cmf_client/step-by-step.md
       - dvc minio backend: cmf_client/minio-server.md
+      - Guide for the cmf dvc ingest command: cmf_client/cmf-dvc-ingest-guide.md
   - Server:
       - Getting started with cmf-server: cmf_server/cmf-server.md
   - TensorBoard:
