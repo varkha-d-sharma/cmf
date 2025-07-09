@@ -891,15 +891,16 @@ class CmfQuery(object):
              )
         return df
     
-    def get_one_hop_parent_artifacts_with_id(self, artifact_id: int) -> pd.DataFrame:
+    def get_one_hop_parent_artifacts_with_id(self, artifact_id: int, pipeline_id: t.Optional[int] = None) -> pd.DataFrame:
         """Return input artifacts for the execution that produced the given artifact.
         Args:
             artifact_id: Artifact id.
+            pipeline_id: Pipeline id [Optional: None]
         Returns:
             Data frame containing immediate parent artifacts of given artifact/artifacts.
         """
         df = pd.DataFrame()
-        input_artifact_ids: t.List[int] = self._get_input_artifacts(self._get_executions_by_output_artifact_id(artifact_id))
+        input_artifact_ids: t.List[int] = self._get_input_artifacts(self._get_executions_by_output_artifact_id(artifact_id, pipeline_id))
         df = self._as_pandas_df(self.store.get_artifacts_by_id(input_artifact_ids), 
                 lambda _artifact: self.get_artifact_df(_artifact)
                 )

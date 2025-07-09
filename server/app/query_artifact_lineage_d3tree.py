@@ -7,6 +7,7 @@ def query_artifact_lineage_d3tree(query: CmfQuery, pipeline_name: str, dict_of_a
     env_list = []
     id_name = {}
     child_parent_artifact_id: Dict[int, List[int]] = {}
+    pipeline_id = query.get_pipeline_id(pipeline_name)
     for type_, df in dict_of_art_ids[pipeline_name].items():
         if type_ == "Environment":
             env_list = list(df["id"])
@@ -16,7 +17,7 @@ def query_artifact_lineage_d3tree(query: CmfQuery, pipeline_name: str, dict_of_a
             if artifact_id in env_list:
                 continue
             id_name[artifact_id] = modify_arti_name(row["name"], type_)
-            one_hop_parent_artifacts = query.get_one_hop_parent_artifacts_with_id(artifact_id)  # get immediate artifacts     
+            one_hop_parent_artifacts = query.get_one_hop_parent_artifacts_with_id(artifact_id, pipeline_id)  # get immediate artifacts     
             child_parent_artifact_id[artifact_id] = []      # assign empty dict for artifact with no parent artifact
             if not one_hop_parent_artifacts.empty:        # if artifact have parent artifacts    
                 parents_list =  list(one_hop_parent_artifacts["id"])
