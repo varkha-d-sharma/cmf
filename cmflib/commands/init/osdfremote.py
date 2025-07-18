@@ -19,6 +19,7 @@
 import argparse
 import os
 
+from cmflib.cmf_exception_handling import CmfInitComplete, CmfInitFailed, Neo4jArgumentNotProvided
 from cmflib.cli.command import CmdBase
 from cmflib.dvc_wrapper import (
     git_quiet_init,
@@ -34,21 +35,16 @@ from cmflib.utils.helper_functions import is_git_repo
 from cmflib.utils.helper_functions import generate_osdf_token
 
 class CmdInitOSDFRemote(CmdBase):
-    def run(self):
-        # Reading CONFIG_FILE variable
+    def run(self, live):
+        # User can provide different name for cmf configuration file using CONFIG_FILE environment variable.
+        # If CONFIG_FILE is not provided, default file name is .cmfconfig
         cmf_config = os.environ.get("CONFIG_FILE", ".cmfconfig")
-        # checking if config file exists
-        if not os.path.exists(cmf_config):
-            # writing default value to config file
-            attr_dict = {}
-            attr_dict["server-ip"] = "http://127.0.0.1:80"
-            CmfConfig.write_config(cmf_config, "cmf", attr_dict)
 
-        # if user gave --cmf-server-url, override the config file
-        if self.args.cmf_server_url:
-            attr_dict = {}
-            attr_dict["server-ip"] = self.args.cmf_server_url
-            CmfConfig.write_config(cmf_config, "cmf", attr_dict, True)
+        attr_dict = {}
+        # cmf_server_url is default parameter for cmf init command 
+        # if user does not provide cmf-server-url, default value is http://127.0.0.1:80
+        attr_dict["server-url"] = self.args.cmf_server_url
+        CmfConfig.write_config(cmf_config, "cmf", attr_dict)
 
         # read --neo4j details and add to the exsting file
         if self.args.neo4j_user and self.args.neo4j_password and self.args.neo4j_uri:
@@ -64,7 +60,7 @@ class CmdInitOSDFRemote(CmdBase):
         ):
             pass
         else:
-            return "ERROR: Provide user, password and uri for neo4j initialization."
+            raise Neo4jArgumentNotProvided
         output = is_git_repo()
         if not output:
             branch_name = "master"
@@ -80,7 +76,7 @@ class CmdInitOSDFRemote(CmdBase):
         dvc_quiet_init()
         output = dvc_add_remote_repo(repo_type, self.args.path)
         if not output:
-            return "cmf init failed."
+            raise CmfInitFailed
         print(output)
         #dvc_add_attribute(repo_type, "key_id", self.args.key_id)
         #dvc_add_attribute(repo_type, "key_path", self.args.key_path)
@@ -105,7 +101,7 @@ class CmdInitOSDFRemote(CmdBase):
         attr_dict["key_issuer"] = self.args.key_issuer
         CmfConfig.write_config(cmf_config, "osdf", attr_dict, True)
 
-        return "cmf init complete."
+        return CmfInitComplete()
 
 
 def add_parser(subparsers, parent_parser):
@@ -172,7 +168,7 @@ def add_parser(subparsers, parent_parser):
         "--cmf-server-url",
         help="Specify cmf-server URL.",
         metavar="<cmf_server_url>",
-        default="http://127.0.0.1:80",
+        default="http://127.0.0.1:8080",
     )
 
     parser.add_argument(

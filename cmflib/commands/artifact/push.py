@@ -15,60 +15,82 @@
 ###
 
 #!/usr/bin/env python3
-import argparse
 import os
 import re
+import yaml
+import argparse
 
 from cmflib import cmfquery
 from cmflib.cli.command import CmdBase
 from cmflib.cli.utils import check_minio_server
-from cmflib.utils.helper_functions import generate_osdf_token
-from cmflib.utils.helper_functions import is_url
-from cmflib.utils.dvc_config import DvcConfig
-from cmflib.dvc_wrapper import dvc_push
-from cmflib.dvc_wrapper import dvc_add_attribute
+from cmflib.utils.helper_functions import generate_osdf_token, fetch_cmf_config_path
+from cmflib.dvc_wrapper import dvc_push, dvc_add_attribute
 from cmflib.utils.cmf_config import CmfConfig
+from cmflib.cmf_exception_handling import (
+    PipelineNotFound, Minios3ServerInactive, 
+    FileNotFound, 
+    ExecutionsNotFound,
+    ArtifactPushSuccess, 
+    MissingArgument, 
+    DuplicateArgumentNotAllowed
+)
 
 class CmdArtifactPush(CmdBase):
-    def run(self):
-        result = ""
-        dvc_config_op = DvcConfig.get_dvc_config()
-        cmf_config_file = os.environ.get("CONFIG_FILE", ".cmfconfig")
-        cmf_config={}
-        cmf_config=CmfConfig.read_config(cmf_config_file)
+    def run(self, live):
+        dvc_config_op, config_file_path = fetch_cmf_config_path()
+        
+        cmd_args = {
+            "file_name": self.args.file_name,
+            "pipeline_name": self.args.pipeline_name, 
+            "jobs": self.args.jobs,
+        }
+        for arg_name, arg_value in cmd_args.items():
+            if arg_value:
+                if arg_value[0] == "":
+                    raise MissingArgument(arg_name)
+                elif len(arg_value) > 1:
+                    raise DuplicateArgumentNotAllowed(arg_name,("-"+arg_name[0]))
+
         out_msg = check_minio_server(dvc_config_op)
         if dvc_config_op["core.remote"] == "minio" and out_msg != "SUCCESS":
-            return "MinioS3 server failed to start!!!"
+            raise Minios3ServerInactive()
+        
+        # If user has not specified the number of jobs or jobs is not a digit, set it to 4 * cpu_count()
+        num_jobs = int(self.args.jobs[0]) if self.args.jobs and self.args.jobs[0].isdigit() else 4 * os.cpu_count()
+        
         if dvc_config_op["core.remote"] == "osdf":
+            cmf_config={}
+            cmf_config=CmfConfig.read_config(config_file_path)
             #print("key_id="+cmf_config["osdf-key_id"])
             dynamic_password = generate_osdf_token(cmf_config["osdf-key_id"],cmf_config["osdf-key_path"],cmf_config["osdf-key_issuer"])
             #print("Dynamic Password"+dynamic_password)
             dvc_add_attribute(dvc_config_op["core.remote"],"password",dynamic_password)
             #The Push URL will be something like: https://<Path>/files/md5/[First Two of MD5 Hash]
-            result = dvc_push()
+            #result = dvc_push(num_jobs=num_jobs)
             #print(result)
-            return result
+            #return ArtifactPushSuccess(result)
 
-        current_directory = os.getcwd()
         # Default path of mlmd file
-        mlmd_file_name = "./mlmd"
-        if self.args.file_name:
-            mlmd_file_name = self.args.file_name
+        current_directory = os.getcwd()
+        if not self.args.file_name:         # If self.args.file_name is None or an empty list ([]). 
+            mlmd_file_name = "./mlmd"       # Default path for mlmd file name.
+        else:
+            mlmd_file_name = self.args.file_name[0].strip()
             if mlmd_file_name == "mlmd":
                 mlmd_file_name = "./mlmd"
-            current_directory = os.path.dirname(mlmd_file_name)
+        current_directory = os.path.dirname(mlmd_file_name)
         if not os.path.exists(mlmd_file_name):
-            return f"ERROR: {mlmd_file_name} doesn't exists in {current_directory} directory."
-
+            raise FileNotFound(mlmd_file_name, current_directory)
+        
         # creating cmfquery object
         query = cmfquery.CmfQuery(mlmd_file_name)
+        
+        pipeline_name = self.args.pipeline_name[0]
+        # Put a check to see whether pipline exists or not
+        if not pipeline_name in query.get_pipeline_names():
+            raise PipelineNotFound(pipeline_name)
 
-         # Put a check to see whether pipline exists or not
-        pipeline_name = self.args.pipeline_name
-        if not query.get_pipeline_id(pipeline_name) > 0:
-            return f"ERROR: Pipeline {pipeline_name} doesn't exist!!"
-
-        stages = query.get_pipeline_stages(self.args.pipeline_name)
+        stages = query.get_pipeline_stages(pipeline_name)
         executions = []
         identifiers = []
 
@@ -86,7 +108,7 @@ class CmdArtifactPush(CmdBase):
 
         names = []
         if len(identifiers) == 0:  # check if there are no executions
-            return "No executions found."
+            raise ExecutionsNotFound()
         for identifier in identifiers:
             artifacts = query.get_all_artifacts_for_execution(
                  identifier
@@ -97,24 +119,34 @@ class CmdArtifactPush(CmdBase):
                 # adding .dvc at the end of every file as it is needed for pull
                 artifacts['name'] = artifacts['name'].apply(lambda name: f"{name.split(':')[0]}.dvc")
                 names.extend(artifacts['name'].tolist())
-        final_list = []
+        final_list = set()
         for file in set(names):
             # checking if the .dvc exists
             if os.path.exists(file):
-                final_list.append(file)
+                final_list.add(file)
             # checking if the .dvc exists in user's project working directory
             elif os.path.isabs(file):
-                    file = re.split("/",file)[-1]
-                    file = os.path.join(os.getcwd(), file)
-                    if os.path.exists(file):
-                        final_list.append(file)
+                file = re.split("/",file)[-1]
+                file = os.path.join(os.getcwd(), file)
+                if os.path.exists(file):
+                    final_list.add(file)
             else:
-                # not adding the .dvc to the final list in case .dvc doesn't exists in both the places
-                pass
+                # in case of dvc_ingest_command
+                # fetching remaining artifacts from dvc.lock file
+                if os.path.exists("dvc.lock"):
+                    with open("dvc.lock", "r") as f:
+                        str_data = f.read()
+                    data = yaml.safe_load(str_data)
+                    # Traverse all stages and collect all 'path' keys from both 'deps' and 'outs'
+                    for stage in data.get('stages', {}).values():
+                        for section in ['deps', 'outs']:
+                            for item in stage.get(section, []):
+                                if isinstance(item, dict) and 'path' in item:
+                                    final_list.add(item['path'])
         #print("file_set = ", final_list)
-        result = dvc_push(list(final_list))
-        return result
-      
+        result = dvc_push(num_jobs, list(final_list))
+        return ArtifactPushSuccess(result)
+    
 def add_parser(subparsers, parent_parser):
     HELP = "Push artifacts to the user configured artifact repo."
 
@@ -132,12 +164,25 @@ def add_parser(subparsers, parent_parser):
         "-p",
         "--pipeline_name",
         required=True,
+        action="append",
         help="Specify Pipeline name.",
         metavar="<pipeline_name>",
     )
 
     parser.add_argument(
-        "-f", "--file_name", help="Specify mlmd file name.", metavar="<file_name>"
+        "-f", 
+        "--file_name", 
+        action="append",
+        help="Specify input metadata file name.",
+        metavar="<file_name>"
+    )
+
+    parser.add_argument(
+        "-j",
+        "--jobs",
+        action="append",
+        help="Number of parallel jobs for uploading artifacts to remote storage. Default is 4 * cpu_count(). Increasing jobs may speed up uploads but will use more resources.",
+        metavar="<jobs>"
     )
 
     parser.set_defaults(func=CmdArtifactPush)

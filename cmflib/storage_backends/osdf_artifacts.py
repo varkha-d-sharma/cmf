@@ -20,6 +20,7 @@ import requests
 #urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 import hashlib
 import time
+
 from urllib.parse import urlparse
 
 def generate_cached_url(url, cache):
@@ -129,10 +130,9 @@ class OSDFremoteArtifacts:
             success, result = download_and_verify_file(host, headers, remote_file_path, local_file_path, artifact_hash, timeout=10)
             if success:
                 #print(result)
-                return result
-            else:
-                #print(f"Failed to download and verify file: {result}")
-                return f"Failed to download and verify file"
+                return success, result
+            #print(f"Failed to download and verify file: {result}")
+            return success, f"Failed to download and verify file: {result}"
         else:
             #Generate Cached path for artifact
             cached_s_url=generate_cached_url(host,cache)
@@ -140,7 +140,7 @@ class OSDFremoteArtifacts:
             success, cached_result = download_and_verify_file(cached_s_url, headers, remote_file_path, local_path, artifact_hash,timeout=5)
             if success:
                 #print(cached_result)
-                return cached_result
+                return success, cached_result
             else:
                 print(f"Failed to download and verify file from cache: {cached_result}")
                 print(f"Trying Origin at {host}")
@@ -148,13 +148,9 @@ class OSDFremoteArtifacts:
                 success, origin_result = download_and_verify_file(host, headers, remote_file_path, local_path, artifact_hash, timeout=10)
                 if success: 
                     #print(origin_result)
-                    return origin_result
-                else:
-                    #print(f"Failed to download and verify file: {result}")
-                    return f"Failed to download and verify file"
-        
-
-        
+                    return success, origin_result
+                #print(f"Failed to download and verify file: {result}")
+                return success, f"Failed to download and verify file: {origin_result}"
         
 
         
