@@ -6,10 +6,11 @@ spec:
   capacity:
     storage: 10Gi
   accessModes:
-    - ReadWriteOnce
-  hostPath:
-    path: /mnt/neo4j/data  
-
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  nfs:
+    server: 10.93.226.51
+    path: /shared/neo4j_data
 ---
 apiVersion: v1
 kind: PersistentVolume
@@ -17,12 +18,13 @@ metadata:
   name: pv-neo4j-logs
 spec:
   capacity:
-    storage: 5Gi  
+    storage: 5Gi
   accessModes:
-    - ReadWriteOnce
-  hostPath:
-    path: /mnt/neo4j/logs 
-
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  nfs:
+    server: 10.93.226.51
+    path: /shared/neo4j_logs
 ---
 apiVersion: v1
 kind: PersistentVolume
@@ -30,12 +32,13 @@ metadata:
   name: pv-neo4j-import
 spec:
   capacity:
-    storage: 5Gi  
+    storage: 5Gi
   accessModes:
-    - ReadWriteOnce
-  hostPath:
-    path: /mnt/neo4j/import 
-
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  nfs:
+    server: 10.93.226.51
+    path: /shared/neo4j_import
 ---
 apiVersion: v1
 kind: PersistentVolume
@@ -43,9 +46,10 @@ metadata:
   name: pv-neo4j-plugins
 spec:
   capacity:
-    storage: 5Gi  
+    storage: 5Gi
   accessModes:
-    - ReadWriteOnce
-  hostPath:
-    path: /mnt/neo4j/plugins  
-
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  nfs:
+    server: 10.93.226.51
+    path: /shared/neo4j_plugins

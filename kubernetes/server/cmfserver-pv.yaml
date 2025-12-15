@@ -6,10 +6,11 @@ spec:
   capacity:
     storage: 40Gi
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteMany
   persistentVolumeReclaimPolicy: Retain
-  hostPath:
-    path: /mnt/cmf/data
+  nfs:
+    server: 10.93.226.51
+    path: /shared/server_data
 ---
 apiVersion: v1
 kind: PersistentVolume
@@ -19,10 +20,11 @@ spec:
   capacity:
     storage: 5Gi
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteMany
   persistentVolumeReclaimPolicy: Retain
-  hostPath:
-    path: /mnt/cmf/data/env
+  nfs:
+    server: "10.93.226.51"  # Replace with your NFS server IP
+    path: "/shared/server_env"
 ---
 apiVersion: v1
 kind: PersistentVolume
@@ -32,10 +34,11 @@ spec:
   capacity:
     storage: 20Gi
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteMany
   persistentVolumeReclaimPolicy: Retain
-  hostPath:
-    path: /mnt/cmf/data/static
+  nfs:
+    server: "10.93.226.51"  # Replace with your NFS server IP
+    path: "/shared/server_static"
 ---
 apiVersion: v1
 kind: PersistentVolume
@@ -45,10 +48,11 @@ spec:
   capacity:
     storage: 5Gi
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteMany
   persistentVolumeReclaimPolicy: Retain
-  hostPath:
-    path: /mnt/cmf/data/labels
+  nfs:
+    server: "10.93.226.51"  # Replace with your NFS server IP
+    path: "/shared/server_labels"
 ---
 apiVersion: v1
 kind: PersistentVolume
@@ -58,7 +62,8 @@ spec:
   capacity:
     storage: 20Gi
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteMany
   persistentVolumeReclaimPolicy: Retain
-  hostPath:
-    path: /mnt/cmf/data/tensorboard-logs
+  nfs:
+    server: "10.93.226.51"  # Replace with your NFS server IP
+    path: "/shared/server_tensorboard"

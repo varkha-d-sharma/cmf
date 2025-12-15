@@ -1,13 +1,13 @@
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: pv-postgres-data
+  name: nfs-pv
 spec:
   capacity:
-    storage: 50Gi
+    storage: 200Gi
   accessModes:
     - ReadWriteMany
   persistentVolumeReclaimPolicy: Retain
   nfs:
-    server: 10.93.226.51
-    path: /shared/postgres_data
+    server: fdp-1
+    path: /shared/

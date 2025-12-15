@@ -14,9 +14,11 @@ spec:
       labels:
         app: cmf-server
     spec:
+      nodeSelector:
+        kubernetes.io/hostname: fdp-1
       containers:
       - name: cmf-server
-        image: cmf-server:latest
+        image: ayeshasanadi/cmf-server:latest
         imagePullPolicy: IfNotPresent   # important for Minikube local builds
         ports:
         - containerPort: 8080

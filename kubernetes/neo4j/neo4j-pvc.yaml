@@ -4,11 +4,11 @@ metadata:
   name: pvc-neo4j-data
 spec:
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteMany
   resources:
     requests:
-      storage: 10Gi  # Should match the size of the corresponding PV
-
+      storage: 10Gi
+  volumeName: pv-neo4j-data
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -16,11 +16,11 @@ metadata:
   name: pvc-neo4j-logs
 spec:
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteMany
   resources:
     requests:
-      storage: 5Gi  # Should match the size of the corresponding PV
-
+      storage: 5Gi
+  volumeName: pv-neo4j-logs
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -28,11 +28,11 @@ metadata:
   name: pvc-neo4j-import
 spec:
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteMany
   resources:
     requests:
-      storage: 5Gi  # Should match the size of the corresponding PV
-
+      storage: 5Gi
+  volumeName: pv-neo4j-import
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -40,8 +40,8 @@ metadata:
   name: pvc-neo4j-plugins
 spec:
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteMany
   resources:
     requests:
-      storage: 5Gi  # Should match the size of the corresponding PV
-
+      storage: 5Gi
+  volumeName: pv-neo4j-plugins

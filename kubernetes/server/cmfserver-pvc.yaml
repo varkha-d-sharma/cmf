@@ -3,9 +3,8 @@ kind: PersistentVolumeClaim
 metadata:
   name: pvc-server-data
 spec:
-  storageClassName: ""
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteMany
   resources:
     requests:
       storage: 40Gi
@@ -16,9 +15,8 @@ kind: PersistentVolumeClaim
 metadata:
   name: pvc-server-data-env
 spec:
-  storageClassName: ""
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteMany
   resources:
     requests:
       storage: 5Gi
@@ -29,9 +27,8 @@ kind: PersistentVolumeClaim
 metadata:
   name: pvc-server-data-static
 spec:
-  storageClassName: ""
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteMany
   resources:
     requests:
       storage: 20Gi
@@ -42,9 +39,8 @@ kind: PersistentVolumeClaim
 metadata:
   name: pvc-server-data-labels
 spec:
-  storageClassName: ""
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteMany
   resources:
     requests:
       storage: 5Gi
@@ -55,9 +51,8 @@ kind: PersistentVolumeClaim
 metadata:
   name: pvc-tensorboard-logs
 spec:
-  storageClassName: ""
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteMany
   resources:
     requests:
       storage: 20Gi

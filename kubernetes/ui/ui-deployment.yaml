@@ -14,15 +14,18 @@ spec:
       labels:
         app: ui
     spec:
+      nodeSelector:
+        kubernetes.io/hostname: fdp-1
+    spec:
       containers:
       - name: ui
-        image: ui:latest
+        image: ayeshasanadi/ui:latest
         imagePullPolicy: IfNotPresent     # ✅ important for Minikube local builds
         ports:
         - containerPort: 3000
         env:
         - name: REACT_APP_CMF_API_URL
-          value: http://x.x.x.x:30080           # ✅ same cluster DNS; backend reachable via Nginx
+          value: http://10.93.226.51:30080           # ✅ same cluster DNS; backend reachable via Nginx
         readinessProbe:
           httpGet:
             path: /
