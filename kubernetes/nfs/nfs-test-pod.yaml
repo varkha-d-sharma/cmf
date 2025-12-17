@@ -4,7 +4,7 @@ metadata:
   name: nfs-test-pod
 spec:
   nodeSelector:
-    kubernetes.io/hostname: fdp-1
+    kubernetes.io/hostname: nfs-server-node  # ensure pod lands on NFS server node
   containers:
   - name: busybox
     image: busybox

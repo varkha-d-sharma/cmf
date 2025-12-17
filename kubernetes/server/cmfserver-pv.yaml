@@ -9,7 +9,7 @@ spec:
     - ReadWriteMany
   persistentVolumeReclaimPolicy: Retain
   nfs:
-    server: 10.93.226.51
+    server: x.x.x.x   # Replace with your NFS server IP
     path: /shared/server_data
 ---
 apiVersion: v1
@@ -23,8 +23,8 @@ spec:
     - ReadWriteMany
   persistentVolumeReclaimPolicy: Retain
   nfs:
-    server: "10.93.226.51"  # Replace with your NFS server IP
-    path: "/shared/server_env"
+    server: x.x.x.x  # Replace with your NFS server IP
+    path: /shared/server_env
 ---
 apiVersion: v1
 kind: PersistentVolume
@@ -37,8 +37,8 @@ spec:
     - ReadWriteMany
   persistentVolumeReclaimPolicy: Retain
   nfs:
-    server: "10.93.226.51"  # Replace with your NFS server IP
-    path: "/shared/server_static"
+    server: x.x.x.x  # Replace with your NFS server IP
+    path: /shared/server_static
 ---
 apiVersion: v1
 kind: PersistentVolume
@@ -51,8 +51,8 @@ spec:
     - ReadWriteMany
   persistentVolumeReclaimPolicy: Retain
   nfs:
-    server: "10.93.226.51"  # Replace with your NFS server IP
-    path: "/shared/server_labels"
+    server: x.x.x.x  # Replace with your NFS server IP
+    path: /shared/server_labels
 ---
 apiVersion: v1
 kind: PersistentVolume
@@ -65,5 +65,5 @@ spec:
     - ReadWriteMany
   persistentVolumeReclaimPolicy: Retain
   nfs:
-    server: "10.93.226.51"  # Replace with your NFS server IP
-    path: "/shared/server_tensorboard"
+    server: x.x.x.x  # Replace with your NFS server IP
+    path: /shared/server_tensorboard

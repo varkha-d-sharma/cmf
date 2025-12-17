@@ -9,5 +9,5 @@ spec:
     - ReadWriteMany
   persistentVolumeReclaimPolicy: Retain
   nfs:
-    server: 10.93.226.51
+    server: x.x.x.x # Replace with your NFS server IP
     path: /shared/postgres_data
