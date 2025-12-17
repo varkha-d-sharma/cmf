@@ -13,7 +13,7 @@ spec:
         app: neo4j
     spec:
       nodeSelector:
-        kubernetes.io/hostname: fdp-1   # run on control plane (phase-1)
+        node-role: worker
       containers:
       - name: neo4j
         image: neo4j:latest

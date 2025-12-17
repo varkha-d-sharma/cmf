@@ -15,7 +15,7 @@ spec:
         app: nginx
     spec:
       nodeSelector:
-        kubernetes.io/hostname: fdp-1
+        node-role: worker
       containers:
       - name: nginx
         image: nginx:alpine

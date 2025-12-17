@@ -15,7 +15,7 @@ spec:
         app: cmf-server
     spec:
       nodeSelector:
-        kubernetes.io/hostname: fdp-1
+        node-role: worker
       containers:
       - name: cmf-server
         image: ayeshasanadi/cmf-server:latest

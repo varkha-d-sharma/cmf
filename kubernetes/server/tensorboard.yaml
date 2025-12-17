@@ -15,7 +15,7 @@ spec:
         app: tensorboard
     spec:
       nodeSelector:
-        kubernetes.io/hostname: fdp-1
+        node-role: worker
       containers:
       - name: tensorboard
         image: tensorflow/tensorflow:latest

@@ -15,7 +15,7 @@ spec:
         app: ui
     spec:
       nodeSelector:
-        kubernetes.io/hostname: fdp-1
+        node-role: worker
     spec:
       containers:
       - name: ui
