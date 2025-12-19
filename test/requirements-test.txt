@@ -1,0 +1,38 @@
+# Testing dependencies for CMF
+# Install with: pip install -r test/requirements-test.txt
+
+# Core testing framework
+pytest>=7.4.0
+pytest-cov>=4.1.0              # Coverage reporting
+pytest-mock>=3.11.0            # Enhanced mocking
+pytest-timeout>=2.1.0          # Test timeouts
+pytest-xdist>=3.3.0            # Parallel test execution
+
+# Mocking and fixtures
+mock>=5.1.0
+faker>=19.0.0                  # Generate fake data for tests
+
+# Code coverage and quality
+coverage>=7.3.0
+coverage-badge>=1.1.0          # Generate coverage badges
+
+# Test reporting
+pytest-html>=3.2.0             # HTML test reports
+pytest-json-report>=1.5.0      # JSON test reports
+
+# Code quality (optional but recommended)
+pytest-flake8>=1.1.1          # Style checking in tests
+pytest-black>=0.3.12          # Code formatting checks
+pytest-mypy>=0.10.3           # Type checking
+
+# Mutation testing (advanced)
+mutmut>=2.4.0                 # Mutation testing
+
+# For testing notebooks (if needed)
+nbval>=0.10.0                 # Validate Jupyter notebooks
+
+# Performance profiling
+pytest-benchmark>=4.0.0       # Benchmark tests
+
+# Test data generation
+hypothesis>=6.87.0            # Property-based testing
