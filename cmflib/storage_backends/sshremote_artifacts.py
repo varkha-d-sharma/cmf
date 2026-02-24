@@ -15,7 +15,10 @@
 ###
 
 import os
+import logging
 import paramiko
+
+logger = logging.getLogger(__name__)
 
 class SSHremoteArtifacts:
 
@@ -43,6 +46,7 @@ class SSHremoteArtifacts:
         if os.path.isabs(download_loc):
             download_loc = download_loc[1:]
         if "/" in download_loc:
+            # extracts the directory path from download_loc
             dir_path, _ = download_loc.rsplit("/", 1)
         if dir_path != "":
             # creates subfolders needed as per artifacts' folder structure
@@ -87,6 +91,7 @@ class SSHremoteArtifacts:
         if os.path.isabs(download_loc):
             download_loc = download_loc[1:]
         if "/" in download_loc:
+            # extracts the directory path from download_loc
             dir_path, _ = download_loc.rsplit("/", 1)
         if dir_path != "":
             # creates subfolders needed as per artifacts' folder structure
@@ -141,14 +146,13 @@ class SSHremoteArtifacts:
                     ssh.close()
                     if obj:
                         files_downloaded += 1
-                        print(f"object {temp_object_name} downloaded at {temp_download_loc}.")
+                        logger.info(f"object {temp_object_name} downloaded at {temp_download_loc}.")
                     else:
-                        print(f"object {temp_object_name} is not downloaded.")
+                        logger.error(f"object {temp_object_name} is not downloaded.")
                 except Exception as e:
                     sftp.close()
                     ssh.close()
-                    print(f"object {temp_object_name} is not downloaded.")
-
+                    logger.error(f"object {temp_object_name} is not downloaded.")
             # total_files - files_downloaded gives us the number of files which are failed to download
             if (total_files_in_directory - files_downloaded) == 0:   
                 return total_files_in_directory, files_downloaded, True
@@ -156,7 +160,7 @@ class SSHremoteArtifacts:
         except Exception as e:
             sftp.close()
             ssh.close()
-            print(f"object {object_name} is not downloaded.")
+            logger.error(f"object {object_name} is not downloaded.")
             # We usually don't count .dir as a file while counting total_files_in_directory.
             # However, here we failed to download the .dir folder itself. 
             # So we need to make, total_files_in_directory = 1
