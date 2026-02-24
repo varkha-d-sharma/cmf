@@ -1,56 +1,50 @@
-# `cmf` Installation & Setup Guide
+# CMF Installation & Setup Guide
 
-## **Overview**
 
 This guide provides step-by-step instructions for installing, configuring, and using CMF (Common Metadata Framework) for ML pipeline metadata tracking.
 
-The installation process consists of following components:
+## Overview
 
-1. **cmflib**: exposes APIs to track the pipeline metadata. It also provides APIs to query the stored metadata.
-2. **cmf-server with GUI**: enables users to store, retrieve, and view ML training metadata through an intuitive UI.
+The installation process consists of the following components:
+
+1. **[cmflib with CMF Client Installation](#install-cmf-library-ie-cmflib)**: A Python library that captures and tracks metadata throughout your ML pipeline, including datasets, models, and metrics.
+2. **[CMF Server with GUI Installation](#install-cmf-server-with-gui)**: A centralized server that aggregates metadata from multiple clients and provides a web-based graphical interface for visualizing pipeline executions, artifacts, and lineage relationships.
+
+> **Note:** Every CMF setup requires a CMF Server instance. In collaborative environments, multiple users working on the same project can share a single CMF Server to centralize metadata and facilitate team coordination.
+
 ---
 
-## **Prerequisites**
+## Common Prerequisites
 
-Before installing CMF, ensure you have the following prerequisites:
+Before installing `cmflib` and its components, ensure you have the following:
 
 - **Linux/Ubuntu/Debian**
-- **Python**: Version 3.9 to 3.10 (3.10 recommended)
-  
-  > ⚠️ **Warning:** "Python 3.9 Installation Issue on Ubuntu"
-  >
-  > **Issue**: When creating Python 3.9 virtual environments, you may encounter:
-  > 
-  > ```
-  > ModuleNotFoundError: No module named 'distutils.cmd'
-  > ```
-  > 
-  >  **Root Cause**: Python 3.9 may be missing required modules like `distutils` or `venv` when installed on Ubuntu systems.
-  > 
-  >  **Resolution**:
-  > 
-  >  1. Add the deadsnakes PPA (provides newer Python versions):
-  >    ```bash
-  >    sudo add-apt-repository ppa:deadsnakes/ppa
-  >    sudo apt-get update
-  >   ```
-  > 2. Install Python 3.9 with required modules:
-  >   ```bash
-  >   sudo apt install python3.9 python3.9-dev python3.9-distutils
-  >   ```
-  >   
-  >   This ensures Python 3.9 and its essential modules are fully installed.
 
-- **Git**: Latest version for code versioning
-- **Docker**: For containerized deployment
-- **Storage Backend**: S3, MinIO, or local storage for artifacts
+- **Python**: Version 3.9 to 3.11 (3.10 recommended)
+
+    > **Note:** If you encounter issues with Python 3.9 on Ubuntu, refer to the [Troubleshooting](#troubleshooting) section at the end of this guide.
+
 ---
 
-## **Components**
+## `cmflib` with CMF Client Installation {#install-cmf-library-ie-cmflib}
 
-### **Install cmf library i.e. cmflib**
+### Prerequisites
 
-**1. Set up Python Virtual Environment**
+- **Git**: Latest version for code versioning
+
+    > Make sure Git is properly configured using `git config`, as it's required for the product.
+    > At minimum, set your user identity:
+    > 
+    > ```bash
+    > git config --global user.name "Your Name"
+    > git config --global user.email "you@example.com"
+    > ```
+
+- **Storage Backend**: local, S3, [MinIOS3](./../cmf_client/minio-server.md), [ssh storage](./../cmf_client/ssh-setup.md) or [OSDF](./../cmf_client/cmf_osdf.md) storage for artifacts.
+
+### Installation Steps
+
+#### Step 1: Set up Python Virtual Environment
 
 === "Using Conda"
     ```shell
@@ -64,81 +58,152 @@ Before installing CMF, ensure you have the following prerequisites:
     source .cmf/bin/activate
     ```
 
-#### 2. Install CMF:
+#### Step 2: Install cmflib
+
+=== "Stable version from PyPI"
+    ```shell
+    pip install cmflib
+    ```
 
 === "Latest version from GitHub"
     ```shell
     pip install git+https://github.com/HewlettPackard/cmf
     ```
 
-=== "Stable version from PyPI"
-    ```shell
-    # pip install cmflib
-    ```
+---
 
-### **Install cmf-server**
+## CMF Server with GUI Installation {#install-cmf-server-with-gui}
 
-**Docker Installation**
+Every CMF setup requires a CMF Server instance. In collaborative environments, multiple users working on the same project can share a single CMF Server to centralize metadata and facilitate team coordination.
 
-  1. Clone the [GitHub repository](https://github.com/HewlettPackard/cmf).
-   ```
-   git clone https://github.com/HewlettPackard/cmf
-   ```
+### Prerequisites
 
-  2. Install [Docker Engine](https://docs.docker.com/engine/install/ubuntu/#install-using-the-repository) with [non-root user](https://docs.docker.com/engine/install/ubuntu/#install-using-the-repository) privileges.
-  3. Install [Docker Compose Plugin](https://docs.docker.com/compose/install/linux/).
-   > In earlier versions of Docker Compose, `docker compose` was independent of Docker. Hence, `docker-compose` was the command. However, after the introduction of Docker Compose Desktop V2, the compose command became part of Docker Engine. The recommended way to install Docker Compose is by installing a Docker Compose plugin on Docker Engine. For more information - [Docker Compose Reference](https://docs.docker.com/compose/reference/).
-  4. **Docker Proxy Settings** are needed for some of the server packages. Refer to the official Docker documentation for comprehensive instructions: [Configure the Docker Client for Proxy](https://docs.docker.com/network/proxy/#configure-the-docker-client).
+- **Docker**: For containerized deployment of `CMF Server` and `CMF UI`
 
-**Using `docker compose` file**
-> This is the recommended way as docker compose starts cmf-server, postgres db and ui-server in one go. It is neccessary to start postgres db before cmf-server.
+    > 1. Install [Docker Engine](https://docs.docker.com/engine/install/ubuntu/#install-using-the-repository) with [non-root user](https://docs.docker.com/engine/install/linux-postinstall/) privileges.
+    > 2. Install [Docker Compose Plugin](https://docs.docker.com/compose/install/linux/).
+    > 
+    > In earlier versions of Docker Compose, `docker compose` was independent of Docker. Hence, `docker-compose` was the command. However, after the introduction of Docker Compose Desktop V2, the compose command became part of Docker Engine. The recommended way to install Docker Compose is by installing a Docker Compose plugin on Docker Engine. For more information - [Docker Compose Reference](https://docs.docker.com/compose/reference/).
 
-1. Go to root `cmf` directory. 
-2. Replace `xxxx` with your user-name in docker-compose-server.yml available in the root cmf directory.
-    ```
-    ......
-    services:
-    server:
-      image: server:latest
-      volumes:
-         - /home/xxxx/cmf-server/data:/cmf-server/data                 # for example /home/hpe-user/cmf-server/data:/cmf-server/data
-         - /home/xxxx/cmf-server/data/static:/cmf-server/data/static   # for example /home/hpe-user/cmf-server/data/static:/cmf-server/data/static
-      container_name: cmf-server
-      build:
-    ....
-    ``` 
-3. Create a `.env` file in the same directory as `docker-compose-server.yml` and add the necessary environment variables.
-   ```
-   POSTGRES_USER: myuser
-   POSTGRES_PASSWORD: mypassword
-   POSTGRES_PORT: 5470
-   ``` 
-   > ⚠️**Warning:** Avoid using `@` character in `POSTGRES_PASSWORD` to prevent connection issues.
-4. Execute one of the following commands to start both containers. `IP` variable is the IP address and `hostname` is the host name of the machine on which you are executing the following command.
-   ```
-   IP=200.200.200.200 docker compose -f docker-compose-server.yml up
-              OR
-   hostname=host_name docker compose -f docker-compose-server.yml up
-   ```
-   > Replace `docker compose` with `docker-compose` for older versions.
-   > Also, you can adjust `$IP` in `docker-compose-server.yml` to reflect the server IP and run the `docker compose` command without specifying
-    IP=200.200.200.200.
-     ```
-     .......
-     environment:
-     REACT_APP_MY_IP: ${IP}
-     ......
-     ```
+- **Docker Proxy Settings**: Needed for some of the server packages
 
-5. Stop the containers.
-    ```
-      docker compose -f docker-compose-server.yml stop
-    ```
+    > Refer to the official Docker documentation for comprehensive instructions: [Configure the Docker Client for Proxy](https://docs.docker.com/network/proxy/#configure-the-docker-client).
 
-> It is necessary to rebuild images for cmf-server and ui-server after `cmf version update` or after pulling the latest cmf code from git.
+### Installation Steps
+
+**Step 1: Clone the GitHub Repository**
+
+```bash
+git clone https://github.com/HewlettPackard/cmf
+```
+
+**Step 2: Navigate to the CMF Directory**
+
+```bash
+cd cmf
+```
+
+**Step 3: Create Environment Configuration**
+
+Create a `.env` file in the same directory as `docker-compose-server.yml` with the following environment variables:
+
+```env
+CMF_DATA_DIR=./data                    
+NGINX_HTTP_PORT=80                  
+NGINX_HTTPS_PORT=443
+REACT_APP_CMF_API_URL=http://your-server-ip:80
+```
+
+> 📝 **Note:** 
+> - `CMF_DATA_DIR` controls where all data (PostgreSQL, TensorBoard logs, etc.) is stored. Use an absolute path for better control.
+> - `REACT_APP_CMF_API_URL` should point to your server's accessible address.
+
+**Step 4: Start the Containers**
+
+> 💡 **Recommended Approach:** Using `docker compose` starts the `CMF Server`, PostgreSQL database, and `CMF UI` together.
+> 
+> **Note:** It's essential to start the PostgreSQL database before the `CMF Server`.
+
+```bash
+docker compose -f docker-compose-server.yml up
+```
+
+> 📝 **Note:** Replace `docker compose` with `docker-compose` if you're using an older version of Docker.
+
+This command starts all services:
+
+- **PostgreSQL**: Database backend for metadata storage
+- **CMF Server**: API server for metadata management
+- **UI**: Web interface for visualization
+- **TensorBoard**: For viewing ML training metrics
+- **Nginx**: Reverse proxy serving all components
+
+#### Accessing the CMF UI
+
+Once the containers are successfully started, the CMF UI will be available at the URL specified in your `.env` file:
+
+```
+http://your-server-ip:80
+```
+
+Replace `your-server-ip` with the actual IP address or hostname configured in the `REACT_APP_CMF_API_URL` environment variable.
+
+> 📝 **Note:** Ensure that port 80 (or your configured `NGINX_HTTP_PORT`) is accessible and not blocked by firewall rules.
+
+**Step 5: Stop the Containers**
+
+```bash
+docker compose -f docker-compose-server.yml stop
+```
+
+#### Important Notes
+
+> 💡 **Rebuild Required:** 
+> Rebuild the images for `CMF Server` and `CMF UI` after a CMF version update or pulling the latest changes from Git to ensure compatibility.
+>
+> ```bash
+> docker compose -f docker-compose-server.yml build --no-cache
+> docker compose -f docker-compose-server.yml up
+> ```
 
 ---
 
+## Troubleshooting
 
+### Python 3.9 Installation Issues on Ubuntu
 
+If you are using Python 3.9 on Ubuntu systems, you may encounter installation or virtual environment issues.
 
+**Issue**: When creating Python 3.9 virtual environments, you may encounter:
+
+```
+ModuleNotFoundError: No module named 'distutils.cmd'
+```
+
+**Root Cause**: Python 3.9 may be missing required modules like `distutils` or `venv` when installed on Ubuntu systems.
+
+**Resolution**:
+
+1. Add the deadsnakes PPA (provides newer Python versions):
+   
+   ```bash
+   sudo add-apt-repository ppa:deadsnakes/ppa
+   sudo apt-get update
+   ```
+2. Install Python 3.9 with required modules:
+   
+   ```bash
+   sudo apt install python3.9 python3.9-dev python3.9-distutils python3.9-venv
+   ```
+3. Verify the installation:
+   
+   ```bash
+   python3.9 --version
+   python3.9 -m venv test_env
+   ```
+
+This ensures Python 3.9 and its essential modules are fully installed and functional.
+
+> 💡 **Recommendation:** If you're starting fresh, we recommend using Python 3.10 to avoid these compatibility issues.
+
+---
