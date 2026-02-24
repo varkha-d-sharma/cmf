@@ -19,9 +19,8 @@ import yaml
 import pandas as pd
 import typing as t
 import uuid
-from cmflib import cmfquery
-from cmflib import cmf
-from cmflib.utils.helper_functions import fetch_cmf_config_path
+from cmflib.cmfquery import CmfQuery
+from cmflib.cmf import Cmf
 
 
 """
@@ -63,7 +62,7 @@ args
     metawrite: cmf object 
 """
 tracked = {} #Used to keep a record of files tracked by outs and therefore not needed to be tracked in deps
-def ingest_metadata(execution_lineage:str, metadata:dict, metawriter:cmf.Cmf, command:str = "") :
+def ingest_metadata(execution_lineage:str, metadata:dict, metawriter:Cmf, command:str = "") :
     pipeline_name, context_name, execution = get_cmf_hierarchy(execution_lineage)
 
     _ = metawriter.create_execution(
@@ -72,27 +71,16 @@ def ingest_metadata(execution_lineage:str, metadata:dict, metawriter:cmf.Cmf, co
         cmd = str(command),
         create_new_execution=False
         )
-        
-    output, config_file_path = fetch_cmf_config_path()
 
     for k, v in metadata.items():
-        props={}
         if k == "deps":
-            print("deps")
             for dep in v:
                 metawriter.log_dataset_with_version(dep["path"], dep["md5"], "input")
                 if dep["path"] not in tracked:
                     metawriter.log_dataset(dep["path"], 'input')
         if k == "outs":
-            print("outs")
             for out in v:
-                md5_value = out["md5"] 
-                url = pipeline_name+":"+output["remote.local-storage.url"]+"/files/md5/"+md5_value[:2]+"/"+md5_value
-                # print(md5_value)
-                print("url", url)
-                props["url"] =  url
-                print("props", props)
-                metawriter.log_dataset_with_version(out["path"], md5_value, "output", props)
+                metawriter.log_dataset_with_version(out["path"], out["md5"], "output")
                 tracked[out["path"]] = True
 
 def find_location(string, elements):
@@ -103,7 +91,7 @@ def find_location(string, elements):
 
 #Query mlmd to get all the executions and its commands
 cmd_exe: t.Dict[str, str] = {}
-cmf_query = cmfquery.CmfQuery(args.cmf_filename)
+cmf_query = CmfQuery(args.cmf_filename)
 pipelines: t.List[str] = cmf_query.get_pipeline_names()
 for pipeline in pipelines:
     pipeline_name = pipeline
@@ -173,7 +161,7 @@ Create a unique Pipeline name if there is no mlmd file
 
 
 pipeline_name = "Pipeline"+"-"+str(uuid_) if not pipeline_name else pipeline_name
-metawriter = cmf.Cmf(filepath = "mlmd", pipeline_name=pipeline_name, graph=True)
+metawriter = Cmf(filepath = "mlmd", pipeline_name=pipeline_name, graph=True)
 
 """
 Parse the dvc.lock dictionary and get the command section
