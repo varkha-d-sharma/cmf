@@ -1,5 +1,3 @@
-### Use Case 4: Dataset Deduplication and Storage Optimization
-
 **Scenario**: A team runs 200 training experiments but only changes hyperparameters, not the input data. Without tracking, they may save 200 copies of the same dataset.
 
 **Without CMF**: Each experiment script saves its own copy of the processed dataset to a versioned folder (e.g., `data_run_001/`, `data_run_002/`). After 200 runs, terabytes of redundant data accumulate on shared storage. There is no programmatic way to determine which dataset files are identical, and deleting files risks breaking references in older notebooks.

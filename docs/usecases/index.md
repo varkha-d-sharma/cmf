@@ -72,7 +72,7 @@ Raw Data → Preprocessing → Feature Engineering → Model Training → Evalua
 | **Reproducibility** | Often broken; dependencies implicit | Full lineage: data + code + params per run |
 | **Data lineage** | Not tracked | Input/output artifact graph per stage |
 | **Collaboration** | Metadata siloed on individual machines | Push/pull metadata like Git branches |
-| **Distributed execution** | Separate logs per node; no consolidation | Unified metadata sync across edge, cloud, datacenter |
+| **Distributed execution** | Incompatible log formats per site; custom ETL required to consolidate metadata centrally | Metadata synced across CMF servers via the **Metahub** feature using push/pull metadata functionality |
 | **Model traceability** | Hard to link model back to training data | Every model artifact links to exact dataset hash + execution |
 | **Querying metadata** | Manual search through logs/files | `CmfQuery` API or Web UI for structured queries |
 | **Visualization** | Custom scripts or none | Built-in lineage graphs, Web UI dashboards |
