@@ -15,6 +15,7 @@
  ***/
 
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import FastAPIClient from "../../client";
 import config from "../../config";
 import DashboardHeader from "../../components/DashboardHeader";
@@ -23,6 +24,7 @@ import Footer from "../../components/Footer";
 const client = new FastAPIClient(config);
 
 const Home = () => {
+  const navigate = useNavigate();
   const [pipelines, setPipelines] = useState([]);
 
   useEffect(() => {
@@ -50,7 +52,8 @@ const Home = () => {
               {pipelines.map((pipeline, i) => (
                 <div
                   key={i}
-                  className="bg-white rounded-lg border-2 border-gray-200 transition-all duration-200 group"
+                  onClick={() => navigate(`/artifacts?pipeline=${encodeURIComponent(pipeline)}`)}
+                  className="bg-white rounded-lg border-2 border-gray-200 transition-all duration-200 group cursor-pointer hover:border-teal-500 hover:shadow-md"
                 >
                   {/* Card Header */}
                   <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">

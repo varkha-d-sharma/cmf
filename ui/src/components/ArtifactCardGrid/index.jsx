@@ -30,6 +30,8 @@ const ArtifactCardGrid = ({
     onLabelClick,
     onArtifactClick,
     isSplitView = false,
+    selectedItems = [],
+    onToggleItem,
 }) => {
     const [expandedCard, setExpandedCard] = useState(null);
     const [showModelPopup, setShowModelPopup] = useState(false);
@@ -143,13 +145,16 @@ const ArtifactCardGrid = ({
                 {artifacts.map((artifact, index) => (
                     <div
                         key={index}
-                        className={`bg-white rounded-lg border-2 border-gray-300 hover:border-teal-500 hover:shadow-lg transition-all duration-200 ${onArtifactClick ? 'cursor-pointer' : ''}`}
+                        className={`bg-white rounded-lg border-2 ${selectedItems.some(a => a.artifact_id === artifact.artifact_id)
+                                ? 'border-teal-500 shadow-lg'
+                                : 'border-gray-300 hover:border-teal-500 hover:shadow-lg'
+                            } transition-all duration-200 ${onArtifactClick ? 'cursor-pointer' : ''}`}
                         onClick={() => onArtifactClick && onArtifactClick(artifact)}
                     >
                         {/* Card Header */}
                         <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
-                            <div className="flex items-start justify-between">
-                                <div className="flex items-center gap-3 flex-1">
+                            <div className="flex items-start justify-between gap-2">
+                                <div className="flex items-center gap-3 flex-1 min-w-0">
                                     <div className="text-teal-600">
                                         {getArtifactIcon(artifactType)}
                                     </div>
@@ -181,6 +186,29 @@ const ArtifactCardGrid = ({
                                         </h3>
                                     </div>
                                 </div>
+                                {onToggleItem && (
+                                    <input
+                                        type="checkbox"
+                                        title={
+                                            selectedItems.some(a => a.artifact_id === artifact.artifact_id)
+                                                ? "Deselect"
+                                                : selectedItems.length >= 5
+                                                    ? "Max 5 items can be selected"
+                                                    : "Select for comparison"
+                                        }
+                                        checked={selectedItems.some(a => a.artifact_id === artifact.artifact_id)}
+                                        disabled={
+                                            !selectedItems.some(a => a.artifact_id === artifact.artifact_id) &&
+                                            selectedItems.length >= 5
+                                        }
+                                        onChange={() => { }}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onToggleItem(artifact);
+                                        }}
+                                        className="w-4 h-4 mt-1 flex-shrink-0 accent-teal-600 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
+                                    />
+                                )}
                             </div>
                         </div>
 
@@ -229,7 +257,7 @@ const ArtifactCardGrid = ({
                                         {getPropertyValue(artifact.artifact_properties, "Commit") !== "N/A" && (
                                             <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-green-50 border border-green-200 rounded-md">
                                                 <svg className="w-3.5 h-3.5 text-green-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                                    <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+                                                    <path fillRule="evenodd" d="M10 6a4 4 0 100 8 4 4 0 000-8zM2 9a1 1 0 000 2h4.126a6 6 0 000-2H2zm11.874 0a6 6 0 000 2H18a1 1 0 100-2h-4.126z" clipRule="evenodd" />
                                                 </svg>
                                                 <span className="text-xs text-green-700 font-mono truncate" title={getPropertyValue(artifact.artifact_properties, "Commit")}>
                                                     <Highlight text={getPropertyValue(artifact.artifact_properties, "Commit")} highlight={filterValue} />

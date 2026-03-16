@@ -23,6 +23,7 @@ import Sidebar from "../../components/Sidebar";
 import ExecutionCard from "../../components/ExecutionPostgresGrid/ExecutionCard";
 import ExecutionDetailDrawer from "../../components/ExecutionPostgresGrid/ExecutionDetailDrawer";
 import PaginationControls from "../../components/PaginationControls";
+import CompareModal from "../../components/CompareModal";
 import "./index.css";
 
 const client = new FastAPIClient(config);
@@ -41,6 +42,10 @@ const ExecutionsPostgresGrid = () => {
     const [filter, setFilter] = useState("");
     const [sortOrder, setSortOrder] = useState("desc");
     const [selectedExecution, setSelectedExecution] = useState(null);
+
+    // Compare feature
+    const [selectedExecutions, setSelectedExecutions] = useState([]);
+    const [showCompareModal, setShowCompareModal] = useState(false);
 
     // ── Fetch pipelines on mount ──────────────────────────────────────────
     useEffect(() => {
@@ -96,6 +101,7 @@ const ExecutionsPostgresGrid = () => {
         setExecutions([]);
         setActivePage(1);
         setSelectedExecution(null);
+        setSelectedExecutions([]);
     };
 
     const handleStageClick = (stage) => {
@@ -103,6 +109,7 @@ const ExecutionsPostgresGrid = () => {
         setExecutions([]);
         setActivePage(1);
         setSelectedExecution(null);
+        setSelectedExecutions([]);
     };
 
     const handlePageClick = (page) => {
@@ -121,6 +128,15 @@ const ExecutionsPostgresGrid = () => {
     const handleFilter = (value) => {
         setFilter(value);
         setActivePage(1);
+    };
+
+    const handleToggleExecution = (execution) => {
+        setSelectedExecutions((prev) => {
+            const isAlreadySelected = prev.some(e => e.execution_id === execution.execution_id);
+            if (isAlreadySelected) return prev.filter(e => e.execution_id !== execution.execution_id);
+            if (prev.length >= 5) return prev;
+            return [...prev, execution];
+        });
     };
 
     // ── Render ────────────────────────────────────────────────────────────
@@ -187,8 +203,29 @@ const ExecutionsPostgresGrid = () => {
                                                 className="px-3 py-2 border border-gray-300 rounded-lg text-sm font-bold text-gray-700 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 cursor-pointer"
                                             >
                                                 <option value="time__asc">Time: Oldest First ↑</option>
-                                                <option value="time__desc">Time: Newest First ↓</option>
+                                                <option value="time__desc">Time: Latest First ↓</option>
                                             </select>
+
+                                            <button
+                                                onClick={() => setShowCompareModal(true)}
+                                                disabled={selectedExecutions.length < 2}
+                                                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border transition-all shadow-sm ${selectedExecutions.length >= 2
+                                                        ? 'bg-teal-600 text-white border-teal-600 hover:bg-teal-700'
+                                                        : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                                                    }`}
+                                                title={selectedExecutions.length < 2 ? 'Select at least 2 executions to compare' : `Compare ${selectedExecutions.length} executions`}
+                                            >
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                                </svg>
+                                                Compare{selectedExecutions.length >= 2 ? ` (${selectedExecutions.length})` : ''}
+                                            </button>
+
+                                            {selectedExecutions.length > 0 && (
+                                                <span className="text-xs text-gray-500">
+                                                    {selectedExecutions.length}/5 selected
+                                                </span>
+                                            )}
 
                                             <div className="relative ml-auto w-64">
                                                 <input
@@ -232,6 +269,8 @@ const ExecutionsPostgresGrid = () => {
                                                         execution={execution}
                                                         filterValue={filter}
                                                         onCardClick={setSelectedExecution}
+                                                        isSelected={selectedExecutions.some(e => e.execution_id === execution.execution_id)}
+                                                        onToggle={handleToggleExecution}
                                                     />
                                                 ))}
                                             </div>
@@ -287,6 +326,15 @@ const ExecutionsPostgresGrid = () => {
                 <ExecutionDetailDrawer
                     execution={selectedExecution}
                     onClose={() => setSelectedExecution(null)}
+                />
+            )}
+
+            {/* Compare Modal */}
+            {showCompareModal && selectedExecutions.length >= 2 && (
+                <CompareModal
+                    items={selectedExecutions}
+                    itemType="execution"
+                    onClose={() => setShowCompareModal(false)}
                 />
             )}
         </>

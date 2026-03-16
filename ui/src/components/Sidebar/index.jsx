@@ -16,7 +16,7 @@
 
 // Sidebar.js
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
 // Human-readable labels for lineage type keys
 const LINEAGE_LABELS = {
@@ -68,6 +68,16 @@ const Sidebar = ({
   handlePipelineClick,
 }) => {
   const [expandedPipeline, setExpandedPipeline] = useState(0);
+
+  // Sync expanded pipeline with selectedPipeline prop (e.g. when navigating from home)
+  useEffect(() => {
+    if (selectedPipeline && pipelines.length > 0) {
+      const idx = pipelines.indexOf(selectedPipeline);
+      if (idx !== -1) {
+        setExpandedPipeline(idx);
+      }
+    }
+  }, [selectedPipeline, pipelines]);
 
   const isLineageMode = Array.isArray(lineageTypes) && lineageTypes.length > 0;
 

@@ -15,6 +15,7 @@
  ***/
 
 import React, { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import FastAPIClient from "../../client";
 import config from "../../config";
 import DashboardHeader from "../../components/DashboardHeader";
@@ -26,11 +27,13 @@ import Sidebar from "../../components/Sidebar";
 import LabelContentPanel from "./components/LabelContentPanel";
 import ResizableSplitPane from "../../components/ResizableSplitPane";
 import PaginationControls from "../../components/PaginationControls";
+import CompareModal from "../../components/CompareModal";
 import Papa from "papaparse";
 
 const client = new FastAPIClient(config);
 
 const ArtifactsPostgresNew = () => {
+    const [searchParams] = useSearchParams();
     const [selectedPipeline, setSelectedPipeline] = useState(null);
     const [pipelines, setPipelines] = useState([]);
     const [stages, setStages] = useState([]);
@@ -57,6 +60,10 @@ const ArtifactsPostgresNew = () => {
     const [labelCurrentPage, setLabelCurrentPage] = useState(0);
     const [labelRowsPerPage, setLabelRowsPerPage] = useState(10);
 
+    // Compare feature
+    const [selectedArtifacts, setSelectedArtifacts] = useState([]);
+    const [showCompareModal, setShowCompareModal] = useState(false);
+
     useEffect(() => {
         fetchPipelines();
     }, []);
@@ -64,7 +71,10 @@ const ArtifactsPostgresNew = () => {
     const fetchPipelines = () => {
         client.getPipelines("").then((data) => {
             setPipelines(data);
-            if (data.length > 0) {
+            const pipelineParam = searchParams.get("pipeline");
+            if (pipelineParam && data.includes(pipelineParam)) {
+                setSelectedPipeline(pipelineParam);
+            } else if (data.length > 0) {
                 setSelectedPipeline(data[0]);
             }
         });
@@ -144,6 +154,7 @@ const ArtifactsPostgresNew = () => {
         setSelectedArtifactType(null);
         setArtifacts([]);
         setActivePage(1);
+        setSelectedArtifacts([]);
     };
 
     const handleStageClick = (stage) => {
@@ -151,6 +162,7 @@ const ArtifactsPostgresNew = () => {
         setSelectedArtifactType(null);
         setArtifacts([]);
         setActivePage(1);
+        setSelectedArtifacts([]);
     };
 
     const handleArtifactTypeClick = (artifactType) => {
@@ -164,6 +176,7 @@ const ArtifactsPostgresNew = () => {
         }
         setSelectedArtifactType(artifactType);
         setActivePage(1);
+        setSelectedArtifacts([]);
     };
 
     const handleArtifactCardClick = (artifact) => {
@@ -173,6 +186,15 @@ const ArtifactsPostgresNew = () => {
     const handleFilter = (value) => {
         setFilter(value);
         setActivePage(1);
+    };
+
+    const handleToggleArtifact = (artifact) => {
+        setSelectedArtifacts((prev) => {
+            const isAlreadySelected = prev.some(a => a.artifact_id === artifact.artifact_id);
+            if (isAlreadySelected) return prev.filter(a => a.artifact_id !== artifact.artifact_id);
+            if (prev.length >= 5) return prev;
+            return [...prev, artifact];
+        });
     };
 
     const handlePageClick = (page) => {
@@ -300,8 +322,29 @@ const ArtifactsPostgresNew = () => {
                                                 <option value="name__asc">Name: A → Z ↑</option>
                                                 <option value="name__desc">Name: Z → A ↓</option>
                                                 <option value="create_time_since_epoch__asc">Time: Oldest First ↑</option>
-                                                <option value="create_time_since_epoch__desc">Time: Newest First ↓</option>
+                                                <option value="create_time_since_epoch__desc">Time: Latest First ↓</option>
                                             </select>
+
+                                            <button
+                                                onClick={() => setShowCompareModal(true)}
+                                                disabled={selectedArtifacts.length < 2}
+                                                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border transition-all shadow-sm ${selectedArtifacts.length >= 2
+                                                        ? 'bg-teal-600 text-white border-teal-600 hover:bg-teal-700'
+                                                        : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                                                    }`}
+                                                title={selectedArtifacts.length < 2 ? 'Select at least 2 artifacts to compare' : `Compare ${selectedArtifacts.length} artifacts`}
+                                            >
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                                </svg>
+                                                Compare{selectedArtifacts.length >= 2 ? ` (${selectedArtifacts.length})` : ''}
+                                            </button>
+
+                                            {selectedArtifacts.length > 0 && (
+                                                <span className="text-xs text-gray-500">
+                                                    {selectedArtifacts.length}/5 selected
+                                                </span>
+                                            )}
 
                                             <div className="relative ml-auto w-64">
                                                 <input
@@ -352,8 +395,8 @@ const ArtifactsPostgresNew = () => {
                                                                 filterValue={filter}
                                                                 onLabelClick={handleLabelClick}
                                                                 onArtifactClick={handleArtifactCardClick}
-                                                                isSplitView={true}
-                                                            />
+                                                                isSplitView={true} selectedItems={selectedArtifacts}
+                                                                onToggleItem={handleToggleArtifact} />
                                                             <PaginationControls
                                                                 totalItems={totalItems}
                                                                 activePage={activePage}
@@ -399,6 +442,8 @@ const ArtifactsPostgresNew = () => {
                                                         artifactType={selectedArtifactType}
                                                         filterValue={filter}
                                                         onArtifactClick={handleArtifactCardClick}
+                                                        selectedItems={selectedArtifacts}
+                                                        onToggleItem={handleToggleArtifact}
                                                     />
                                                     <PaginationControls
                                                         totalItems={totalItems}
@@ -447,6 +492,15 @@ const ArtifactsPostgresNew = () => {
                     artifact={selectedArtifact}
                     artifactType={selectedArtifactType}
                     onClose={() => setSelectedArtifact(null)}
+                />
+            )}
+
+            {/* Compare Modal */}
+            {showCompareModal && selectedArtifacts.length >= 2 && (
+                <CompareModal
+                    items={selectedArtifacts}
+                    itemType="artifact"
+                    onClose={() => setShowCompareModal(false)}
                 />
             )}
         </>
