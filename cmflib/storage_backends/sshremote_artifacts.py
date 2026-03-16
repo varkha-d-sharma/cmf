@@ -197,7 +197,7 @@ class SSHremoteArtifacts:
         download_loc: str,
     ):
         """
-        Download an artifact directory from the remote SSH storage via SFTP.
+        Download an artifact directory with its files from the remote SSH storage via SFTP.
 
         DVC represents tracked directories as a special `.dir` metadata file.
         That file contains a JSON list of entries, each with:
@@ -206,8 +206,8 @@ class SSHremoteArtifacts:
                         addressable store under <repo>/files/md5/<xx>/<rest>
 
         This method:
-          1. Downloads the `.dir` manifest to a temporary location.
-          2. Parses the manifest to discover all member files.
+          1. Downloads the `.dir` with its files to a temporary location.
+          2. Parses the `.dir` file to discover all member files.
           3. Downloads each member file into the correct sub-path.
           4. Returns counts of total vs successfully downloaded files.
 
@@ -220,7 +220,7 @@ class SSHremoteArtifacts:
             Local working directory used to resolve relative paths.
             e.g. "/home/user/project"
         object_name : str
-            Full absolute path to the `.dir` manifest file on the remote server.
+            Full absolute path to the `.dir` file on the remote server.
             e.g. "/home/user/ssh-storage/files/md5/dd/2d792b7cf6efb02231f85c6147e403.dir"
         download_loc : str
             Local destination directory for all extracted files (may be absolute or relative).
@@ -230,11 +230,11 @@ class SSHremoteArtifacts:
         -------
         tuple(int, int, bool)
             (total_files_in_directory, files_downloaded, success)
-            - total_files_in_directory : number of files listed in the .dir manifest
+            - total_files_in_directory : number of files listed in the .dir file
             - files_downloaded         : number of files successfully transferred
             - success                  : True  if every file was downloaded successfully
                                          False if one or more files failed, or if the
-                                               .dir manifest itself could not be fetched
+                                               .dir file itself could not be fetched
                                                (in which case total_files_in_directory=1)
         """
         dir_path = ""
@@ -258,22 +258,22 @@ class SSHremoteArtifacts:
         # a folder, so the local target must also be a folder).
         os.makedirs(abs_download_loc, mode=0o777, exist_ok=True)
 
-        # Temporary path used to hold the downloaded .dir manifest file before
-        # it is parsed.  It is removed immediately after reading.
+        # Temporary path used to hold the downloaded .dir file before
+        # it is parsed. It is removed immediately after reading.
         temp_dir = f"{abs_download_loc}/temp_dir"
         files_downloaded = 0
         total_files_in_directory = 0
         try:
             sftp = self._get_connection(host)
 
-            # Step 1: Download the .dir manifest file from the remote server.
-            # The manifest is a JSON list like:
+            # Step 1: Download the .dir with its file from the remote server.
+            # The file is a JSON list like:
             #   [{"md5": "a237457aa730c396e5acdbc5a64c8453", "relpath": "train.csv"}, ...]
             sftp.get(object_name, temp_dir)
             with open(temp_dir, 'r') as file:
-                tracked_files = eval(file.read())  # Parse the JSON manifest
+                tracked_files = eval(file.read())  # Parse the JSON list
 
-            # Step 2: Clean up the temporary manifest file — it is no longer needed.
+            # Step 2: Clean up the temporary .dir file — it is no longer needed.
             if os.path.exists(temp_dir):
                 os.remove(temp_dir)
 
@@ -287,10 +287,7 @@ class SSHremoteArtifacts:
             #   repo_path     = "/home/user/ssh-storage/files/md5"
             repo_path = "/".join(object_name.split("/")[:-2])
 
-            total_files_in_directory = 0
-            files_downloaded = 0
-
-            # Step 4: Iterate over every file recorded in the .dir manifest and
+            # Step 4: Iterate over every file recorded in the .dir file and
             # download each one individually.
             for file_info in tracked_files:
                 total_files_in_directory += 1
@@ -298,8 +295,7 @@ class SSHremoteArtifacts:
                 md5_val = file_info['md5']       # MD5 hash used to locate the file in the store
 
                 # DVC stores content-addressed files using the first 2 hex characters
-                # of the hash as a subdirectory to avoid storing too many files in a
-                # single directory.
+                # of the hash as a subdirectory.
                 # e.g. md5_val = "a237457aa730c396e5acdbc5a64c8453"
                 #      formatted_md5 = "a2/37457aa730c396e5acdbc5a64c8453"
                 formatted_md5 = md5_val[:2] + '/' + md5_val[2:]
@@ -313,23 +309,27 @@ class SSHremoteArtifacts:
                 temp_object_name = f"{repo_path}/{formatted_md5}"
 
                 try:
+                    remote_file_size = sftp.stat(temp_object_name).st_size
                     sftp.get(temp_object_name, temp_download_loc)
-                    files_downloaded += 1
-                    logger.info(f"object {temp_object_name} downloaded at {temp_download_loc}.")
+                    # Integrity check: confirm the downloaded file size matches the remote size.
+                    if os.stat(temp_download_loc).st_size == remote_file_size:
+                        files_downloaded += 1
+                        logger.info(f"object {temp_object_name} downloaded at {temp_download_loc}.")
+                    else:
+                        logger.error(f"object {temp_object_name} is not fully downloaded: size mismatch.")
                 except Exception as e:
                     logger.error(f"object {temp_object_name} is not downloaded. Error: {e}")
 
-            # Return success only when every file in the manifest was downloaded.
+            # Return success only when every file in the .dir file was downloaded.
             if (total_files_in_directory - files_downloaded) == 0:
                 return total_files_in_directory, files_downloaded, True
             return total_files_in_directory, files_downloaded, False
 
         except Exception as e:
-            # This outer exception catches failures that happen before or during
-            # the manifest download (e.g. the .dir file itself does not exist on
-            # the remote, or the SFTP connection dropped).
+            # Catches fatal errors during directory download.
             logger.error(f"object {object_name} is not downloaded. Error: {e}")
-            # We treat the .dir manifest as 1 "file" so the caller can correctly
-            # report that 1 item failed to download.
+            # We usually don't count .dir as a file while counting total_files_in_directory.
+            # However, here we failed to download the .dir folder itself. 
+            # So we need to make, total_files_in_directory = 1
             total_files_in_directory = 1
             return total_files_in_directory, files_downloaded, False
