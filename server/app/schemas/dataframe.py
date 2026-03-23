@@ -134,6 +134,6 @@ class ScheduleCreateRequest(BaseModel):
 
 class ScheduleUpdateRequest(BaseModel):
     schedule_id: int = Field(..., description="Schedule id to update")
-    timezone: Optional[str] = Field(None, description="IANA timezone")
+    timezone: str = Field("UTC", description="IANA timezone")
     start_time_local_iso: Optional[str] = Field(None, description="Local ISO datetime")
     one_time: Optional[bool] = Field(None, description="Toggle one-time behavior")
