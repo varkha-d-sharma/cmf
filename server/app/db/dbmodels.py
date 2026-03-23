@@ -1,6 +1,7 @@
 from sqlalchemy import(
     Table,
     Column,
+    ForeignKey,
     Integer,
     BigInteger,
     Text,
@@ -187,6 +188,7 @@ event = Table(
     UniqueConstraint("artifact_id", "execution_id", "type", name="uniqueevent") 
 )
 
+
 registered_servers = Table(
     "registered_servers", metadata,
     Column("id", Integer, primary_key=True, autoincrement=True, nullable=False),
@@ -194,18 +196,17 @@ registered_servers = Table(
     Column("host_info", String(255), unique=True, nullable=False), 
     Column("last_sync_time", BigInteger, nullable=True, default=None),
 
-
     # indexes for registered_servers
     Index("idx_registered_servers_host_info", "host_info"),
     Index("idx_registered_servers_server_name", "server_name")
 )
 
+
 # Schedules for periodic syncs
 scheduled_syncs = Table(
     "scheduled_syncs", metadata,
     Column("id", Integer, primary_key=True, autoincrement=True, nullable=False),
-    Column("server_id", Integer, nullable=False),
-    Column("times_per_day", Integer, nullable=False),
+    Column("server_id", Integer, ForeignKey("registered_servers.id"), nullable=False),
     Column("timezone", String(255), nullable=False),
     Column("start_time_utc", BigInteger, nullable=False),
     Column("next_run_time_utc", BigInteger, nullable=False),
@@ -217,6 +218,7 @@ scheduled_syncs = Table(
     Column("recurrence_mode", String(64), nullable=True),  # 'interval', 'daily', 'weekly'
     Column("interval_unit", String(64), nullable=True),  # 'minutes', 'hours'
     Column("interval_value", Integer, nullable=True),  # e.g., 6 for "every 6 hours"
+    Column("daily_time", String(16), nullable=True),  # 'HH:MM' format
     Column("weekly_day", String(64), nullable=True),  # 'monday', 'tuesday', etc.
     Column("weekly_time", String(16), nullable=True),  # 'HH:MM' format
 
@@ -227,11 +229,12 @@ scheduled_syncs = Table(
     Index("idx_scheduled_syncs_one_time", "one_time")
 )
 
+
 # Logs of sync executions
 sync_logs = Table(
     "sync_logs", metadata,
     Column("id", Integer, primary_key=True, autoincrement=True, nullable=False),
-    Column("schedule_id", Integer, nullable=False),
+    Column("schedule_id", Integer, ForeignKey("scheduled_syncs.id"), nullable=False),
     Column("run_time_utc", BigInteger, nullable=False),
     Column("status", String(64), nullable=False),
     Column("message", Text, nullable=True),

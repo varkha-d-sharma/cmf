@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import Depends
 from server.app.db.dbconfig import get_db
-from sqlalchemy import select, func, text, String, bindparam, case, distinct, insert, update, delete
+from sqlalchemy import select, func, text, String, bindparam, case, distinct, insert, update
 from server.app.db.dbmodels import (
     artifact, 
     artifactproperty, 
@@ -351,7 +351,6 @@ async def fetch_executions(
 async def create_schedule(
     db: AsyncSession, 
     server_id: int, 
-    times_per_day: int, 
     timezone: str, 
     start_time_utc: int, 
     next_run_time_utc: int, 
@@ -360,12 +359,12 @@ async def create_schedule(
     recurrence_mode: str = None,
     interval_unit: str = None,
     interval_value: int = None,
+    daily_time: str = None,
     weekly_day: str = None,
     weekly_time: str = None
 ):
     query = insert(scheduled_syncs).values(
         server_id=server_id,
-        times_per_day=times_per_day,
         timezone=timezone,
         start_time_utc=start_time_utc,
         next_run_time_utc=next_run_time_utc,
@@ -376,6 +375,7 @@ async def create_schedule(
         recurrence_mode=recurrence_mode,
         interval_unit=interval_unit,
         interval_value=interval_value,
+        daily_time=daily_time,
         weekly_day=weekly_day,
         weekly_time=weekly_time,
     ).returning(scheduled_syncs.c.id)
@@ -447,7 +447,6 @@ async def get_completed_logs_by_server(db: AsyncSession, server_id: int, limit: 
 async def update_schedule_fields(
     db: AsyncSession,
     schedule_id: int,
-    times_per_day: int | None = None,
     timezone: str | None = None,
     start_time_utc: int | None = None,
     next_run_time_utc: int | None = None,
@@ -456,8 +455,6 @@ async def update_schedule_fields(
     status: str | None = None,
 ):
     values = {}
-    if times_per_day is not None:
-        values[scheduled_syncs.c.times_per_day] = times_per_day
     if timezone is not None:
         values[scheduled_syncs.c.timezone] = timezone
     if start_time_utc is not None:
@@ -481,13 +478,14 @@ async def update_schedule_fields(
 
 
 async def delete_schedule(db: AsyncSession, schedule_id: int):
-    # Delete dependent logs first
-    await db.execute(delete(sync_logs).where(sync_logs.c.schedule_id == schedule_id))
-    # Delete the schedule
-    result = await db.execute(delete(scheduled_syncs).where(scheduled_syncs.c.id == schedule_id))
+    query = (
+        update(scheduled_syncs)
+        .where(scheduled_syncs.c.id == schedule_id)
+        .values(active=False, status="cancelled")
+    )
+    await db.execute(query)
     await db.commit()
-    # result.rowcount may be None depending on dialect; return a generic message
-    return {"message": "Schedule deleted"}
+    return {"message": "Schedule deactivated"}
 
 
 async def get_sync_status(db: AsyncSession, server_name: str, server_url: str):
