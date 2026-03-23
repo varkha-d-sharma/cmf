@@ -42,18 +42,27 @@ function RegisteredServers({ serverList }) {
   const [completedLogs, setCompletedLogs] = useState({}); // per-server completed logs data
   const [scheduledLogs, setScheduledLogs] = useState({}); // per-server scheduled logs data
 
-  // Auto-refresh scheduled logs every 10 seconds for servers with open scheduled logs section
+  // Auto-refresh visible logs every 10 seconds for servers with open sections
   useEffect(() => {
     const interval = setInterval(() => {
-      Object.keys(showScheduledLogs).forEach((serverId) => {
+      const serverIds = new Set([
+        ...Object.keys(showScheduledLogs),
+        ...Object.keys(showCompletedLogs),
+      ]);
+
+      serverIds.forEach((serverId) => {
+        const numericServerId = parseInt(serverId, 10);
         if (showScheduledLogs[serverId]) {
-          fetchScheduledLogs(parseInt(serverId));
+          fetchScheduledLogs(numericServerId);
+        }
+        if (showCompletedLogs[serverId]) {
+          fetchCompletedLogs(numericServerId);
         }
       });
     }, 10000); // Refresh every 10 seconds
 
     return () => clearInterval(interval);
-  }, [showScheduledLogs]);
+  }, [showScheduledLogs, showCompletedLogs]);
 
   const toggleSection = (serverId, section, setState, onOpen) => {
     const newState = !section[serverId];
@@ -100,17 +109,17 @@ function RegisteredServers({ serverList }) {
     }
   };
 
-  // Delete scheduled sync
+  // Deactivate a scheduled sync while preserving its completed log history
   const handleDeleteScheduledSync = async (serverId, scheduleId) => {
-    if (window.confirm('Are you sure you want to delete this scheduled sync?')) {
+    if (window.confirm('Are you sure you want to stop this scheduled sync? Existing log history will be kept.')) {
       try {
         await client.deleteSchedule(scheduleId);
-        // Refresh the scheduled logs after deletion
         await fetchScheduledLogs(serverId);
-        alert('Scheduled sync deleted successfully');
+        await fetchCompletedLogs(serverId);
+        alert('Scheduled sync stopped successfully');
       } catch (error) {
-        console.error('Error deleting scheduled sync:', error);
-        alert('Failed to delete scheduled sync');
+        console.error('Error stopping scheduled sync:', error);
+        alert('Failed to stop scheduled sync');
       }
     }
   };
@@ -118,19 +127,23 @@ function RegisteredServers({ serverList }) {
   // Handle schedule creation
   const handleScheduleSync = async (serverId, scheduleData) => {
     try {
-      // Delete existing schedules for this server
+      // Deactivate existing active schedules for this server so their history remains visible
       const existingSchedules = scheduledLogs[serverId] || [];
       for (const schedule of existingSchedules) {
+        // Soft-delete old schedules before creating a new one for this server.
         await client.deleteSchedule(schedule.id).catch(err =>
-          console.error(`Error deleting schedule ${schedule.id}:`, err)
+          console.error(`Error stopping schedule ${schedule.id}:`, err)
         );
       }
 
+      // Forward selected scheduling options from PeriodicSyncPicker to backend.
       const { timezone, startTimeLocalIso, one_time, recurrenceMode, intervalUnit, intervalValue, dailyTime, weeklyDay, weeklyTime } = scheduleData;
       await client.scheduleSync(serverId, timezone, startTimeLocalIso, one_time, recurrenceMode, intervalUnit, intervalValue, dailyTime, weeklyDay, weeklyTime);
 
       alert('Schedule created successfully!');
+      // Refresh both panels to reflect latest schedule state and preserved history.
       await fetchScheduledLogs(serverId);
+      await fetchCompletedLogs(serverId);
       setActiveSyncMode((prev) => ({ ...prev, [serverId]: null }));
     } catch (error) {
       console.error('Error creating schedule:', error);

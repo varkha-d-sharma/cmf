@@ -47,11 +47,11 @@ function addMinutes(date, minutes) {
   return new Date(date.getTime() + minutes * 60000);
 }
 
-export default function PeriodicSyncPicker({ serverId, serverName, onSchedule, mode = 'periodic' }) {
-  // Memoize timezone options to avoid rebuilding the entire list (hundreds of timezones) on every render
+function PeriodicSyncPicker({ serverId, serverName, onSchedule, mode = 'periodic' }) {
+  // useMemo keeps the computed timezone list stable so we do not rebuild hundreds of options every render.
   const tzOptions = useMemo(() => buildTimeZoneOptions(), []);
 
-  // Memoize default timezone detection to avoid repeated browser API calls on every render
+  // useMemo runs browser timezone detection once for this component instance.
   const defaultTZ = useMemo(() => getLocalTimeZone(), []);
 
   const [timezone, setTimezone] = useState(defaultTZ);
@@ -66,15 +66,13 @@ export default function PeriodicSyncPicker({ serverId, serverName, onSchedule, m
   const [recurrenceMode, setRecurrenceMode] = useState('interval'); // interval | daily | weekly
   const [intervalUnit, setIntervalUnit] = useState('hours'); // minutes | hours
   const [intervalValue, setIntervalValue] = useState(6);
-  const [dailyTime, setDailyTime] = useState('09:00'); // Time for daily sync
   const [weeklyDay, setWeeklyDay] = useState('monday'); // Day for weekly sync
-  const [weeklyTime, setWeeklyTime] = useState('09:00'); // Time for weekly sync
 
-  // Memoize Date object creation to avoid unnecessary re-creation when startLocal hasn't changed
+  // useMemo recreates Date only when startLocal changes, keeping dependencies predictable.
   const startDate = useMemo(() => new Date(startLocal), [startLocal]);
 
-  // Memoize expensive preview calculation (generates 5 future dates with timezone conversions)
-  // Only recalculates when mode, dates, or recurrence settings change
+  // useMemo caches preview computation (multiple date calculations/timezone formatting inputs)
+  // and recalculates only when schedule inputs change.
   const preview = useMemo(() => {
     if (mode === 'one-time') {
       return [new Date(startDate)];
@@ -117,7 +115,8 @@ export default function PeriodicSyncPicker({ serverId, serverName, onSchedule, m
       };
 
       const targetDay = dayMap[weeklyDay.toLowerCase()];
-      const [hours, minutes] = weeklyTime.split(':').map(Number);
+      const hours = startDate.getHours();
+      const minutes = startDate.getMinutes();
 
       // Start from current date/time as reference (not startDate)
       const now = new Date();
@@ -147,17 +146,16 @@ export default function PeriodicSyncPicker({ serverId, serverName, onSchedule, m
       return out;
     }
     return [];
-  }, [mode, startDate, recurrenceMode, intervalUnit, intervalValue, dailyTime, weeklyDay, weeklyTime]);
+  }, [mode, startDate, recurrenceMode, intervalUnit, intervalValue, weeklyDay]);
 
-  // Memoize past time validation to avoid creating Date objects and comparing on every render
+  // useMemo avoids repeated date parsing/comparison unless the selected datetime changes.
   const isPastTime = useMemo(() => {
     const selectedDateTime = new Date(startLocal);
     const now = new Date();
     return selectedDateTime < now;
   }, [startLocal]);
 
-  // Memoize form validation to avoid running all validation checks on every render
-  // Only revalidates when form fields actually change
+  // useMemo recalculates submit eligibility only when relevant form state changes.
   const canSubmit = useMemo(() => {
     if (!serverId || !serverName) return false;
     if (!timezone) return false;
@@ -165,11 +163,11 @@ export default function PeriodicSyncPicker({ serverId, serverName, onSchedule, m
     if (isPastTime) return false; // Prevent past times
     if (mode === 'periodic') {
       if (recurrenceMode === 'interval') return intervalValue > 0;
-      if (recurrenceMode === 'daily') return dailyTime !== '';
-      if (recurrenceMode === 'weekly') return weeklyDay !== '' && weeklyTime !== '';
+      if (recurrenceMode === 'daily') return true;
+      if (recurrenceMode === 'weekly') return weeklyDay !== '';
     }
     return true;
-  }, [serverId, serverName, timezone, startLocal, isPastTime, mode, recurrenceMode, intervalValue, dailyTime, weeklyDay, weeklyTime]);
+  }, [serverId, serverName, timezone, startLocal, isPastTime, mode, recurrenceMode, intervalValue, weeklyDay]);
 
   const handleSubmit = async () => {
     // Guard against invalid form submission and prevent multiple submissions
@@ -196,10 +194,10 @@ export default function PeriodicSyncPicker({ serverId, serverName, onSchedule, m
           scheduleData.intervalUnit = intervalUnit;
           scheduleData.intervalValue = intervalValue;
         } else if (recurrenceMode === 'daily') {
-          scheduleData.dailyTime = dailyTime;
+          scheduleData.dailyTime = startLocal.slice(11, 16);
         } else if (recurrenceMode === 'weekly') {
           scheduleData.weeklyDay = weeklyDay;
-          scheduleData.weeklyTime = weeklyTime;
+          scheduleData.weeklyTime = startLocal.slice(11, 16);
         }
       }
 
@@ -341,3 +339,5 @@ export default function PeriodicSyncPicker({ serverId, serverName, onSchedule, m
     </div>
   );
 }
+
+export default PeriodicSyncPicker;
