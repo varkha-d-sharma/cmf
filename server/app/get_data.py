@@ -4,10 +4,19 @@ import zipfile
 import httpx
 import pandas as pd
 import typing as t
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from fastapi import HTTPException
 from jsonpath_ng.ext import parse
 from cmflib.cmfquery import CmfQuery
 from fastapi.concurrency import run_in_threadpool
+from sqlalchemy.ext.asyncio import AsyncSession
+from server.app.db.dbqueries import (
+    create_schedule,
+    update_schedule_fields,
+    log_sync_run,
+    get_registered_server_by_name_url,
+)
 
 #Converts sync functions to async
 async def async_api(function_to_async, query: CmfQuery, *argv):
@@ -293,6 +302,182 @@ async def server_mlmd_pull(server_url, last_sync_time):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch mlmd data: {e}")
+
+
+async def log_sync_attempt(
+    status: str,
+    message: str,
+    db: AsyncSession,
+    server_name: str,
+    server_url: str,
+    current_utc_epoch_time: int,
+    skip_logging: bool,
+):
+    # Log the sync attempt in the database with status and message.
+    # When scheduler already writes logs, skip to avoid duplicate entries.
+    if skip_logging:
+        return
+    try:
+        server_row = await get_registered_server_by_name_url(db, server_name, server_url)
+        if server_row:
+            created = await create_schedule(
+                db,
+                server_id=server_row["id"],
+                timezone="UTC",
+                start_time_utc=current_utc_epoch_time,
+                next_run_time_utc=current_utc_epoch_time,
+                created_at=current_utc_epoch_time,
+                one_time=True,
+            )
+            await update_schedule_fields(
+                db,
+                schedule_id=created["id"],
+                active=False,
+                status="completed",
+            )
+            await log_sync_run(
+                db,
+                schedule_id=created["id"],
+                run_time_utc=current_utc_epoch_time,
+                status=status,
+                message=message,
+                sync_type="sync_now",
+            )
+    except Exception as log_error:
+        print(f"Immediate sync logging error: {log_error}")
+
+
+DAY_NAME_TO_WEEKDAY = {
+    "monday": 0,
+    "tuesday": 1,
+    "wednesday": 2,
+    "thursday": 3,
+    "friday": 4,
+    "saturday": 5,
+    "sunday": 6,
+}
+
+
+def get_timezone(timezone: str) -> ZoneInfo:
+    """Return a safe timezone object for periodic sync calculations.
+    """
+    try:
+        return ZoneInfo(timezone)
+    except Exception:
+        return ZoneInfo("UTC")
+
+
+def parse_schedule_time(value: t.Optional[str], field_name: str) -> tuple[int, int]:
+    """Parse HH:MM time strings used by daily and weekly periodic sync rules."""
+    try:
+        parsed = datetime.strptime(value or "", "%H:%M")
+    except ValueError as exc:
+        raise ValueError(f"{field_name} must use HH:MM format") from exc
+    return parsed.hour, parsed.minute
+
+
+async def compute_next_run_from_recurrence(
+    current_run_utc_ms: int,
+    timezone: str,
+    recurrence_mode: str,
+    interval_unit: t.Optional[str] = None,
+    interval_value: t.Optional[int] = None,
+    daily_time: t.Optional[str] = None,
+    weekly_day: t.Optional[str] = None,
+    weekly_time: t.Optional[str] = None,
+    strict_after: bool = True,
+) -> int:
+    """Compute the next periodic sync run time from the stored recurrence rule.
+
+    This is used after each periodic execution so interval/daily/weekly
+    schedules continue with their exact user-defined behavior.
+
+    Example:
+    If a job runs now at Monday 10:00 (local timezone):
+    - interval every 30 minutes -> next run is Monday 10:30
+    - daily at 09:00 -> next run is Tuesday 09:00
+    - weekly on friday at 15:00 -> next run is Friday 15:00
+    """
+    tz = get_timezone(timezone)
+    current_dt_utc = datetime.fromtimestamp(current_run_utc_ms / 1000.0, tz=ZoneInfo("UTC"))
+    current_dt_local = current_dt_utc.astimezone(tz)
+
+    if recurrence_mode == "interval":
+        if interval_unit == "minutes" and interval_value:
+            next_dt_local = current_dt_local + timedelta(minutes=interval_value)
+        elif interval_unit == "hours" and interval_value:
+            next_dt_local = current_dt_local + timedelta(hours=interval_value)
+        else:
+            raise ValueError("Interval schedules require interval_unit and interval_value")
+    elif recurrence_mode == "daily":
+        hours, minutes = parse_schedule_time(daily_time, "daily_time")
+        next_dt_local = current_dt_local.replace(hour=hours, minute=minutes, second=0, microsecond=0)
+        if (strict_after and next_dt_local <= current_dt_local) or (not strict_after and next_dt_local < current_dt_local):
+            next_dt_local += timedelta(days=1)
+    elif recurrence_mode == "weekly":
+        target_weekday = DAY_NAME_TO_WEEKDAY.get((weekly_day or "").lower())
+        if target_weekday is None:
+            raise ValueError("Weekly schedules require a valid weekly_day")
+        hours, minutes = parse_schedule_time(weekly_time, "weekly_time")
+        next_dt_local = current_dt_local.replace(hour=hours, minute=minutes, second=0, microsecond=0)
+        days_until_target = (target_weekday - next_dt_local.weekday()) % 7
+        if days_until_target == 0 and ((strict_after and next_dt_local <= current_dt_local) or (not strict_after and next_dt_local < current_dt_local)):
+            days_until_target = 7
+        next_dt_local += timedelta(days=days_until_target)
+    else:
+        raise ValueError(f"Unsupported recurrence mode: {recurrence_mode}")
+
+    next_dt_utc = next_dt_local.astimezone(ZoneInfo("UTC"))
+    return int(next_dt_utc.timestamp() * 1000)
+
+
+async def compute_initial_next_run_utc(
+    start_utc_ms: int,
+    now_utc_ms: int,
+    timezone: str,
+    recurrence_mode: str,
+    interval_unit: t.Optional[str] = None,
+    interval_value: t.Optional[int] = None,
+    daily_time: t.Optional[str] = None,
+    weekly_day: t.Optional[str] = None,
+    weekly_time: t.Optional[str] = None,
+) -> int:
+    """Compute the first due time when a periodic schedule is created.
+
+    This ensures new schedules start at the correct next valid recurrence
+    point based on start time, timezone, and recurrence mode.
+
+    Example:
+    If user creates schedule at Monday 10:00 (local timezone):
+    - interval every 2 hours with past start -> first due is next 2-hour slot
+    - daily at 09:00 -> first due is Tuesday 09:00
+    - weekly on friday at 15:00 -> first due is upcoming Friday 15:00
+    """
+    if recurrence_mode == "interval":
+        if start_utc_ms > now_utc_ms:
+            return start_utc_ms
+        if interval_unit == "minutes" and interval_value:
+            interval_ms = interval_value * 60 * 1000
+        elif interval_unit == "hours" and interval_value:
+            interval_ms = interval_value * 60 * 60 * 1000
+        else:
+            raise ValueError("Interval schedules require interval_unit and interval_value")
+        elapsed = now_utc_ms - start_utc_ms
+        steps = (elapsed // interval_ms) + 1
+        return start_utc_ms + (steps * interval_ms)
+
+    reference_utc_ms = max(start_utc_ms, now_utc_ms)
+    return await compute_next_run_from_recurrence(
+        reference_utc_ms,
+        timezone,
+        recurrence_mode,
+        interval_unit=interval_unit,
+        interval_value=interval_value,
+        daily_time=daily_time,
+        weekly_day=weekly_day,
+        weekly_time=weekly_time,
+        strict_after=False,
+    )
 
 
 """ Old implemenation of fetching executions """
