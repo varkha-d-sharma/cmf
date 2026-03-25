@@ -22,7 +22,6 @@ import DashboardHeader from "../../components/DashboardHeader";
 import ArtifactCardGrid from "../../components/ArtifactCardGrid";
 import ArtifactDetailDrawer from "../../components/ArtifactCardGrid/ArtifactDetailDrawer";
 import Footer from "../../components/Footer";
-import "./index.css";
 import Sidebar from "../../components/Sidebar";
 import LabelContentPanel from "./components/LabelContentPanel";
 import ResizableSplitPane from "../../components/ResizableSplitPane";
