@@ -24,7 +24,6 @@ import ExecutionCard from "../../components/ExecutionPostgresGrid/ExecutionCard"
 import ExecutionDetailDrawer from "../../components/ExecutionPostgresGrid/ExecutionDetailDrawer";
 import PaginationControls from "../../components/PaginationControls";
 import CompareModal from "../../components/CompareModal";
-import "./index.css";
 
 const client = new FastAPIClient(config);
 
@@ -146,7 +145,7 @@ const ExecutionsPostgresGrid = () => {
                 <DashboardHeader />
                 <div className="flex flex-row flex-grow">
                     {/* Sidebar */}
-                    <div className="sidebar-container min-h-screen bg-gray-50 w-1/5 flex-grow-0 shadow-sm border-r border-gray-200">
+                    <div className="min-h-screen bg-gray-50 w-1/5 flex-grow-0 shadow-sm border-r border-gray-200">
                         <Sidebar
                             pipelines={pipelines}
                             selectedPipeline={selectedPipeline}
