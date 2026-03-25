@@ -68,8 +68,6 @@ const Home = () => {
                       </h3>
                     </div>
                   </div>
-
-                  {/* Card Footer removed - cards are display only */}
                 </div>
               ))}
             </div>
@@ -92,4 +90,3 @@ const Home = () => {
 };
 
 export default Home;
-
