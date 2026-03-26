@@ -1,5 +1,5 @@
 /***
- * Copyright (2023) Hewlett Packard Enterprise Development LP
+ * Copyright (2026) Hewlett Packard Enterprise Development LP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * You may not use this file except in compliance with the License.
@@ -77,7 +77,7 @@ const CompareModal = ({ items, itemType, onClose }) => {
                         </h2>
                         <p className="text-sm text-gray-500">
                             {items.length} item{items.length !== 1 ? "s" : ""} selected
-                            &nbsp;·&nbsp;
+                            &nbsp;:&nbsp;
                             <span className="text-yellow-600 font-medium">Yellow rows</span> indicate differing values
                         </p>
                     </div>
@@ -98,22 +98,6 @@ const CompareModal = ({ items, itemType, onClose }) => {
                 {/* Table */}
                 <div className="overflow-auto flex-1 p-6">
                     <table className="w-full border-collapse text-sm">
-                        <thead className="sticky top-0 z-20">
-                            <tr>
-                                <th className="text-left px-4 py-3 bg-gray-100 border border-gray-200 w-44 font-semibold text-gray-700 sticky left-0 z-30">
-                                </th>
-                                {items.map((item, idx) => (
-                                    <th
-                                        key={idx}
-                                        className="text-left px-4 py-3 bg-teal-50 border border-gray-200 font-semibold text-teal-700 min-w-[200px] max-w-[260px]"
-                                    >
-                                        <span className="block truncate" title={getItemTitle(item)}>
-                                            {getItemTitle(item)}
-                                        </span>
-                                    </th>
-                                ))}
-                            </tr>
-                        </thead>
                         <tbody>
                             {/* Core fields */}
                             {coreFields.map(({ label, fn }) => (

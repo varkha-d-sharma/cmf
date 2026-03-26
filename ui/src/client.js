@@ -239,9 +239,9 @@ class FastAPIClient {
       });
   }
 
-  async getArtifactStages(pipelineName) {
+  async getPipelineStages(pipelineName) {
     return this.apiClient
-      .get(`/artifact-stages/${pipelineName}`)
+      .get(`/pipeline-stages/${pipelineName}`)
       .then(({ data }) => {
         return data;
       });

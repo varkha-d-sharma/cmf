@@ -41,6 +41,11 @@ class ArtifactRequest(BaseRequest):
     sort_field: str = Field("name", description="Column to sort by (default: name)")
 
 
+class ArtifactByStageRequest(ArtifactRequest):
+    stage_name: str = Field(..., description="Stage name (Context_Type value)")
+    artifact_type: str = Field(..., description="Artifact type to filter")
+
+
 # Define a Pydantic model for the request body
 class ServerRegistrationRequest(BaseModel):
     server_name: str

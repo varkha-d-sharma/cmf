@@ -31,7 +31,7 @@ import Papa from "papaparse";
 
 const client = new FastAPIClient(config);
 
-const ArtifactsPostgresNew = () => {
+const ArtifactsPostgres = () => {
     const [searchParams] = useSearchParams();
     const [selectedPipeline, setSelectedPipeline] = useState(null);
     const [pipelines, setPipelines] = useState([]);
@@ -81,18 +81,19 @@ const ArtifactsPostgresNew = () => {
 
     useEffect(() => {
         if (selectedPipeline) {
-            fetchArtifactStages(selectedPipeline);
+            fetchStagesByPipelineName(selectedPipeline);
         }
     }, [selectedPipeline]);
 
-    const fetchArtifactStages = (pipelineName) => {
-        client.getArtifactStages(pipelineName).then((data) => {
+    // Fetch stages from the backend for the selected pipeline name.
+    const fetchStagesByPipelineName = (pipeline_name) => {
+        client.getPipelineStages(pipeline_name).then((data) => {
             console.log("Artifact Stages Data:", data);
             const allStages = data.stages || [];
             setStages(allStages);
             setTotalStages(data.total_stages || 0);
 
-            // Auto-select first stage
+            // Auto-select the first returned stage.
             if (allStages.length > 0) {
                 setSelectedStage(allStages[0]);
             } else {
@@ -134,6 +135,7 @@ const ArtifactsPostgresNew = () => {
         }
     }, [selectedArtifactType, sortOrder, activePage, selectedCol, filter]);
 
+    // Fetch artifacts from the backend based on selected pipeline, stage, and artifact type, along with pagination, sorting, and filtering parameters.
     const fetchArtifactsByStage = (pipelineName, stageName, artifactType, sortOrder, activePage, filter = "", selectedCol) => {
         client.getArtifactsByStage(pipelineName, stageName, artifactType, sortOrder, activePage, 6, filter, selectedCol)
             .then((data) => {
@@ -328,8 +330,8 @@ const ArtifactsPostgresNew = () => {
                                                 onClick={() => setShowCompareModal(true)}
                                                 disabled={selectedArtifacts.length < 2}
                                                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border transition-all shadow-sm ${selectedArtifacts.length >= 2
-                                                        ? 'bg-teal-600 text-white border-teal-600 hover:bg-teal-700'
-                                                        : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                                                    ? 'bg-teal-600 text-white border-teal-600 hover:bg-teal-700'
+                                                    : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
                                                     }`}
                                                 title={selectedArtifacts.length < 2 ? 'Select at least 2 artifacts to compare' : `Compare ${selectedArtifacts.length} artifacts`}
                                             >
@@ -506,4 +508,4 @@ const ArtifactsPostgresNew = () => {
     );
 };
 
-export default ArtifactsPostgresNew;
+export default ArtifactsPostgres;

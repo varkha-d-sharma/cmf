@@ -64,7 +64,6 @@ async def get_sync_status(db: AsyncSession, server_name: str, server_url: str):
     return result.mappings().all()
 
 
-
 async def update_sync_status(db: AsyncSession, current_utc_time: int, server_name: str, server_url: str):
     """
     Update the sync status in the database.
@@ -376,6 +375,57 @@ def _get_pipeline_execution_ids_subquery(pipeline_name: str):
     return relevant_contexts, execution_ids_query
 
 
+async def _get_stage_artifact_ids(
+    db: AsyncSession,
+    pipeline_name: str,
+    stage_name: str,
+):
+    """
+    Resolve artifact IDs for artifacts produced or consumed by executions in a
+    given pipeline stage.
+
+    Returns:
+        List of artifact IDs associated with the pipeline and stage.
+    """
+    relevant_contexts, pipeline_execution_ids = _get_pipeline_execution_ids_subquery(pipeline_name)
+
+    # Fail fast if the pipeline has no related contexts.
+    result = await db.execute(select(relevant_contexts.c.context_id))
+    context_ids = result.scalars().all()
+    if not context_ids:
+        return []
+
+    execution_ids_with_stage = (
+        select(
+            distinct(executionproperty.c.execution_id).label("execution_id")
+        )
+        .where(
+            executionproperty.c.name == "Context_Type"
+        )
+        .where(
+            executionproperty.c.string_value == stage_name
+        )
+        .where(
+            executionproperty.c.execution_id.in_(select(pipeline_execution_ids.c.execution_id))
+        )
+        .subquery("execution_ids_with_stage")
+    )
+
+    result = await db.execute(select(execution_ids_with_stage.c.execution_id))
+    execution_ids = result.scalars().all()
+    if not execution_ids:
+        return []
+
+    artifact_ids_cte = (
+        select(distinct(event.c.artifact_id).label("artifact_id"))
+        .where(event.c.execution_id.in_(execution_ids))
+        .cte("artifact_ids_cte")
+    )
+
+    result = await db.execute(select(artifact_ids_cte.c.artifact_id))
+    return result.scalars().all()
+
+
 async def fetch_unique_execution_stages(
     db: AsyncSession,
     pipeline_name: str
@@ -427,7 +477,7 @@ async def fetch_executions_by_stage(
     pipeline_name: str,
     stage_name: str,
     active_page: int = 1,
-    record_per_page: int = 6,
+    record_per_page: int = 5,
     sort_order: str = "DESC",
     filter_value: str = ""
 ):
@@ -580,6 +630,7 @@ async def fetch_artifacts_by_stage(
     filter_value: str = "",
     active_page: int = 1,
     page_size: int = 5,
+    record_per_page: int | None = None,
     sort_column: str = "name",
     sort_order: str = "ASC"
 ):
@@ -593,72 +644,21 @@ async def fetch_artifacts_by_stage(
         artifact_type: Type of artifacts to fetch
         filter_value: Search filter value
         active_page: Page number for pagination
-        page_size: Number of records per page
+        page_size: Number of records per page (legacy name)
+        record_per_page: Number of records per page (preferred name)
         sort_column: Column to sort by
         sort_order: Sort order (ASC or DESC)
         
     Returns:
         Dictionary with total_items and items list
     """
-    # Step 1: Get relevant contexts
-    relevant_contexts_cte = select(
-        parentcontext.c.context_id
-    ).join(
-        context, parentcontext.c.parent_context_id == context.c.id
-    ).where(
-        context.c.name == pipeline_name
-    ).cte("relevant_contexts_cte")
-
-    # Early check: are there any relevant contexts for the given pipeline?
-    res = await db.execute(select(relevant_contexts_cte.c.context_id))
-    context_ids = res.scalars().all()
-    if not context_ids:
-        return {"total_items": 0, "items": []}
-
-    # Step 2: Fetch execution IDs for the pipeline with the specified stage
-    execution_ids_with_stage_cte = (
-        select(
-            execution.c.id.label("execution_id")
-        )
-        .join(
-            association, execution.c.id == association.c.execution_id
-        )
-        .join(
-            executionproperty, execution.c.id == executionproperty.c.execution_id
-        )
-        .where(
-            association.c.context_id.in_(context_ids)
-        )
-        .where(
-            executionproperty.c.name == "Context_Type"
-        )
-        .where(
-            executionproperty.c.string_value == stage_name
-        )
-        .group_by(execution.c.id)
-        .cte("execution_ids_with_stage_cte")
-    )
-
-    # Fetch execution IDs
-    res = await db.execute(select(execution_ids_with_stage_cte.c.execution_id))
-    execution_ids = res.scalars().all()
-    if not execution_ids:
-        return {"total_items": 0, "items": []}
-
-    # Step 3: Based on execution ids list, fetch artifact lists from event table
-    artifact_ids_cte = (
-        select(distinct(event.c.artifact_id).label("artifact_id"))
-        .where(event.c.execution_id.in_(execution_ids))
-        .cte("artifact_ids_cte")
-    )
-
-    # Fetch all artifact IDs for the relevant executions
-    res = await db.execute(select(artifact_ids_cte.c.artifact_id))
-    artifact_ids = res.scalars().all()
+    artifact_ids = await _get_stage_artifact_ids(db, pipeline_name, stage_name)
     if not artifact_ids:
         return {"total_items": 0, "items": []}
 
-    # Step 4: Aggregate artifact properties into JSON
+    effective_page_size = record_per_page if record_per_page is not None else page_size
+
+    # Step 1: Aggregate artifact properties into JSON.
     artifact_properties_agg_cte = (
         select(
             artifactproperty.c.artifact_id,
@@ -682,7 +682,7 @@ async def fetch_artifacts_by_stage(
         .subquery()
     )
 
-    # Step 5: Filter by artifact type and apply search filter
+    # Step 2: Filter by artifact type and prepare the base artifact set.
     artifact_type_cte = (
         select(
             artifact.c.id.label("artifact_id"),
@@ -701,10 +701,9 @@ async def fetch_artifacts_by_stage(
         .cte("artifact_type_cte")
     )
 
-    # Count total records
+    # Step 3: Count total filtered records.
     count_query = select(func.count(distinct(artifact_type_cte.c.artifact_id)))
     if filter_value:
-        # Apply filter if provided
         artifact_with_filter = (
             select(artifact_type_cte.c.artifact_id)
             .outerjoin(
@@ -729,7 +728,7 @@ async def fetch_artifacts_by_stage(
     
     total_records = count_result.scalar() or 0
 
-    # Step 6: Build final query with pagination and sorting
+    # Step 4: Build final query with pagination and sorting.
     if sort_column == "name":
         sort_col = artifact_type_cte.c.name
         sort_direction = func.lower(sort_col).asc() if sort_order.upper() == "ASC" else func.lower(sort_col).desc()
@@ -752,7 +751,6 @@ async def fetch_artifacts_by_stage(
         )
     )
 
-    # Apply filter if provided
     if filter_value:
         final_query = final_query.where(
             func.concat(
@@ -768,8 +766,8 @@ async def fetch_artifacts_by_stage(
     final_query = (
         final_query
         .order_by(sort_direction)
-        .limit(page_size)
-        .offset((active_page - 1) * page_size)
+        .limit(effective_page_size)
+        .offset((active_page - 1) * effective_page_size)
     )
 
     result = await db.execute(final_query)
@@ -780,6 +778,7 @@ async def fetch_artifacts_by_stage(
         "total_items": total_records,
         "items": [dict(row) for row in rows]
     }
+
 
 async def fetch_artifact_types_by_stage(
     db: AsyncSession,
@@ -797,65 +796,11 @@ async def fetch_artifact_types_by_stage(
     Returns:
         List of unique artifact type names
     """
-    # Step 1: Get relevant contexts for the pipeline
-    relevant_contexts_cte = select(
-        parentcontext.c.context_id
-    ).join(
-        context, parentcontext.c.parent_context_id == context.c.id
-    ).where(
-        context.c.name == pipeline_name
-    ).cte("relevant_contexts_cte")
-
-    # Check if there are any relevant contexts
-    res = await db.execute(select(relevant_contexts_cte.c.context_id))
-    context_ids = res.scalars().all()
-    if not context_ids:
-        return []
-
-    # Step 2: Fetch execution IDs for the pipeline with the specified stage
-    execution_ids_with_stage_cte = (
-        select(
-            execution.c.id.label("execution_id")
-        )
-        .join(
-            association, execution.c.id == association.c.execution_id
-        )
-        .join(
-            executionproperty, execution.c.id == executionproperty.c.execution_id
-        )
-        .where(
-            association.c.context_id.in_(context_ids)
-        )
-        .where(
-            executionproperty.c.name == "Context_Type"
-        )
-        .where(
-            executionproperty.c.string_value == stage_name
-        )
-        .group_by(execution.c.id)
-        .cte("execution_ids_with_stage_cte")
-    )
-
-    # Fetch execution IDs
-    res = await db.execute(select(execution_ids_with_stage_cte.c.execution_id))
-    execution_ids = res.scalars().all()
-    if not execution_ids:
-        return []
-
-    # Step 3: Get artifact IDs associated with these executions
-    artifact_ids_cte = (
-        select(distinct(event.c.artifact_id).label("artifact_id"))
-        .where(event.c.execution_id.in_(execution_ids))
-        .cte("artifact_ids_cte")
-    )
-
-    # Fetch artifact IDs
-    res = await db.execute(select(artifact_ids_cte.c.artifact_id))
-    artifact_ids = res.scalars().all()
+    artifact_ids = await _get_stage_artifact_ids(db, pipeline_name, stage_name)
     if not artifact_ids:
         return []
 
-    # Step 4: Get unique artifact types
+    # Step 1: Get unique artifact types.
     artifact_types_query = (
         select(distinct(type_table.c.name).label("artifact_type"))
         .join(
@@ -870,7 +815,6 @@ async def fetch_artifact_types_by_stage(
         .order_by("artifact_type")
     )
 
-    # Execute the query
     result = await db.execute(artifact_types_query)
     artifact_types = result.scalars().all()
 

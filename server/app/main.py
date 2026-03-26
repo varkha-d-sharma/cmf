@@ -50,6 +50,7 @@ from server.app.schemas.dataframe import (
     AcknowledgeRequest,
     MLMDPullRequest,
     ArtifactRequest,
+    ArtifactByStageRequest,
     ExecutionRequest,
 )
 import httpx
@@ -267,8 +268,8 @@ async def get_executions_by_stage(
     return await fetch_executions_by_stage(db, pipeline_name, stage_name, active_page, record_per_page, sort_order, filter_value)
 
 
-@app.get("/artifact-stages/{pipeline_name}")
-async def get_artifact_stages(
+@app.get("/pipeline-stages/{pipeline_name}")
+async def get_pipeline_stages(
     pipeline_name: str,
     db: AsyncSession = Depends(get_db)
 ):
@@ -316,13 +317,7 @@ async def get_artifact_types_by_stage(
 @app.get("/artifacts-by-stage/{pipeline_name}")
 async def get_artifacts_by_stage(
     pipeline_name: str,
-    stage_name: str = Query(..., description="Stage name (Context_Type value)"),
-    artifact_type: str = Query(..., description="Artifact type to filter"),
-    sort_order: str = Query("asc", description="Sort order (asc or desc)"),
-    active_page: int = Query(1, description="Page number", gt=0),
-    record_per_page: int = Query(5, description="Records per page", gt=0),
-    filter_value: str = Query("", description="Search filter value"),
-    sort_field: str = Query("name", description="Field to sort by (name or create_time_since_epoch)"),
+    query_params: ArtifactByStageRequest = Depends(),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -354,6 +349,14 @@ async def get_artifacts_by_stage(
         ]
     }
     """
+    stage_name = query_params.stage_name
+    artifact_type = query_params.artifact_type
+    filter_value = query_params.filter_value
+    active_page = query_params.active_page
+    record_per_page = query_params.record_per_page
+    sort_field = query_params.sort_field
+    sort_order = query_params.sort_order
+
     return await fetch_artifacts_by_stage(
         db=db,
         pipeline_name=pipeline_name,
@@ -361,7 +364,7 @@ async def get_artifacts_by_stage(
         artifact_type=artifact_type,
         filter_value=filter_value,
         active_page=active_page,
-        page_size=record_per_page,
+        record_per_page=record_per_page,
         sort_column=sort_field,
         sort_order=sort_order
     )
