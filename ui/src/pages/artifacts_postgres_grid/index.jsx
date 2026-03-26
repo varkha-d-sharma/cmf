@@ -20,7 +20,7 @@ import FastAPIClient from "../../client";
 import config from "../../config";
 import DashboardHeader from "../../components/DashboardHeader";
 import ArtifactCardGrid from "../../components/ArtifactCardGrid";
-import ArtifactDetailDrawer from "../../components/ArtifactCardGrid/ArtifactDetailDrawer";
+import DetailDrawer from "../../components/DetailDrawer";
 import Footer from "../../components/Footer";
 import Sidebar from "../../components/Sidebar";
 import LabelContentPanel from "./components/LabelContentPanel";
@@ -248,6 +248,42 @@ const ArtifactsPostgres = () => {
             setLabelColumns([]);
         });
     };
+
+    const artifactDetailProperties = selectedArtifact
+        ? (Array.isArray(selectedArtifact.artifact_properties)
+            ? selectedArtifact.artifact_properties
+            : (() => {
+                try {
+                    return JSON.parse(selectedArtifact.artifact_properties || "[]");
+                } catch {
+                    return [];
+                }
+            })())
+        : [];
+
+    const getArtifactDetailProperty = (name) => {
+        const matchedValues = artifactDetailProperties
+            .filter((property) => property.name === name)
+            .map((property) => property.value);
+        return matchedValues.length > 0 ? matchedValues.join(", ") : "N/A";
+    };
+
+    const formatArtifactDetailDate = (timestamp) => {
+        if (!timestamp || timestamp === "N/A") return "N/A";
+        try {
+            return new Date(parseInt(timestamp)).toLocaleString();
+        } catch {
+            return timestamp;
+        }
+    };
+
+    const artifactDetailSummaryFields = selectedArtifact ? [
+        { label: "Type", value: selectedArtifactType, color: "teal" },
+        { label: "URI", value: selectedArtifact.uri, color: "blue" },
+        { label: "Created", value: formatArtifactDetailDate(selectedArtifact.create_time_since_epoch), color: "indigo" },
+        { label: "Git Repo", value: getArtifactDetailProperty("git_repo"), color: "purple" },
+        { label: "Commit", value: getArtifactDetailProperty("Commit"), color: "green" },
+    ] : [];
 
     return (
         <>
@@ -489,9 +525,11 @@ const ArtifactsPostgres = () => {
 
             {/* Artifact detail drawer */}
             {selectedArtifact && (
-                <ArtifactDetailDrawer
-                    artifact={selectedArtifact}
-                    artifactType={selectedArtifactType}
+                <DetailDrawer
+                    title="Artifact Details"
+                    subtitle={<>ID: <span className="font-mono font-semibold">{selectedArtifact.artifact_id || "—"}</span></>}
+                    summaryFields={artifactDetailSummaryFields}
+                    allProperties={artifactDetailProperties}
                     onClose={() => setSelectedArtifact(null)}
                 />
             )}
