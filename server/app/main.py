@@ -210,29 +210,6 @@ async def execution(request: Request,
     return await fetch_executions(db, pipeline_name, filter_value, active_page, record_per_page, sort_field, sort_order)
     
 
-@app.get("/execution-stages/{pipeline_name}")
-async def get_execution_stages(
-    pipeline_name: str,
-    db: AsyncSession = Depends(get_db)
-):
-    """
-    Retrieve unique execution stages (Context_Type values) for a given pipeline.
-    
-    Args:
-        pipeline_name: Name of the pipeline to get stages from
-        
-    Returns:
-        Dictionary with pipeline_name, list of unique stages, and total count
-        
-    Example response:
-    {
-        "stages": ["Test-env/Prepare", "Test-env/Train", "Test-env/Evaluate"],
-        "total_stages": 3
-    }
-    """
-    return await fetch_unique_execution_stages(db, pipeline_name)
-
-
 @app.get("/executions-by-stage/{pipeline_name}")
 async def get_executions_by_stage(
     pipeline_name: str,
