@@ -54,26 +54,28 @@ class FastAPIClient {
     return client;
   }
 
-  async getArtifacts(pipeline_name, artifact_type, sort_order, active_page, filter_value, sort_field) {
-    return this.apiClient
-      .get(`/artifacts/${pipeline_name}/${artifact_type}`, {
-        params: {
-          filter_value: filter_value,
-          sort_order: sort_order,
-          active_page: active_page,
-          sort_field: sort_field,
-        },
-      })
-      .then(({ data }) => {
-        return data;
-      });
-  }
+  // Deprecated legacy methods (unused by current stage-based grid pages).
+  // Replaced by: getArtifactsByStage / getArtifactTypesByStage
+  // async getArtifacts(pipeline_name, artifact_type, sort_order, active_page, filter_value, sort_field) {
+  //   return this.apiClient
+  //     .get(`/artifacts/${pipeline_name}/${artifact_type}`, {
+  //       params: {
+  //         filter_value: filter_value,
+  //         sort_order: sort_order,
+  //         active_page: active_page,
+  //         sort_field: sort_field,
+  //       },
+  //     })
+  //     .then(({ data }) => {
+  //       return data;
+  //     });
+  // }
 
-  async getArtifactTypes() {
-    return this.apiClient.get(`/artifact_types`).then(({ data }) => {
-      return data;
-    });
-  }
+  // async getArtifactTypes() {
+  //   return this.apiClient.get(`/artifact_types`).then(({ data }) => {
+  //     return data;
+  //   });
+  // }
 
   async getArtifactLineage(pipeline) {
     return this.apiClient
@@ -123,19 +125,21 @@ class FastAPIClient {
       });
   }
 
-  async getExecutions(pipeline_name, active_page, filter_value, sort_order) {
-    return this.apiClient
-      .get(`/executions/${pipeline_name}`, {
-        params: {
-          active_page: active_page,
-          filter_value: filter_value,
-          sort_order: sort_order,
-        },
-      }).
-      then(({ data }) => {
-        return data;
-      });
-  }
+  // Deprecated legacy method (unused by current stage-based grid pages).
+  // Replaced by: getExecutionsByStage
+  // async getExecutions(pipeline_name, active_page, filter_value, sort_order) {
+  //   return this.apiClient
+  //     .get(`/executions/${pipeline_name}`, {
+  //       params: {
+  //         active_page: active_page,
+  //         filter_value: filter_value,
+  //         sort_order: sort_order,
+  //       },
+  //     }).
+  //     then(({ data }) => {
+  //       return data;
+  //     });
+  // }
 
   async getPipelines(value) {
     try {

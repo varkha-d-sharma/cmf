@@ -29,8 +29,6 @@ from server.app.query_artifact_lineage_d3tree import query_artifact_lineage_d3tr
 from server.app.query_visualization_artifact_execution import query_visualization_artifact_execution
 from server.app.db.dbconfig import get_db, init_db
 from server.app.db.dbqueries import (
-    fetch_artifacts,
-    fetch_executions,
     fetch_unique_execution_stages,
     fetch_executions_by_stage,
     fetch_artifacts_by_stage,
@@ -49,9 +47,7 @@ from server.app.schemas.dataframe import (
     ServerRegistrationRequest, 
     AcknowledgeRequest,
     MLMDPullRequest,
-    ArtifactRequest,
     ArtifactByStageRequest,
-    ExecutionRequest,
     ExecutionByStageRequest,
 )
 import httpx
@@ -175,39 +171,42 @@ async def mlmd_pull(info: MLMDPullRequest):
     return json_payload
 
 
-@app.get("/artifacts/{pipeline_name}/{artifact_type}")
-async def get_artifacts(
-    pipeline_name: str, 
-    artifact_type: str, 
-    query_params: ArtifactRequest = Depends(),
-    db: AsyncSession = Depends(get_db)
-):
+# Deprecated legacy endpoint (unused by current grid UI).
+# Stage-based endpoint replacement: /artifacts-by-stage/{pipeline_name}
+# @app.get("/artifacts/{pipeline_name}/{artifact_type}")
+# async def get_artifacts(
+#     pipeline_name: str,
+#     artifact_type: str,
+#     query_params: ArtifactRequest = Depends(),
+#     db: AsyncSession = Depends(get_db)
+# ):
+#
+#     filter_value = query_params.filter_value
+#     active_page = query_params.active_page
+#     sort_field = query_params.sort_field
+#     sort_order = query_params.sort_order
+#     record_per_page = query_params.record_per_page
+#
+#     """Retrieve paginated artifacts with filtering, sorting, and full-text search."""
+#     return await fetch_artifacts(db, pipeline_name, artifact_type, filter_value, active_page, record_per_page, sort_field, sort_order)
 
-    filter_value = query_params.filter_value
-    active_page = query_params.active_page
-    sort_field = query_params.sort_field
-    sort_order = query_params.sort_order
-    record_per_page = query_params.record_per_page
 
-    """Retrieve paginated artifacts with filtering, sorting, and full-text search."""
-    return await fetch_artifacts(db, pipeline_name, artifact_type, filter_value, active_page, record_per_page, sort_field, sort_order)
-
-
-# api to display executions available in mlmd file[from postgres]
-@app.get("/executions/{pipeline_name}")
-async def execution(request: Request,
-                   pipeline_name: str,
-                   query_params: ExecutionRequest = Depends(),
-                   db: AsyncSession = Depends(get_db)
-                   ):
-    filter_value = query_params.filter_value
-    active_page = query_params.active_page
-    sort_order = query_params.sort_order
-    sort_field = query_params.sort_field
-    record_per_page = query_params.record_per_page
-
-    """Retrieve paginated executions with filtering, sorting, and full-text search."""
-    return await fetch_executions(db, pipeline_name, filter_value, active_page, record_per_page, sort_field, sort_order)
+# Deprecated legacy endpoint (unused by current grid UI).
+# Stage-based endpoint replacement: /executions-by-stage/{pipeline_name}
+# @app.get("/executions/{pipeline_name}")
+# async def execution(request: Request,
+#                    pipeline_name: str,
+#                    query_params: ExecutionRequest = Depends(),
+#                    db: AsyncSession = Depends(get_db)
+#                    ):
+#     filter_value = query_params.filter_value
+#     active_page = query_params.active_page
+#     sort_order = query_params.sort_order
+#     sort_field = query_params.sort_field
+#     record_per_page = query_params.record_per_page
+#
+#     """Retrieve paginated executions with filtering, sorting, and full-text search."""
+#     return await fetch_executions(db, pipeline_name, filter_value, active_page, record_per_page, sort_field, sort_order)
     
 
 @app.get("/executions-by-stage/{pipeline_name}")
