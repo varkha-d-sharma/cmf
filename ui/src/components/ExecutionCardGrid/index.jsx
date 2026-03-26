@@ -1,8 +1,24 @@
+/***
+ * Copyright (2023) Hewlett Packard Enterprise Development LP
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * You may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ ***/
+
 import React, { useState } from "react";
-import Highlight from "../../Highlight";
-import FastAPIClient from "../../../client";
-import config from "../../../config";
-import PythonEnvPopup from "../../PythonEnvPopup";
+import Highlight from "../Highlight";
+import FastAPIClient from "../../client";
+import config from "../../config";
+import PythonEnvPopup from "../PythonEnvPopup";
 
 const client = new FastAPIClient(config);
 
@@ -68,9 +84,9 @@ const ExecutionCard = ({ execution, filterValue, onCardClick, isSelected = false
         <>
             <div
                 className={`bg-white rounded-lg border-2 ${isSelected
-                        ? 'border-teal-500 shadow-lg'
-                        : 'border-gray-300 hover:border-teal-500 hover:shadow-lg'
-                    } transition-all duration-200 cursor-pointer`}
+                    ? 'border-teal-500 shadow-lg'
+                    : 'border-gray-300 hover:border-teal-500 hover:shadow-lg'
+                    } transition-all duration-200 overflow-hidden cursor-pointer`}
                 onClick={() => onCardClick && onCardClick(execution)}
             >
                 {/* Card Header */}

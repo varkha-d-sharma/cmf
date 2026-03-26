@@ -215,14 +215,6 @@ class FastAPIClient {
       });
   }
 
-  async getExecutionStages(pipelineName) {
-    return this.apiClient
-      .get(`/execution-stages/${pipelineName}`)
-      .then(({ data }) => {
-        return data;
-      });
-  }
-
   async getExecutionsByStage(pipelineName, stageName, activePage = 1, recordPerPage = 5, sortOrder = "desc", filterValue = "") {
     return this.apiClient
       .get(`/executions-by-stage/${pipelineName}`, {

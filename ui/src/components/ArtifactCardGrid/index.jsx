@@ -148,7 +148,7 @@ const ArtifactCardGrid = ({
                         className={`bg-white rounded-lg border-2 ${selectedItems.some(a => a.artifact_id === artifact.artifact_id)
                                 ? 'border-teal-500 shadow-lg'
                                 : 'border-gray-300 hover:border-teal-500 hover:shadow-lg'
-                            } transition-all duration-200 ${onArtifactClick ? 'cursor-pointer' : ''}`}
+                            } transition-all duration-200 overflow-hidden ${onArtifactClick ? 'cursor-pointer' : ''}`}
                         onClick={() => onArtifactClick && onArtifactClick(artifact)}
                     >
                         {/* Card Header */}

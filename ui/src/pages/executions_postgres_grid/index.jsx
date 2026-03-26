@@ -20,8 +20,8 @@ import config from "../../config";
 import DashboardHeader from "../../components/DashboardHeader";
 import Footer from "../../components/Footer";
 import Sidebar from "../../components/Sidebar";
-import ExecutionCard from "../../components/ExecutionPostgresGrid/ExecutionCard";
-import ExecutionDetailDrawer from "../../components/ExecutionPostgresGrid/ExecutionDetailDrawer";
+import ExecutionCard from "../../components/ExecutionCardGrid";
+import DetailDrawer from "../../components/DetailDrawer";
 import PaginationControls from "../../components/PaginationControls";
 import CompareModal from "../../components/CompareModal";
 
@@ -46,7 +46,7 @@ const ExecutionsPostgresGrid = () => {
     const [selectedExecutions, setSelectedExecutions] = useState([]);
     const [showCompareModal, setShowCompareModal] = useState(false);
 
-    // ── Fetch pipelines on mount ──────────────────────────────────────────
+    // Fetch pipelines on mount
     useEffect(() => {
         client.getPipelines("").then((data) => {
             setPipelines(data);
@@ -56,10 +56,10 @@ const ExecutionsPostgresGrid = () => {
         });
     }, []);
 
-    // ── Fetch execution stages when pipeline changes ──────────────────────
+    // Fetch execution stages when pipeline changes
     useEffect(() => {
         if (selectedPipeline) {
-            client.getExecutionStages(selectedPipeline).then((data) => {
+            client.getPipelineStages(selectedPipeline).then((data) => {
                 const allStages = data.stages || [];
                 setStages(allStages);
                 setTotalStages(data.total_stages || 0);
@@ -77,7 +77,7 @@ const ExecutionsPostgresGrid = () => {
         }
     }, [selectedPipeline]);
 
-    // ── Fetch executions when stage, page, sort, or filter changes ──────────
+    // Fetch executions when stage, page, sort, or filter changes
     useEffect(() => {
         if (selectedPipeline && selectedStage) {
             client
@@ -93,7 +93,7 @@ const ExecutionsPostgresGrid = () => {
         }
     }, [selectedStage, activePage, sortOrder, filter]);
 
-    // ── Handlers ──────────────────────────────────────────────────────────
+    // Handlers
     const handlePipelineClick = (pipeline) => {
         setSelectedPipeline(pipeline);
         setSelectedStage(null);
@@ -138,7 +138,34 @@ const ExecutionsPostgresGrid = () => {
         });
     };
 
-    // ── Render ────────────────────────────────────────────────────────────
+    const executionDetailProperties = selectedExecution
+        ? (Array.isArray(selectedExecution.execution_properties)
+            ? selectedExecution.execution_properties
+            : (() => {
+                try {
+                    return JSON.parse(selectedExecution.execution_properties || "[]");
+                } catch {
+                    return [];
+                }
+            })())
+        : [];
+
+    const getExecutionDetailProperty = (name) => {
+        const matchedValues = executionDetailProperties
+            .filter((property) => property.name === name)
+            .map((property) => property.value);
+        return matchedValues.length > 0 ? matchedValues.join(", ") : "N/A";
+    };
+
+    const executionDetailSummaryFields = selectedExecution ? [
+        { label: "Context Type", value: getExecutionDetailProperty("Context_Type"), color: "teal" },
+        { label: "Execution", value: getExecutionDetailProperty("Execution"), color: "blue" },
+        { label: "Pipeline Type", value: getExecutionDetailProperty("Pipeline_Type"), color: "indigo" },
+        { label: "Git Repo", value: getExecutionDetailProperty("Git_Repo"), color: "purple" },
+        { label: "Git Start Commit", value: getExecutionDetailProperty("Git_Start_Commit"), color: "green" },
+    ] : [];
+
+    // Render
     return (
         <>
             <section className="flex flex-col bg-white min-h-screen">
@@ -209,8 +236,8 @@ const ExecutionsPostgresGrid = () => {
                                                 onClick={() => setShowCompareModal(true)}
                                                 disabled={selectedExecutions.length < 2}
                                                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border transition-all shadow-sm ${selectedExecutions.length >= 2
-                                                        ? 'bg-teal-600 text-white border-teal-600 hover:bg-teal-700'
-                                                        : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                                                    ? 'bg-teal-600 text-white border-teal-600 hover:bg-teal-700'
+                                                    : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
                                                     }`}
                                                 title={selectedExecutions.length < 2 ? 'Select at least 2 executions to compare' : `Compare ${selectedExecutions.length} executions`}
                                             >
@@ -322,8 +349,11 @@ const ExecutionsPostgresGrid = () => {
 
             {/* Execution Detail Drawer (slide-in on card click) */}
             {selectedExecution && (
-                <ExecutionDetailDrawer
-                    execution={selectedExecution}
+                <DetailDrawer
+                    title="Execution Details"
+                    subtitle={<>ID: <span className="font-mono font-semibold">{selectedExecution.execution_id || "—"}</span></>}
+                    summaryFields={executionDetailSummaryFields}
+                    allProperties={executionDetailProperties}
                     onClose={() => setSelectedExecution(null)}
                 />
             )}

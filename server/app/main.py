@@ -52,6 +52,7 @@ from server.app.schemas.dataframe import (
     ArtifactRequest,
     ArtifactByStageRequest,
     ExecutionRequest,
+    ExecutionByStageRequest,
 )
 import httpx
 import socket
@@ -235,11 +236,7 @@ async def get_execution_stages(
 @app.get("/executions-by-stage/{pipeline_name}")
 async def get_executions_by_stage(
     pipeline_name: str,
-    stage_name: str = Query(..., description="Stage name (Context_Type value)"),
-    active_page: int = Query(1, description="Page number", gt=0),
-    record_per_page: int = Query(5, description="Records per page", gt=0),
-    sort_order: str = Query("DESC", description="Sort order: ASC or DESC"),
-    filter_value: str = Query("", description="Filter string to search across execution properties"),
+    query_params: ExecutionByStageRequest = Depends(),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -265,6 +262,12 @@ async def get_executions_by_stage(
         ]
     }
     """
+    stage_name = query_params.stage_name
+    active_page = query_params.active_page
+    record_per_page = query_params.record_per_page
+    sort_order = query_params.sort_order
+    filter_value = query_params.filter_value
+
     return await fetch_executions_by_stage(db, pipeline_name, stage_name, active_page, record_per_page, sort_order, filter_value)
 
 
