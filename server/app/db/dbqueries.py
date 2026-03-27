@@ -51,7 +51,6 @@ async def get_registered_server_details(db: AsyncSession = Depends(get_db())):
     return result.mappings().all()
 
 
-
 async def get_sync_status(db: AsyncSession, server_name: str, server_url: str):
     """
     Get the sync status from the database.
@@ -467,7 +466,7 @@ async def fetch_unique_execution_stages(
     result = await db.execute(stages_query)
     stages = result.scalars().all()
 
-    print(stages)
+    # #print(stages)
     # Return the list of unique stages
     return {
         "stages": list(stages),
@@ -498,7 +497,7 @@ async def fetch_executions_by_stage(
         Dictionary with total_items and items (list of executions with properties)
     """
     # Use helper function to get common subqueries
-    relevant_contexts, pipeline_execution_ids = _get_pipeline_execution_ids_subquery(pipeline_name)
+    _, pipeline_execution_ids = _get_pipeline_execution_ids_subquery(pipeline_name)
 
     # Get execution IDs for the specified stage
     execution_ids_with_stage = (
@@ -546,43 +545,33 @@ async def fetch_executions_by_stage(
     create_time_subquery = (
         select(
             executionproperty.c.execution_id,
-            func.cast(executionproperty.c.string_value, Double).label("create_time")
+            func.max(func.cast(executionproperty.c.string_value, Double)).label("create_time")
         )
         .where(executionproperty.c.name == "original_create_time_since_epoch")
         .where(
             executionproperty.c.execution_id.in_(select(execution_ids_with_stage.c.execution_id))
         )
+        .group_by(executionproperty.c.execution_id)
         .subquery("create_time_subquery")
     )
 
-    # Count total records (with optional filter)
-    base_join = (
-        select(execution_ids_with_stage.c.execution_id)
-        .select_from(execution_ids_with_stage)
-        .outerjoin(
-            execution_properties_agg,
-            execution_ids_with_stage.c.execution_id == execution_properties_agg.c.execution_id
-        )
-    )
+    # Apply search filter across execution_id and aggregated properties if filter_value is provided
+    search_predicate = None
     if filter_value:
-        base_join = base_join.where(
-            func.concat(
-                func.cast(execution_ids_with_stage.c.execution_id, String),
-                func.coalesce(
-                    func.cast(execution_properties_agg.c.execution_properties, String),
-                    ""
-                )
-            ).ilike(f"%{filter_value}%")
-        )
-    count_query = select(func.count(distinct(base_join.subquery().c.execution_id)))
-    count_result = await db.execute(count_query)
-    total_records = count_result.scalar() or 0
+        search_predicate = func.concat(
+            func.cast(execution_ids_with_stage.c.execution_id, String),
+            func.coalesce(
+                func.cast(execution_properties_agg.c.execution_properties, String),
+                ""
+            )
+        ).ilike(f"%{filter_value}%")
 
-    # Fetch paginated executions with properties, sorted by create_time
+    # Step 3: Fetch paginated executions with properties and total count, sorted by create_time.
     final_query = (
         select(
             execution_ids_with_stage.c.execution_id,
-            execution_properties_agg.c.execution_properties
+            execution_properties_agg.c.execution_properties,
+            func.count().over().label("total_records")
         )
         .select_from(execution_ids_with_stage)
         .outerjoin(
@@ -594,16 +583,11 @@ async def fetch_executions_by_stage(
             execution_ids_with_stage.c.execution_id == create_time_subquery.c.execution_id
         )
     )
-    if filter_value:
-        final_query = final_query.where(
-            func.concat(
-                func.cast(execution_ids_with_stage.c.execution_id, String),
-                func.coalesce(
-                    func.cast(execution_properties_agg.c.execution_properties, String),
-                    ""
-                )
-            ).ilike(f"%{filter_value}%")
-        )
+
+    if search_predicate is not None:
+        final_query = final_query.where(search_predicate)
+
+    # Apply sorting based on create_time from the subquery, with nulls last to handle executions that may not have the original_create_time_since_epoch property.
     final_query = (
         final_query
         .order_by(
@@ -617,11 +601,18 @@ async def fetch_executions_by_stage(
 
     result = await db.execute(final_query)
     rows = result.mappings().all()
-    print(rows)
+    total_records = rows[0]["total_records"] if rows else 0
+    items = []
+    for row in rows:
+        row_dict = dict(row)
+        row_dict.pop("total_records", None)
+        items.append(row_dict)
+
+    # #print(rows)
 
     return {
         "total_items": total_records,
-        "items": [dict(row) for row in rows]
+        "items": items
     }
 
 
@@ -661,7 +652,7 @@ async def fetch_artifacts_by_stage(
 
     effective_page_size = record_per_page if record_per_page is not None else page_size
 
-    # Step 1: Aggregate artifact properties into JSON.
+    # Step 1: Aggregate artifact properties into JSON based on artifact id.
     artifact_properties_agg_cte = (
         select(
             artifactproperty.c.artifact_id,
@@ -704,34 +695,19 @@ async def fetch_artifacts_by_stage(
         .cte("artifact_type_cte")
     )
 
-    # Step 3: Count total filtered records.
-    count_query = select(func.count(distinct(artifact_type_cte.c.artifact_id)))
+    # Apply search filter across all relevant columns (artifact_id, name, and aggregated properties).
+    search_predicate = None
     if filter_value:
-        artifact_with_filter = (
-            select(artifact_type_cte.c.artifact_id)
-            .outerjoin(
-                artifact_properties_agg_cte,
-                artifact_type_cte.c.artifact_id == artifact_properties_agg_cte.c.artifact_id
+        search_predicate = func.concat(
+            func.cast(artifact_type_cte.c.artifact_id, String),
+            func.cast(artifact_type_cte.c.name, String),
+            func.coalesce(
+                func.cast(artifact_properties_agg_cte.c.artifact_properties, String),
+                ""
             )
-            .where(
-                func.concat(
-                    func.cast(artifact_type_cte.c.artifact_id, String),
-                    func.cast(artifact_type_cte.c.name, String),
-                    func.coalesce(
-                        func.cast(artifact_properties_agg_cte.c.artifact_properties, String),
-                        ""
-                    )
-                ).ilike(f"%{filter_value}%")
-            )
-        )
-        count_query = select(func.count(distinct(artifact_with_filter.c.artifact_id)))
-        count_result = await db.execute(count_query)
-    else:
-        count_result = await db.execute(count_query)
-    
-    total_records = count_result.scalar() or 0
+        ).ilike(f"%{filter_value}%")
 
-    # Step 4: Build final query with pagination and sorting.
+    # Step 3: Build final query with pagination, sorting, and total count.
     if sort_column == "name":
         sort_col = artifact_type_cte.c.name
         sort_direction = func.lower(sort_col).asc() if sort_order.upper() == "ASC" else func.lower(sort_col).desc()
@@ -745,7 +721,8 @@ async def fetch_artifacts_by_stage(
             artifact_type_cte.c.artifact_id,
             artifact_type_cte.c.name,
             artifact_type_cte.c.create_time_since_epoch,
-            artifact_properties_agg_cte.c.artifact_properties
+            artifact_properties_agg_cte.c.artifact_properties,
+            func.count().over().label("total_records")
         )
         .select_from(artifact_type_cte)
         .outerjoin(
@@ -754,18 +731,11 @@ async def fetch_artifacts_by_stage(
         )
     )
 
-    if filter_value:
-        final_query = final_query.where(
-            func.concat(
-                func.cast(artifact_type_cte.c.artifact_id, String),
-                func.cast(artifact_type_cte.c.name, String),
-                func.coalesce(
-                    func.cast(artifact_properties_agg_cte.c.artifact_properties, String),
-                    ""
-                )
-            ).ilike(f"%{filter_value}%")
-        )
+    # Apply search filter if provided
+    if search_predicate is not None:
+        final_query = final_query.where(search_predicate)
 
+    # Apply sorting, pagination, and execute the query
     final_query = (
         final_query
         .order_by(sort_direction)
@@ -775,11 +745,19 @@ async def fetch_artifacts_by_stage(
 
     result = await db.execute(final_query)
     rows = result.mappings().all()
-    print(f"Artifacts by stage - Pipeline: {pipeline_name}, Stage: {stage_name}, Count: {total_records}")
+    total_records = rows[0]["total_records"] if rows else 0
+    items = []
+    # Remove total_records from each row before returning results, as it's redundant to include it in every item.
+    for row in rows:
+        row_dict = dict(row)
+        row_dict.pop("total_records", None)
+        items.append(row_dict)
+
+    #print(f"Artifacts by stage - Pipeline: {pipeline_name}, Stage: {stage_name}, Count: {total_records}")
 
     return {
         "total_items": total_records,
-        "items": [dict(row) for row in rows]
+        "items": items
     }
 
 
@@ -821,6 +799,6 @@ async def fetch_artifact_types_by_stage(
     result = await db.execute(artifact_types_query)
     artifact_types = result.scalars().all()
 
-    print(f"Artifact types for stage - Pipeline: {pipeline_name}, Stage: {stage_name}, Types: {artifact_types}")
+    #print(f"Artifact types for stage - Pipeline: {pipeline_name}, Stage: {stage_name}, Types: {artifact_types}")
     
     return list(artifact_types)
