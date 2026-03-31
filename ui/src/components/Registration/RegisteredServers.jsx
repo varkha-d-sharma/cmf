@@ -16,9 +16,10 @@
 
 import React, { useState, useEffect } from 'react';
 import FastAPIClient from '../../client';
+import config from "../../config";
 import PeriodicSyncPicker from '../PeriodicSync/PeriodicSyncPicker';
 
-const client = new FastAPIClient();
+const client = new FastAPIClient(config);
 
 // Reusable chevron toggle icon component
 const ChevronToggleIcon = ({ isExpanded }) => (
