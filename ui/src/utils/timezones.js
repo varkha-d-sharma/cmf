@@ -17,18 +17,154 @@
 // Utilities to build a dynamic list of IANA time zones with UTC offsets
 // alias mapping
 const TIMEZONE_ALIASES = {
+  "Africa/Asmera": "Africa/Asmara",
+  "Africa/Timbuktu": "Africa/Abidjan",
+  "America/Atka": "America/Adak",
+  "America/Buenos_Aires": "America/Argentina/Buenos_Aires",
+  "America/Catamarca": "America/Argentina/Catamarca",
+  "America/ComodRivadavia": "America/Argentina/Catamarca",
+  "America/Cordoba": "America/Argentina/Cordoba",
+  "America/Jujuy": "America/Argentina/Jujuy",
+  "America/Mendoza": "America/Argentina/Mendoza",
+  "America/Coral_Harbour": "America/Atikokan",
+  "America/Ensenada": "America/Tijuana",
+  "America/Fort_Wayne": "America/Indiana/Indianapolis",
+  "America/Indianapolis": "America/Indiana/Indianapolis",
+  "America/Knox_IN": "America/Indiana/Knox",
+  "America/Louisville": "America/Kentucky/Louisville",
+  "America/Montreal": "America/Toronto",
+  "America/Porto_Acre": "America/Rio_Branco",
+  "America/Rosario": "America/Argentina/Cordoba",
+  "America/Santa_Isabel": "America/Tijuana",
+  "America/Shiprock": "America/Denver",
+  "America/Virgin": "America/Port_of_Spain",
   "Asia/Calcutta": "Asia/Kolkata",
+  "Asia/Chongqing": "Asia/Shanghai",
+  "Asia/Chungking": "Asia/Shanghai",
+  "Asia/Dacca": "Asia/Dhaka",
+  "Asia/Harbin": "Asia/Shanghai",
   "Asia/Katmandu": "Asia/Kathmandu",
-  "Asia/Saigon": "Asia/Ho_Chi_Minh", // added
+  "Asia/Macao": "Asia/Macau",
+  "Asia/Rangoon": "Asia/Yangon",
+  "Asia/Saigon": "Asia/Ho_Chi_Minh",
+  "Asia/Tel_Aviv": "Asia/Jerusalem",
+  "Asia/Thimbu": "Asia/Thimphu",
+  "Asia/Ujung_Pandang": "Asia/Makassar",
+  "Asia/Ulan_Bator": "Asia/Ulaanbaatar",
+  "Atlantic/Faeroe": "Atlantic/Faroe",
+  "Atlantic/Jan_Mayen": "Europe/Oslo",
+  "Australia/ACT": "Australia/Sydney",
+  "Australia/Canberra": "Australia/Sydney",
+  "Australia/Currie": "Australia/Hobart",
+  "Australia/LHI": "Australia/Lord_Howe",
+  "Australia/North": "Australia/Darwin",
+  "Australia/NSW": "Australia/Sydney",
+  "Australia/Queensland": "Australia/Brisbane",
+  "Australia/South": "Australia/Adelaide",
+  "Australia/Tasmania": "Australia/Hobart",
+  "Australia/Victoria": "Australia/Melbourne",
+  "Australia/West": "Australia/Perth",
+  "Australia/Yancowinna": "Australia/Broken_Hill",
+  "Brazil/Acre": "America/Rio_Branco",
+  "Brazil/DeNoronha": "America/Noronha",
+  "Brazil/East": "America/Sao_Paulo",
+  "Brazil/West": "America/Manaus",
+  "Canada/Atlantic": "America/Halifax",
+  "Canada/Central": "America/Winnipeg",
+  "Canada/Eastern": "America/Toronto",
+  "Canada/Mountain": "America/Edmonton",
+  "Canada/Newfoundland": "America/St_Johns",
+  "Canada/Pacific": "America/Vancouver",
+  "Canada/Saskatchewan": "America/Regina",
+  "Canada/Yukon": "America/Whitehorse",
+  "Chile/Continental": "America/Santiago",
+  "Chile/EasterIsland": "Pacific/Easter",
+  "Cuba": "America/Havana",
+  "Egypt": "Africa/Cairo",
+  "Eire": "Europe/Dublin",
+  "Etc/GMT+0": "Etc/GMT",
+  "Etc/GMT-0": "Etc/GMT",
+  "Etc/GMT0": "Etc/GMT",
+  "Etc/Greenwich": "Etc/GMT",
+  "Etc/UCT": "Etc/UTC",
+  "Etc/Universal": "Etc/UTC",
+  "Etc/Zulu": "Etc/UTC",
+  "Europe/Belfast": "Europe/London",
+  "Europe/Nicosia": "Asia/Nicosia",
+  "Europe/Tiraspol": "Europe/Chisinau",
+  "GB": "Europe/London",
+  "GB-Eire": "Europe/London",
+  "GMT": "Etc/GMT",
+  "GMT+0": "Etc/GMT",
+  "GMT-0": "Etc/GMT",
+  "GMT0": "Etc/GMT",
+  "Greenwich": "Etc/GMT",
+  "Hongkong": "Asia/Hong_Kong",
+  "Iceland": "Atlantic/Reykjavik",
+  "Iran": "Asia/Tehran",
+  "Israel": "Asia/Jerusalem",
+  "Jamaica": "America/Jamaica",
+  "Japan": "Asia/Tokyo",
+  "Kwajalein": "Pacific/Kwajalein",
+  "Libya": "Africa/Tripoli",
+  "Mexico/BajaNorte": "America/Tijuana",
+  "Mexico/BajaSur": "America/Mazatlan",
+  "Mexico/General": "America/Mexico_City",
+  "NZ": "Pacific/Auckland",
+  "NZ-CHAT": "Pacific/Chatham",
+  "Navajo": "America/Denver",
+  "PRC": "Asia/Shanghai",
+  "Pacific/Ponape": "Pacific/Pohnpei",
+  "Pacific/Samoa": "Pacific/Pago_Pago",
+  "Pacific/Truk": "Pacific/Chuuk",
+  "Pacific/Yap": "Pacific/Chuuk",
+  "Poland": "Europe/Warsaw",
+  "Portugal": "Europe/Lisbon",
+  "ROC": "Asia/Taipei",
+  "ROK": "Asia/Seoul",
+  "Singapore": "Asia/Singapore",
+  "Turkey": "Europe/Istanbul",
+  "UCT": "Etc/UTC",
+  "US/Alaska": "America/Anchorage",
+  "US/Aleutian": "America/Adak",
+  "US/Arizona": "America/Phoenix",
+  "US/Central": "America/Chicago",
+  "US/East-Indiana": "America/Indiana/Indianapolis",
+  "US/Eastern": "America/New_York",
+  "US/Hawaii": "Pacific/Honolulu",
+  "US/Indiana-Starke": "America/Indiana/Knox",
+  "US/Michigan": "America/Detroit",
+  "US/Mountain": "America/Denver",
+  "US/Pacific": "America/Los_Angeles",
+  "US/Samoa": "Pacific/Pago_Pago",
+  "UTC": "Etc/UTC",
+  "Universal": "Etc/UTC",
+  "W-SU": "Europe/Moscow",
+  "WET": "Europe/Lisbon",
+  "Zulu": "Etc/UTC",
 };
 
 // Normalizing old or non-standard time zone names to their modern IANA equivalents
 function normalizeTimeZone(tz) {
+  // Input: tz (string)
+  // Output: string
+  // Description: Converts known legacy timezone aliases to canonical IANA names.
+  // Step 1: Check whether tz exists in TIMEZONE_ALIASES map.
+  // Step 2: Return mapped canonical timezone when alias exists.
+  // Step 3: Return original value when no alias mapping is found.
+  // Example: "Asia/Calcutta" becomes "Asia/Kolkata".
   return TIMEZONE_ALIASES[tz] || tz;
 }
 
 // Get a list of supported time zones from the environment, with a fallback if not available
 function supportedTimeZones() {
+  // Input: none
+  // Output: string[]
+  // Description: Returns supported timezone list from Intl API with a UTC/local fallback.
+  // Step 1: Try Intl.supportedValuesOf("timeZone") when available.
+  // Step 2: Use returned list if it is a non-empty array.
+  // Step 3: On failure, fallback to ["UTC", detectedLocalTimezone].
+  // Example: older runtime may return ["UTC", "Asia/Kolkata"].
   // Intl is a modern API that provides a list of supported time zones, but it may not be available in all environments
   if (typeof Intl !== 'undefined' && typeof Intl.supportedValuesOf === 'function') {
     try {
@@ -46,6 +182,13 @@ function supportedTimeZones() {
 
 // Get the user's local time zone or default to 'UTC'
 export function getLocalTimeZone() {
+  // Input: none
+  // Output: string
+  // Description: Detects browser timezone and normalizes legacy aliases.
+  // Step 1: Read timezone from Intl.DateTimeFormat().resolvedOptions().timeZone.
+  // Step 2: Normalize returned value using normalizeTimeZone.
+  // Step 3: Return UTC if timezone detection fails.
+  // Example: browser returns Asia/Calcutta -> function returns Asia/Kolkata.
   try {
     // Get user's browser timezone, fallback to UTC if unavailable
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
@@ -58,6 +201,15 @@ export function getLocalTimeZone() {
 // Calculate the UTC offset in minutes for a given time zone and date (defaulting to now)
 // For eg: Asia/Kolkata is UTC+05:30, which is 330 minutes from UTC.
 function getOffsetMinutes(tz, date = new Date()) {
+  // Input: tz (string), date (Date, optional)
+  // Output: number (UTC offset in minutes)
+  // Description: Computes timezone UTC offset by comparing converted and original timestamps.
+  // Step 1: Format date in target timezone using Intl.DateTimeFormat.
+  // Step 2: Extract numeric parts and reconstruct equivalent UTC timestamp.
+  // Step 3: Subtract original timestamp and convert milliseconds to minutes.
+  // Step 4: Normalize negative zero to zero and return result.
+  // Example: UTC noon rendered in Asia/Kolkata gives +330 minutes.
+
   // Create a formatter that converts the given UTC date into the target timezone.
   // Example: UTC 12:00 → Asia/Kolkata becomes 17:30
   const fmt = new Intl.DateTimeFormat('en-US', {
@@ -110,6 +262,13 @@ function getOffsetMinutes(tz, date = new Date()) {
 
 // Format the offset in minutes into a human-readable string like "UTC+05:30" or "UTC-04:00"
 function formatOffsetLabel(offsetMinutes) {
+  // Input: offsetMinutes (number)
+  // Output: string
+  // Description: Formats minute offset as UTC+HH:MM or UTC-HH:MM label.
+  // Step 1: Determine positive/negative sign from offset value.
+  // Step 2: Convert absolute minutes into hours and remainder minutes.
+  // Step 3: Left-pad values and assemble UTC label string.
+  // Example: -240 becomes "UTC-04:00".
   const sign = offsetMinutes >= 0 ? '+' : '-';
   const absoluteMinutes = Math.abs(offsetMinutes);
   const hours = String(Math.floor(absoluteMinutes / 60)).padStart(2, '0');
@@ -119,6 +278,14 @@ function formatOffsetLabel(offsetMinutes) {
 
 // Build a list of time zone options with offsets for UI dropdowns
 export function buildTimeZoneOptions() {
+  // Input: none
+  // Output: Array<{value,label,group,offset,offsetMinutes}>
+  // Description: Builds unique and sorted timezone dropdown options used in periodic sync UI.
+  // Step 1: Read supported timezone names and normalize aliases.
+  // Step 2: Compute each timezone offset and build display labels.
+  // Step 3: Remove duplicates by timezone key.
+  // Step 4: Sort by offset first, then alphabetically for stable display.
+  // Example: item label "UTC+05:30 — Asia/Kolkata".
   // Get supported time zones
   const zones = supportedTimeZones();
   // Map each time zone to an object with value, label, group, and offset info

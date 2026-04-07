@@ -313,6 +313,15 @@ async def log_sync_attempt(
     current_utc_epoch_time: int,
     skip_logging: bool,
 ):
+    # Input: status (str), message (str), db (AsyncSession), server_name (str), server_url (str), current_utc_epoch_time (int), skip_logging (bool)
+    # Output: None
+    # Description: Persists manual/immediate sync run records in schedule/log tables.
+    # Step 1: Skip immediately when skip_logging is true to avoid duplicate scheduler logs.
+    # Step 2: Resolve server row from registered servers table.
+    # Step 3: Create one-time synthetic schedule entry for sync_now log grouping.
+    # Step 4: Mark synthetic schedule completed and insert sync log entry.
+    # Example: manual /sync call writes sync_type="sync_now" log row.
+    
     # Log the sync attempt in the database with status and message.
     # When scheduler already writes logs, skip to avoid duplicate entries.
     if skip_logging:
@@ -344,7 +353,10 @@ async def log_sync_attempt(
                 sync_type="sync_now",
             )
     except Exception as log_error:
-        print(f"Immediate sync logging error: {log_error}")
+        print(
+            f"Failed to record immediate sync log entry for server '{server_name}' at '{server_url}'. "
+            f"Error details: {log_error}"
+        )
 
 
 DAY_NAME_TO_WEEKDAY = {
@@ -361,6 +373,12 @@ DAY_NAME_TO_WEEKDAY = {
 def get_timezone(timezone: str) -> ZoneInfo:
     """Return a safe timezone object for periodic sync calculations.
     """
+    # Input: timezone (str)
+    # Output: ZoneInfo
+    # Description: Returns ZoneInfo for timezone string with UTC fallback.
+    # Step 1: Try to create ZoneInfo from provided timezone name.
+    # Step 2: If timezone is invalid, return ZoneInfo("UTC").
+    # Example: invalid timezone string falls back to UTC.
     try:
         return ZoneInfo(timezone)
     except Exception:
@@ -369,6 +387,13 @@ def get_timezone(timezone: str) -> ZoneInfo:
 
 def parse_schedule_time(value: t.Optional[str], field_name: str) -> tuple[int, int]:
     """Parse HH:MM time strings used by daily and weekly periodic sync rules."""
+    # Input: value (Optional[str]), field_name (str)
+    # Output: tuple[int, int]
+    # Description: Validates HH:MM string and returns hour/minute pair.
+    # Step 1: Parse provided value using strict "%H:%M" format.
+    # Step 2: Raise ValueError with field name when format is invalid.
+    # Step 3: Return parsed hour and minute.
+    # Example: "14:30" -> (14, 30).
     try:
         parsed = datetime.strptime(value or "", "%H:%M")
     except ValueError as exc:
@@ -398,6 +423,15 @@ async def compute_next_run_from_recurrence(
     - daily at 09:00 -> next run is Tuesday 09:00
     - weekly on friday at 15:00 -> next run is Friday 15:00
     """
+    # Input: current_run_utc_ms (int), timezone (str), recurrence_mode (str), interval/daily/weekly fields, strict_after (bool)
+    # Output: int
+    # Description: Computes next UTC run timestamp for interval, daily, or weekly periodic sync rules.
+    # Step 1: Convert current UTC epoch to local datetime in selected timezone.
+    # Step 2: For interval mode, add configured minutes/hours.
+    # Step 3: For daily mode, set target HH:MM and move to next day when needed.
+    # Step 4: For weekly mode, resolve weekday/time and move to next valid weekly slot.
+    # Step 5: Convert resulting local time back to UTC epoch milliseconds.
+    # Example: weekly friday 15:00 computes next Friday 15:00 local in UTC milliseconds.
     tz = get_timezone(timezone)
     current_dt_utc = datetime.fromtimestamp(current_run_utc_ms / 1000.0, tz=ZoneInfo("UTC"))
     current_dt_local = current_dt_utc.astimezone(tz)
@@ -453,6 +487,14 @@ async def compute_initial_next_run_utc(
     - daily at 09:00 -> first due is Tuesday 09:00
     - weekly on friday at 15:00 -> first due is upcoming Friday 15:00
     """
+    # Input: start_utc_ms (int), now_utc_ms (int), timezone (str), recurrence settings
+    # Output: int
+    # Description: Calculates the first due UTC timestamp when a new schedule is created.
+    # Step 1: For interval mode, use future start directly or jump to next interval boundary.
+    # Step 2: For daily/weekly modes, choose reference time as max(start, now).
+    # Step 3: Delegate to recurrence calculator for first valid slot from reference.
+    # Step 4: Return computed UTC timestamp in milliseconds.
+    # Example: past start with 2-hour interval advances to next upcoming 2-hour slot.
     if recurrence_mode == "interval":
         if start_utc_ms > now_utc_ms:
             return start_utc_ms
