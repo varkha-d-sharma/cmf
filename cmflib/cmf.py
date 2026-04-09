@@ -47,6 +47,7 @@ from cmflib.dvc_wrapper import (
 from cmflib import graph_wrapper
 from cmflib.store.sqllite_store import SqlliteStore
 from cmflib.store.postgres import PostgresStore 
+from cmflib.store.custom_sqlite_store import CustomSqliteStore
 from cmflib.metadata_helper import (
     get_or_create_parent_context,
     get_or_create_run_context,
@@ -169,6 +170,9 @@ class Cmf:
             cur_folder = os.path.basename(os.getcwd())
             pipeline_name = cur_folder
         self.pipeline_name = pipeline_name
+        self.custom_store = None
+        if is_server is False:
+            self.custom_store = CustomSqliteStore(filepath)
         self.store = temp_store.connect()
         self.filepath = filepath
         self.child_context = None
@@ -499,6 +503,15 @@ class Cmf:
         self.update_execution(self.execution.id, custom_props)
         # link the artifact to execution if it exists and creates artifact if it doesn't
         self.log_python_env(python_env_file_path)
+        execution_uuid = self.execution.properties["Execution_uuid"].string_value.split(",")[-1].strip()
+        if self.custom_store and execution_uuid:
+            try:
+                self.custom_store.insert_execution_log(
+                    execution_uuid=execution_uuid,
+                    metadata=custom_props,
+                )
+            except Exception as exc:
+                logger.warning("Failed to write execution record to custom SQLite DB: %s", exc)
         os.chdir(logging_dir)
         return self.execution
 
