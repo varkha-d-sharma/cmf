@@ -15,7 +15,7 @@ class UniqueQueue:
     def dequeue(self):
         if self.queue:
             value = self.queue.popleft()
-            self.seen.remove(value)
+            #self.seen.remove(value)
             return value
         raise IndexError("dequeue from an empty queue")
     
@@ -59,9 +59,11 @@ def query_execution_lineage_d3tree(query: CmfQuery, pipeline_name: str, dict_of_
             queue.enqueue(i)
             parents_set.add(i)
     
-    df = query.get_executions_with_execution_ids(list(parents_set))  # for execution_id get executions(complete df with all data of executions)
-    df['name_uuid'] = df['Execution_type_name'] + '_' + df['Execution_uuid'] 
-    result_dict = df.set_index('id')['name_uuid'].to_dict()   # {"id" : "name_uuid"} for example {"2":"Prepare_d09fdb26-0e9d-11ef-944f-4bf54f5aca7f"}
+    # for execution_id get executions(complete df with all data of executions)
+    df = query.get_executions_with_execution_ids(list(parents_set))
+    df['name_uuid'] = df['Execution_type_name'] + '_' + df['Execution_uuid']
+    # {"id" : "name_uuid"} for example {"2":"Prepare_d09fdb26-0e9d-11ef-944f-4bf54f5aca7f"}
+    result_dict = df.set_index('id')['name_uuid'].to_dict()
 
     data_organized = topological_sort(dict_parents,result_dict) # it will use topological sort to create data from parents to child pattern
     """
