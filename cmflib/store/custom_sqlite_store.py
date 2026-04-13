@@ -69,9 +69,9 @@ class CustomSqliteStore:
         # Function Name: _init_db
         # Input: None
         # Output: None
-        # Description: Ensure execution_log table exists with expected key shape.
+        # Description: Ensure ExecutionLogs table exists with expected key shape.
         # Step 1: Create parent directory when path contains one.
-        # Step 2: Create execution_log table if missing.
+        # Step 2: Create ExecutionLogs table if missing.
         # Step 3: Commit schema setup.
         db_dir = os.path.dirname(self.db_path)
         if db_dir:
@@ -79,11 +79,11 @@ class CustomSqliteStore:
         with self._connect() as conn:
             conn.execute(
                 """
-                CREATE TABLE IF NOT EXISTS execution_log (
+                CREATE TABLE IF NOT EXISTS ExecutionLogs (
                     execution_uuid TEXT NOT NULL,
-                    artifact_id TEXT NOT NULL,
+                    artifact_uri TEXT NOT NULL,
                     metadata_json TEXT NOT NULL,
-                    PRIMARY KEY (execution_uuid, artifact_id)
+                    PRIMARY KEY (execution_uuid, artifact_uri)
                 )
                 """
             )
@@ -92,63 +92,63 @@ class CustomSqliteStore:
     def insert_execution_log(
         self,
         execution_uuid: str,
-        artifact_id: str,
+        artifact_uri: str,
         metadata: t.Optional[t.Dict[str, t.Any]] = None,
     ) -> None:
         # Function Name: insert_execution_log
-        # Input: execution_uuid (str), artifact_id (str), metadata (dict | None)
+        # Input: execution_uuid (str), artifact_uri (str), metadata (dict | None)
         # Output: None
-        # Description: Upsert one row per (execution_uuid, artifact_id) with JSON metadata.
+        # Description: Upsert one row per (execution_uuid, artifact_uri) with JSON metadata.
         # Step 1: Validate required keys.
         # Step 2: Serialize metadata to JSON string.
         # Step 3: Insert new row or update existing row for same composite key.
         # Step 4: Commit transaction.
-        if not execution_uuid or not artifact_id:
+        if not execution_uuid or not artifact_uri:
             return
         payload = json.dumps(metadata or {}, default=str, sort_keys=True)
         with self._connect() as conn:
             conn.execute(
                 """
-                INSERT INTO execution_log (
+                INSERT INTO ExecutionLogs (
                     execution_uuid,
-                    artifact_id,
+                    artifact_uri,
                     metadata_json
                 ) VALUES (?, ?, ?)
-                ON CONFLICT(execution_uuid, artifact_id)
+                ON CONFLICT(execution_uuid, artifact_uri)
                 DO UPDATE SET metadata_json = excluded.metadata_json
                 """,
                 (
                     execution_uuid,
-                    artifact_id,
+                    artifact_uri,
                     payload,
                 ),
             )
             conn.commit()
 
-    def get_execution_log(self, execution_uuid: str, artifact_id: str) -> t.Optional[t.Dict[str, t.Any]]:
+    def get_execution_log(self, execution_uuid: str, artifact_uri: str) -> t.Optional[t.Dict[str, t.Any]]:
         # Function Name: get_execution_log
-        # Input: execution_uuid (str), artifact_id (str)
+        # Input: execution_uuid (str), artifact_uri (str)
         # Output: Dict or None
-        # Description: Retrieve metadata from execution_log for (execution_uuid, artifact_id) pair.
+        # Description: Retrieve metadata from ExecutionLogs for (execution_uuid, artifact_uri) pair.
         # Step 1: Validate input parameters are not empty.
-        # Step 2: Query execution_log table using composite key.
+        # Step 2: Query ExecutionLogs table using composite key.
         # Step 3: If row found, parse metadata_json and return as dict.
         # Step 4: If row not found or error occurs, return None.
         # Step 5: Log errors if JSON parsing fails.
         
         # Step 1: Skip retrieval if input is invalid.
-        if not execution_uuid or not artifact_id:
+        if not execution_uuid or not artifact_uri:
             return None
         
         try:
-            # Step 2: Open connection and query execution_log by composite key (execution_uuid, artifact_id).
+            # Step 2: Open connection and query ExecutionLogs by composite key (execution_uuid, artifact_uri).
             with self._connect() as conn:
                 cursor = conn.execute(
                     """
-                    SELECT metadata_json FROM execution_log
-                    WHERE execution_uuid = ? AND artifact_id = ?
+                    SELECT metadata_json FROM ExecutionLogs
+                    WHERE execution_uuid = ? AND artifact_uri = ?
                     """,
-                    (execution_uuid, artifact_id),
+                    (execution_uuid, artifact_uri),
                 )
                 row = cursor.fetchone()
             
@@ -160,9 +160,9 @@ class CustomSqliteStore:
             return None
         except json.JSONDecodeError as e:
             # Step 5a: Log error if JSON parsing fails (data corruption scenario).
-            print(f"Error parsing JSON for ({execution_uuid}, {artifact_id}): {e}")
+            print(f"Error parsing JSON for ({execution_uuid}, {artifact_uri}): {e}")
             return None
         except Exception as e:
             # Step 5b: Catch other exceptions (DB errors) and return None; caller will use original artifact data.
-            print(f"Error querying execution_log for ({execution_uuid}, {artifact_id}): {e}")
+            print(f"Error querying ExecutionLogs for ({execution_uuid}, {artifact_uri}): {e}")
             return None

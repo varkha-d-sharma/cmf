@@ -883,8 +883,8 @@ class Cmf:
         execution_uuid = self.execution.properties["Execution_uuid"].string_value.split(",")[-1].strip()
         if self.custom_store and execution_uuid and artifact:
             try:
-                # Step 1: Get artifact id and build artifact-level metadata payload.
-                artifact_id = str(artifact.id) if hasattr(artifact, 'id') else None
+                # Step 1: Get artifact uri and build artifact-level metadata payload.
+                artifact_uri = str(getattr(artifact, "uri", "")).strip()
                 dataset_log_payload = {
                     "name": name,
                     "properties": {
@@ -893,12 +893,12 @@ class Cmf:
                     },
                     "custom_properties": custom_properties,
                 }
-                # Step 2: Upsert one execution_log row keyed by (execution_uuid, artifact_id).
-                if artifact_id:
+                # Step 2: Upsert one ExecutionLogs row keyed by (execution_uuid, artifact_uri).
+                if artifact_uri:
                     self.custom_store.insert_execution_log(
-                    execution_uuid=execution_uuid,
-                    artifact_id=artifact_id,
-                    metadata=dataset_log_payload,
+                        execution_uuid=execution_uuid,
+                        artifact_uri=artifact_uri,
+                        metadata=dataset_log_payload,
                     )
             except Exception as exc:
                 logger.warning("Failed to write dataset metadata into execution_log: %s", exc)
@@ -1608,8 +1608,8 @@ class Cmf:
             execution_uuid = self.execution.properties["Execution_uuid"].string_value.split(",")[-1].strip()
             if self.custom_store and execution_uuid and artifact:
                 try:
-                    # Step 1: Get artifact id and build artifact-level metadata payload.
-                    artifact_id = str(artifact.id) if hasattr(artifact, 'id') else None
+                    # Step 1: Get artifact uri and build artifact-level metadata payload.
+                    artifact_uri = str(getattr(artifact, "uri", "")).strip()
                     label_log_payload = {
                         "name": name,
                         "properties": {
@@ -1618,12 +1618,12 @@ class Cmf:
                         },
                         "custom_properties": custom_properties,
                     }
-                    # Step 2: Upsert one execution_log row keyed by (execution_uuid, artifact_id).
-                    if artifact_id:
+                    # Step 2: Upsert one ExecutionLogs row keyed by (execution_uuid, artifact_uri).
+                    if artifact_uri:
                         self.custom_store.insert_execution_log(
-                        execution_uuid=execution_uuid,
-                        artifact_id=artifact_id,
-                        metadata=label_log_payload,
+                            execution_uuid=execution_uuid,
+                            artifact_uri=artifact_uri,
+                            metadata=label_log_payload,
                         )
                 except Exception as exc:
                     logger.warning("Failed to write label metadata into execution_log: %s", exc)

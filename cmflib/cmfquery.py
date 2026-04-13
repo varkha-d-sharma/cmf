@@ -263,7 +263,7 @@ class CmfQuery(object):
             return []
 
     def _patch_artifact_with_execution_log(
-        self, artifact_dict: t.Dict[str, t.Any], execution_uuid: str, artifact_id: t.Any
+        self, artifact_dict: t.Dict[str, t.Any], execution_uuid: str, artifact_uri: t.Any
     ) -> None:
         """Patch artifact dictionary with execution_log data if entries differ.
         
@@ -273,19 +273,19 @@ class CmfQuery(object):
         Args:
             artifact_dict: Artifact metadata dictionary to patch (modified in-place).
             execution_uuid: Execution UUID to use as key for lookup.
-            artifact_id: Artifact ID to use as key for lookup.
+            artifact_uri: Artifact URI to use as key for lookup.
         
         Returns:
             None (modifies artifact_dict in-place).
         """
-        # Step 1: Query execution_log for (execution_uuid, artifact_id) pair.
+        # Step 1: Query ExecutionLogs for (execution_uuid, artifact_uri) pair.
         # Step 2: If found, compare each patchable field (name, properties, custom_properties).
         # Step 3: For each field, check if execution_log value differs from artifact value.
         # Step 4: If different, replace artifact value with execution_log value.
         # Step 5: If same or missing in execution_log, leave artifact unchanged.
         
         # Step 1: Query custom_store for execution_log metadata.
-        execution_log_metadata = self.custom_store.get_execution_log(str(execution_uuid), str(artifact_id))
+        execution_log_metadata = self.custom_store.get_execution_log(str(execution_uuid), str(artifact_uri))
         
         # If no execution_log entry, nothing to patch; return early.
         if execution_log_metadata is None:
@@ -1083,11 +1083,11 @@ class CmfQuery(object):
             )
             
             # Step 3: If execution_uuids available, try patching artifact with execution_log data.
-            if execution_uuids and artifact_attrs.get("id"):
+            if execution_uuids and artifact_attrs.get("uri"):
                 # Step 4: Try each execution UUID (any match from comma-separated list is accepted).
                 for uuid in execution_uuids:
                     # Try to patch artifact with this UUID.
-                    self._patch_artifact_with_execution_log(artifact_attrs, uuid, artifact_attrs["id"])
+                    self._patch_artifact_with_execution_log(artifact_attrs, uuid, artifact_attrs["uri"])
                     # Note: _patch_artifact_with_execution_log is idempotent; calling it multiple times is safe.
                     # If one UUID matches, the patch is applied; other UUIDs won't match.
                     # For efficiency, could break after first successful patch, but multiple attempts are safe.
