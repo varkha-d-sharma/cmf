@@ -11,8 +11,11 @@ from sqlalchemy import(
     Index,
     UniqueConstraint,
     MetaData,
-    SmallInteger
+    SmallInteger,
+    DateTime,
+    text
 )
+from sqlalchemy.dialects.postgresql import JSONB
 
 metadata = MetaData()
 
@@ -198,4 +201,17 @@ registered_servers = Table(
     # indexes for registered_servers
     Index("idx_registered_servers_host_info", "host_info"),
     Index("idx_registered_servers_server_name", "server_name")
+)
+
+
+executionlogs = Table(
+    "executionlogs", metadata,
+    Column("execution_uuid", Text, nullable=False),
+    Column("artifact_uri", Text, nullable=False),
+    Column("metadata_json", JSONB, nullable=False, server_default=text("'{}'::jsonb")),
+    
+    # Indexes
+    Index("idx_executionlogs_execution_uuid", "execution_uuid"),
+    Index("idx_executionlogs_artifact_uri", "artifact_uri"),
+    Index("idx_executionlogs_exec_uri", "execution_uuid", "artifact_uri"),
 )
