@@ -37,7 +37,7 @@ def query_execution_lineage_d3tree(query: CmfQuery, pipeline_name: str, dict_of_
         return {"error": f"uuid '{uuid}' does not match any execution in pipeline '{pipeline_name}'"}
     parents_set = set()
     queue = UniqueQueue()
-    parents = query.get_one_hop_parent_executions_ids(execution_id, pipeline_id) #list of parent execution ids
+    parents = query.get_one_hop_parent_execution_ids(execution_id[0], pipeline_id) #list of parent execution ids
     dict_parents = {}
     if parents == None:
         parents = []
@@ -50,7 +50,7 @@ def query_execution_lineage_d3tree(query: CmfQuery, pipeline_name: str, dict_of_
 
     while len(queue) > 0:
         exe_id = queue.dequeue()
-        parents = query.get_one_hop_parent_executions_ids([exe_id], pipeline_id)
+        parents = query.get_one_hop_parent_execution_ids(exe_id, pipeline_id)
         if parents == None:
             parents = [] 
         unique_parents = list(set(parents))
@@ -59,7 +59,7 @@ def query_execution_lineage_d3tree(query: CmfQuery, pipeline_name: str, dict_of_
             queue.enqueue(i)
             parents_set.add(i)
     
-    
+
     df = query.get_executions_with_execution_ids(list(parents_set))
     df['name_uuid'] = df['Execution_type_name'] + '_' + df['Execution_uuid']
     # {"id" : "name_uuid"} for example {"2":"Prepare_d09fdb26-0e9d-11ef-944f-4bf54f5aca7f"}

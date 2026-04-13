@@ -646,21 +646,20 @@ class CmfQuery(object):
         # Flatten list_exec and return as a list of integers
         return list(chain.from_iterable(list_exec))
 
-    def get_one_hop_parent_executions_ids(self, execution_ids: t.List[int], pipeline_id: t.Optional[int] = None) -> t.List[int]:
+    def get_one_hop_parent_execution_ids(self, execution_id: int, pipeline_id: t.Optional[int] = None) -> t.List[int]:
         """Get parent execution ids for given execution id
 
         Args: 
-           execution_id : Execution id for which parent execution are required
-                          It is passed in list, for example execution_id: [1]  
+           execution_id : Execution id for which parent executions are required
            pipeline_id : Pipeline id
         Return:
-           Returns parent executions for given id
+           Returns parent executions for given execution id
         """
-        artifact_ids: t.List[int] = self._get_input_artifacts(execution_ids)
+        artifact_ids: t.List[int] = self._get_input_artifacts([execution_id])
         if not artifact_ids:
             return []
 
-        # OPTIMIZED: Batch query for all artifacts at once instead of one-by-one
+        # query executions for all artifacts at once instead of one-by-one
         events = self.store.get_events_by_artifact_ids(artifact_ids)
         
         # Filter for OUTPUT events to get parent execution IDs
