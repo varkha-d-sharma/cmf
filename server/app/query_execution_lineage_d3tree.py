@@ -15,7 +15,6 @@ class UniqueQueue:
     def dequeue(self):
         if self.queue:
             value = self.queue.popleft()
-            #self.seen.remove(value)
             return value
         raise IndexError("dequeue from an empty queue")
     
@@ -38,14 +37,14 @@ def query_execution_lineage_d3tree(query: CmfQuery, pipeline_name: str, dict_of_
         return {"error": f"uuid '{uuid}' does not match any execution in pipeline '{pipeline_name}'"}
     parents_set = set()
     queue = UniqueQueue()
-    df = pd.DataFrame()
     parents = query.get_one_hop_parent_executions_ids(execution_id, pipeline_id) #list of parent execution ids
     dict_parents = {}
     if parents == None:
         parents = []
-    dict_parents[execution_id[0]] = list(set(parents))  # [2] = [1,2,3,4] list of parent id
+    unique_parents = list(set(parents))  # [2] = [1,2,3,4] list of parent id
+    dict_parents[execution_id[0]] = unique_parents
     parents_set.add(execution_id[0])     #created so that we can directly find execuions using execution ids
-    for i in set(parents):
+    for i in unique_parents:
         queue.enqueue(i)
         parents_set.add(i)
 
@@ -54,12 +53,13 @@ def query_execution_lineage_d3tree(query: CmfQuery, pipeline_name: str, dict_of_
         parents = query.get_one_hop_parent_executions_ids([exe_id], pipeline_id)
         if parents == None:
             parents = [] 
-        dict_parents[exe_id] = list(set(parents))
-        for i in set(parents):
+        unique_parents = list(set(parents))
+        dict_parents[exe_id] = unique_parents
+        for i in unique_parents:
             queue.enqueue(i)
             parents_set.add(i)
     
-    # for execution_id get executions(complete df with all data of executions)
+    
     df = query.get_executions_with_execution_ids(list(parents_set))
     df['name_uuid'] = df['Execution_type_name'] + '_' + df['Execution_uuid']
     # {"id" : "name_uuid"} for example {"2":"Prepare_d09fdb26-0e9d-11ef-944f-4bf54f5aca7f"}
