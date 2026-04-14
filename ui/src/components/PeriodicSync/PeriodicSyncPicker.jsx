@@ -18,13 +18,8 @@ import React, { useMemo, useState } from 'react';
 import { buildTimeZoneOptions, getLocalTimeZone } from '../../utils/timezones';
 
 function toLocalInputValue(date) {
-  // Input: date (Date)
-  // Output: string (YYYY-MM-DDTHH:MM)
-  // Description: Converts a Date object to datetime-local input string format.
-  // Step 1: Read year, month, day, hour, and minute from the Date object.
-  // Step 2: Left-pad each numeric part to keep 2-digit formatting.
-  // Step 3: Compose and return the final YYYY-MM-DDTHH:MM string.
-  // Example: 2026-04-07 09:05 becomes "2026-04-07T09:05".
+  // Used to convert a Date object to a string format suitable for datetime-local input value (YYYY-MM-DDTHH:MM).
+  // For eg: Date representing June 10, 2024, 14:30 would be converted to "2024-06-10T14:30".
   const pad = (n) => String(n).padStart(2, '0');
   const yyyy = date.getFullYear();
   const mm = pad(date.getMonth() + 1);
@@ -35,13 +30,8 @@ function toLocalInputValue(date) {
 }
 
 function formatInTZ(date, timeZone) {
-  // Input: date (Date), timeZone (string)
-  // Output: string
-  // Description: Formats a date for preview using the selected timezone.
-  // Step 1: Use Intl.DateTimeFormat with the provided timezone and display options.
-  // Step 2: Return the formatted string when formatting succeeds.
-  // Step 3: Fallback to UTC string if the timezone is invalid or Intl throws.
-  // Example: formatInTZ(new Date(), "Asia/Kolkata") returns local Kolkata time text.
+  // Used to format a Date object into a human-readable string in the specified timezone.
+  // For example, a Date representing June 10, 2024, 14:30 in "America/New_York" timezone might be formatted as "Jun 10, 2024, 02:30 PM".
   try {
     return new Intl.DateTimeFormat('en-IN', {
       timeZone,
@@ -55,26 +45,12 @@ function formatInTZ(date, timeZone) {
 
 // Timezones will be populated dynamically from browser support
 function addMinutes(date, minutes) {
-  // Input: date (Date), minutes (number)
-  // Output: Date
-  // Description: Returns a new Date shifted by the requested number of minutes.
-  // Step 1: Convert minutes to milliseconds.
-  // Step 2: Add that duration to the source timestamp.
-  // Step 3: Return a new Date created from the updated timestamp.
-  // Example: addMinutes(10:00, 30) returns 10:30.
+  // Used to add a specified number of minutes to a Date object and return a new Date object with the updated time.
+  // For example, adding 90 minutes to a Date representing June 10, 2024, 14:30 would return a new Date representing June 10, 2024, 16:00.
   return new Date(date.getTime() + minutes * 60000);
 }
 
 function PeriodicSyncPicker({ serverId, serverName, onSchedule, mode = 'periodic' }) {
-  // Input: serverId (string|number), serverName (string), onSchedule (function), mode ("periodic"|"one-time")
-  // Output: JSX component
-  // Description: Builds periodic/one-time sync schedule form, previews next runs, and submits schedule data.
-  // Step 1: Initialize timezone, start time, recurrence, and submission states.
-  // Step 2: Compute upcoming run previews based on interval/daily/weekly/one-time modes.
-  // Step 3: Validate form state before allowing submit.
-  // Step 4: Submit normalized schedule payload through onSchedule callback.
-  // Example: weekly mode with monday + 14:00 sends weeklyDay and weeklyTime in schedule payload.
-  
   // useMemo keeps the computed timezone list stable so we do not rebuild hundreds of options every render.
   const tzOptions = useMemo(() => buildTimeZoneOptions(), []);
 
@@ -197,14 +173,7 @@ function PeriodicSyncPicker({ serverId, serverName, onSchedule, mode = 'periodic
   }, [serverId, serverName, timezone, startLocal, isPastTime, mode, recurrenceMode, intervalValue, weeklyDay]);
 
   const handleSubmit = async () => {
-    // Input: none (uses component state)
-    // Output: Promise<void>
-    // Description: Validates and submits periodic/one-time sync schedule payload.
-    // Step 1: Stop when submit is not allowed or already in progress.
-    // Step 2: Build base payload with server, timezone, start time, and one_time flag.
-    // Step 3: Add recurrence-specific fields for interval/daily/weekly modes.
-    // Step 4: Call onSchedule and always reset submitting state in finally block.
-    // Example: interval every 6 hours includes intervalUnit="hours" and intervalValue=6.
+    // Used to validate and submit periodic/one-time sync schedule payload.
     if (!canSubmit || submitting) return;
     setSubmitting(true);
 

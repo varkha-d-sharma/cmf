@@ -67,7 +67,7 @@ class ScheduleCreateRequest(BaseModel):
     one_time: bool = Field(False, description="If true, run only once and deactivate")
     
     # New recurrence mode fields (only for periodic syncs)
-    recurrence_mode: Optional[str] = Field(None, description="Recurrence mode: 'interval', 'daily', or 'weekly'")
+    recurrence_mode: Optional[str] = Field(None, description="Recurrence mode: interval (every fixed gap, e.g., every 6 hours), daily (once per day at a specific time), or weekly (once per week on a specific day and time).")
     interval_unit: Optional[str] = Field(None, description="For interval mode: 'minutes' or 'hours'")
     interval_value: Optional[int] = Field(None, gt=0, description="For interval mode: number of units")
     daily_time: Optional[str] = Field(None, description="For daily mode: HH:MM time")

@@ -196,6 +196,9 @@ registered_servers = Table(
     Column("host_info", String(255), unique=True, nullable=False), 
     Column("last_sync_time", BigInteger, nullable=True, default=None),
 
+    # Constraints
+    UniqueConstraint("server_name", name="uq_registered_servers_server_name"),
+
     # indexes for registered_servers
     Index("idx_registered_servers_host_info", "host_info"),
     Index("idx_registered_servers_server_name", "server_name")

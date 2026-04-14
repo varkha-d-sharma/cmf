@@ -98,6 +98,12 @@ async def lifespan(app: FastAPI):
     app.state.scheduler_task = asyncio.create_task(schedule_runner())
     yield
     # Cancel scheduler on shutdown
+    # If FastAPI is down, no scheduled sync runs.
+    # On restart, the scheduler resumes from DB state.
+    # Missed schedules are not deleted or skipped automatically.
+    # One-time schedules run once after restart if overdue.
+    # Periodic schedules keep running and may attempt backlog catch-up.
+    # There is no explicit restart cleanup/update pass for scheduled_syncs.
     task = getattr(app.state, "scheduler_task", None)
     if task:
         task.cancel()
@@ -131,19 +137,19 @@ print("Local addresses= ", LOCAL_ADDRESSES)
 
 
 async def schedule_runner():
-    # Input: none
-    # Output: none (runs continuously)
-    # Description: Background loop that executes due schedules using 3-stage server validation.
-    # Step 1: Query all due schedules using current UTC epoch milliseconds.
-    # Step 2: Check if server record exists in DB (registration check).
-    #         - If NOT registered: permanent config issue -> deactivate ALL schedule types.
-    # Step 3: Check if the registered server is currently reachable (liveness check).
-    #         - If NOT alive: transient outage:
-    #             one-time  -> deactivate (missed its window, cannot retry)
-    #             periodic  -> log failure, compute next run, keep active for retry
-    # Step 4: Server is registered AND alive -> perform sync, log result, advance schedule.
-    # Step 5: Sleep 30 seconds and repeat.
-    # Example: periodic schedule with unreachable server logs failure and reschedules.
+    """Input: none
+    Output: none (runs continuously)
+    Description: Background loop that executes due schedules using 3-stage server validation.
+    Step 1: Query all due schedules using current UTC epoch milliseconds.
+    Step 2: Check if server record exists in DB (registration check).
+            - If NOT registered: permanent config issue -> deactivate ALL schedule types.
+    Step 3: Check if the registered server is currently reachable (liveness check).
+            - If NOT alive: transient outage:
+                one-time  -> deactivate (missed its window, cannot retry)
+                periodic  -> log failure, compute next run, keep active for retry
+    Step 4: Server is registered AND alive -> perform sync, log result, advance schedule.
+    Step 5: Sleep 30 seconds and repeat.
+    Example: periodic schedule with unreachable server logs failure and reschedules."""
     while True:
         try:
             async with async_session() as db:
@@ -152,7 +158,7 @@ async def schedule_runner():
                 for sch in schedules:
                     sync_type = "schedule_once" if sch.get("one_time") else "periodic"
 
-                    # ── Stage 1: Registration check ───────────────────────────────────────
+                    # Stage 1: Registration check
                     # Checks whether the server record still exists in the registered_servers
                     # table. A missing record is a permanent configuration issue (server was
                     # deleted/deregistered), not a temporary outage. Deactivate all schedule
@@ -167,7 +173,7 @@ async def schedule_runner():
                         await update_schedule_fields(db, schedule_id=sch["id"], active=False, status="failed")
                         continue
 
-                    # ── Stage 2: Liveness check ───────────────────────────────────────────
+                    # Stage 2: Liveness check
                     # Server is registered. Now check if it is currently reachable by sending
                     # a lightweight ping to /api/acknowledge (5-second timeout).
                     # This distinguishes transient network/outage failures from config errors.
@@ -212,7 +218,7 @@ async def schedule_runner():
                             await update_schedule_fields(db, schedule_id=sch["id"], status="active")
                         continue
 
-                    # ── Stage 3: Server is registered and alive -> perform sync ───────────
+                    # Stage 3: Server is registered and alive -> perform sync
                     req = ServerRegistrationRequest(server_name=server["server_name"], server_url=server["host_info"])
                     status_msg = ""
                     status = "failed"
@@ -642,21 +648,12 @@ async def sync_metadata(request: ServerRegistrationRequest, db: AsyncSession = D
     Raises:
         HTTPException: If the server is not found or an error occurs during synchronization.
     """
-    # Input: request (ServerRegistrationRequest), db (AsyncSession), skip_logging (bool)
-    # Output: dict
-    # Description: Pulls remote metadata delta and pushes it into host metadata store.
-    # Step 1: Validate registered server and load previous last_sync_time.
-    # Step 2: Pull MLMD payload from remote server using incremental timestamp.
-    # Step 3: Push payload into local MLMD and refresh global execution/artifact maps.
-    # Step 4: Update last_sync_time on success and persist sync logs.
-    # Step 5: Return sync status/message or raise HTTPException on failure.
-    # Example: first sync without last_sync_time performs initial full sync.
     server_name = request.server_name
     server_url = request.server_url
     current_utc_epoch_time = int(time.time() * 1000)
     
     try:
-        # Step 1: Verify the server exists in the registered servers list and get last sync time
+        # Verify the server exists in the registered servers list and get last sync time
         row = await get_sync_status(db, server_name, server_url)
 
         if not row:
@@ -666,6 +663,7 @@ async def sync_metadata(request: ServerRegistrationRequest, db: AsyncSession = D
 
         last_sync_time = row[0]['last_sync_time']
 
+        # Pull MLMD data from the target server using the /mlmd_pull endpoint
         json_payload = await server_mlmd_pull(server_url, last_sync_time)
 
         json_data = {
@@ -793,15 +791,16 @@ def download_python_env(request: Request, list_of_files: Optional[list[str]] = Q
 # ---- Scheduling APIs ----
 @app.post("/schedule-sync")
 async def schedule_sync(request: ScheduleCreateRequest, db: AsyncSession = Depends(get_db)):
-    # Input: request (ScheduleCreateRequest), db (AsyncSession)
-    # Output: dict
-    # Description: Validates schedule payload, computes first run, and saves schedule for future sync.
-    # Step 1: Validate registered server, timezone, and local datetime format.
-    # Step 2: Convert local start datetime to UTC epoch milliseconds.
-    # Step 3: Derive recurrence fields for interval/daily/weekly modes.
-    # Step 4: Compute first next_run_time_utc for one-time or periodic schedule.
-    # Step 5: Persist schedule and return created schedule id with next run time.
-    # Example: weekly monday schedule stores next UTC timestamp for next Monday slot.
+    """
+    Create a one-time or periodic sync schedule for a registered server.
+
+    Args:
+        request (ScheduleCreateRequest): Schedule configuration payload.
+        db (AsyncSession): Database session dependency.
+
+    Returns:
+        dict: Created schedule id and computed next run time.
+    """
     try:
         # Validate that target server exists before creating a schedule.
         server = await get_registered_server_by_id(db, request.server_id)
@@ -876,25 +875,32 @@ async def schedule_sync(request: ScheduleCreateRequest, db: AsyncSession = Depen
 
 @app.get("/schedules")
 async def get_schedules(server_id: Optional[int] = Query(None), db: AsyncSession = Depends(get_db)):
-    # Input: server_id (Optional[int]), db (AsyncSession)
-    # Output: list
-    # Description: Returns active schedules, optionally filtered by server id.
-    # Step 1: Read optional server_id query parameter.
-    # Step 2: Fetch active schedules from database query helper.
-    # Step 3: Return schedule rows as API response.
-    # Example: server_id=3 returns schedules only for server 3.
+    """
+    Retrieve active schedules, optionally filtered by server id.
+
+    Args:
+        server_id (Optional[int]): Optional server id filter.
+        db (AsyncSession): Database session dependency.
+
+    Returns:
+        list: Active schedule rows.
+    """
     rows = await list_schedules(db, server_id)
     return rows
 
 
 @app.get("/schedule-sync/logs/{schedule_id}")
 async def get_schedule_logs(schedule_id: int, db: AsyncSession = Depends(get_db)):
-    # Input: schedule_id (int), db (AsyncSession)
-    # Output: list
-    # Description: Returns run history logs for a given schedule id.
-    # Step 1: Fetch sync log rows using schedule_id.
-    # Step 2: Return logs in descending run-time order.
-    # Example: schedule_id 10 returns latest periodic runs for that schedule.
+    """
+    Retrieve run history logs for a schedule id.
+
+    Args:
+        schedule_id (int): Schedule id.
+        db (AsyncSession): Database session dependency.
+
+    Returns:
+        list: Sync log rows ordered by latest first.
+    """
     rows = await list_sync_logs(db, schedule_id)
     return rows
 
@@ -910,13 +916,6 @@ async def get_server_completed_logs(server_id: int, db: AsyncSession = Depends(g
     Returns:
         list: A list of completed sync logs with sync_type, status, message, and timestamp.
     """
-    # Input: server_id (int), db (AsyncSession)
-    # Output: list
-    # Description: Fetches historical completed sync logs for one registered server.
-    # Step 1: Query joined schedule/log tables by server_id.
-    # Step 2: Return results sorted by latest run time.
-    # Step 3: Raise HTTPException when data fetch fails.
-    # Example: UI completed log panel calls this API for selected server.
     try:
         logs = await get_completed_logs_by_server(db, server_id)
         return logs
@@ -926,13 +925,16 @@ async def get_server_completed_logs(server_id: int, db: AsyncSession = Depends(g
 
 @app.delete("/schedule-sync/{schedule_id}")
 async def delete_schedule_route(schedule_id: int, db: AsyncSession = Depends(get_db)):
-    # Input: schedule_id (int), db (AsyncSession)
-    # Output: dict
-    # Description: Deactivates a schedule so future periodic runs stop.
-    # Step 1: Receive schedule id from route path.
-    # Step 2: Call delete_schedule helper for soft-cancel update.
-    # Step 3: Return cancellation result message.
-    # Example: deleting schedule from UI marks it cancelled and inactive.
+    """
+    Deactivate a schedule so future runs stop.
+
+    Args:
+        schedule_id (int): Schedule id to deactivate.
+        db (AsyncSession): Database session dependency.
+
+    Returns:
+        dict: Deactivation status message.
+    """
     return await delete_schedule(db, schedule_id)
 
 

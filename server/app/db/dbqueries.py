@@ -23,15 +23,15 @@ async def register_server_details(db: AsyncSession, server_name: str, server_url
     """
     Register server details in the database.
     """
-    # Step 1: Check if the server is already registered
-    query_check = select(registered_servers.c.id).where(
-        registered_servers.c.host_info == server_url
+    # Check duplicate server name.
+    query_name_check = select(registered_servers.c.id).where(
+        registered_servers.c.server_name == server_name
     )
-    result = await db.execute(query_check)
-    exists = result.scalar()
+    result = await db.execute(query_name_check)
+    exists_name = result.scalar()
 
-    if exists:
-        return {"message": "Server is already registered"}
+    if exists_name:
+        return {"message": "Server name already exists. Please use a unique server name"}
 
     # Step 2: Insert new server
     query_insert = insert(registered_servers).values(
@@ -54,16 +54,7 @@ async def get_registered_server_details(db: AsyncSession = Depends(get_db())):
 
 
 async def get_registered_server_by_id(db: AsyncSession, server_id: int):
-    """
-    Get registered server details by ID from the database.
-    """
-    # Input: db (AsyncSession), server_id (int)
-    # Output: mapping row or None
-    # Description: Looks up one registered server by primary key for schedule execution.
-    # Step 1: Build select query filtered by server_id.
-    # Step 2: Execute query and read first matching row.
-    # Step 3: Return row mapping or None when not found.
-    # Example: scheduler uses this to resolve destination server details.
+    """Return one registered server row by primary key, or None."""
     query = select(registered_servers).where(registered_servers.c.id == server_id)
     result = await db.execute(query)
     row = result.mappings().first()
@@ -71,14 +62,7 @@ async def get_registered_server_by_id(db: AsyncSession, server_id: int):
 
 
 async def get_registered_server_by_name_url(db: AsyncSession, server_name: str, server_url: str):
-    """Fetch a registered server row by name and URL."""
-    # Input: db (AsyncSession), server_name (str), server_url (str)
-    # Output: mapping row or None
-    # Description: Finds one registered server using name and URL pair.
-    # Step 1: Build combined filter on server_name and host_info.
-    # Step 2: Execute query and fetch first matching row.
-    # Step 3: Return row for sync logging/schedule linking.
-    # Example: log_sync_attempt resolves server id using this helper.
+    """Fetch one registered server row by server name and host URL."""
     query = select(registered_servers).where(
         (registered_servers.c.server_name == server_name) & (registered_servers.c.host_info == server_url)
     )
@@ -87,22 +71,13 @@ async def get_registered_server_by_name_url(db: AsyncSession, server_name: str, 
 
 
 async def update_sync_status(db: AsyncSession, current_utc_time: int, server_name: str, server_url: str):
-    """
-    Update the sync status in the database.
-    """
-    # Input: db (AsyncSession), current_utc_time (int), server_name (str), server_url (str)
-    # Output: None
-    # Description: Updates last_sync_time after successful sync completion.
-    # Step 1: Build update query by matching server name and url.
-    # Step 2: Set last_sync_time to provided UTC epoch milliseconds.
-    # Step 3: Commit transaction.
-    # Example: successful /sync call stores new checkpoint timestamp for next incremental pull.
+    """Update last sync timestamp for a server identified by name and URL."""
     query = update(registered_servers).where(
         (registered_servers.c.server_name == server_name) & 
         (registered_servers.c.host_info == server_url)
     ).values(last_sync_time=current_utc_time)
     await db.execute(query)
-    await db.commit()  # Commit the transaction
+    await db.commit()
 
 
 async def fetch_artifacts(
@@ -384,13 +359,7 @@ async def create_schedule(
     weekly_day: str = None,
     weekly_time: str = None
 ):
-    # Input: db plus schedule fields (server, timezone, start/next UTC, recurrence options)
-    # Output: dict
-    # Description: Inserts a new periodic/one-time[future] schedule row and returns inserted id.
-    # Step 1: Build insert payload from normalized schedule values.
-    # Step 2: Insert into scheduled_syncs and return generated id.
-    # Step 3: Commit transaction so scheduler can process schedule.
-    # Example: weekly schedule stores weekly_day and weekly_time for next-run computation.
+    """Insert a schedule row and return the created schedule id."""
     query = insert(scheduled_syncs).values(
         server_id=server_id,
         timezone=timezone,
@@ -413,13 +382,7 @@ async def create_schedule(
 
 
 async def list_schedules(db: AsyncSession, server_id: int | None = None):
-    # Input: db (AsyncSession), server_id (Optional[int])
-    # Output: list
-    # Description: Returns active schedules with optional per-server filtering.
-    # Step 1: Start from active schedules query.
-    # Step 2: Apply server_id filter when provided.
-    # Step 3: Execute and return row mappings.
-    # Example: schedules page calls with server filter to show only one server's jobs.
+    """Return active schedules, optionally filtered by server id."""
     query = select(scheduled_syncs).where(scheduled_syncs.c.active == True)
     if server_id is not None:
         query = query.where(scheduled_syncs.c.server_id == server_id)
@@ -428,13 +391,7 @@ async def list_schedules(db: AsyncSession, server_id: int | None = None):
 
 
 async def due_schedules(db: AsyncSession, now_utc_ms: int):
-    # Input: db (AsyncSession), now_utc_ms (int)
-    # Output: list
-    # Description: Returns active schedules whose next run time is due.
-    # Step 1: Filter schedules by active=True.
-    # Step 2: Keep rows where next_run_time_utc <= now timestamp.
-    # Step 3: Execute and return due schedule rows.
-    # Example: scheduler polls this every 30 seconds.
+    """Return active schedules whose next run time is at or before now."""
     query = select(scheduled_syncs).where(
         (scheduled_syncs.c.active == True) & (scheduled_syncs.c.next_run_time_utc <= now_utc_ms)
     )
@@ -443,24 +400,14 @@ async def due_schedules(db: AsyncSession, now_utc_ms: int):
 
 
 async def update_next_run(db: AsyncSession, schedule_id: int, next_run_time_utc: int):
-    # Input: db (AsyncSession), schedule_id (int), next_run_time_utc (int)
-    # Output: None
-    # Description: Advances schedule to next computed run timestamp.
-    # Step 1: Update next_run_time_utc by schedule id.
-    # Step 2: Commit transaction.
-    # Example: periodic run finishes and moves next slot to future.
+    """Update the next run timestamp for a schedule."""
     query = update(scheduled_syncs).where(scheduled_syncs.c.id == schedule_id).values(next_run_time_utc=next_run_time_utc)
     await db.execute(query)
     await db.commit()
 
 
 async def log_sync_run(db: AsyncSession, schedule_id: int, run_time_utc: int, status: str, message: str | None, sync_type: str = "periodic"):
-    # Input: db (AsyncSession), schedule_id (int), run_time_utc (int), status (str), message (Optional[str]), sync_type (str)
-    # Output: None
-    # Description: Stores one sync execution record in sync_logs table.
-    # Step 1: Insert status/message with run timestamp and schedule id.
-    # Step 2: Commit transaction.
-    # Example: failed run is logged with status="failed" and error message.
+    """Insert one sync execution log row."""
     query = insert(sync_logs).values(
         schedule_id=schedule_id,
         run_time_utc=run_time_utc,
@@ -473,27 +420,14 @@ async def log_sync_run(db: AsyncSession, schedule_id: int, run_time_utc: int, st
 
 
 async def list_sync_logs(db: AsyncSession, schedule_id: int, limit: int = 50):
-    # Input: db (AsyncSession), schedule_id (int), limit (int)
-    # Output: list
-    # Description: Returns recent sync log entries for a schedule.
-    # Step 1: Filter sync_logs by schedule id.
-    # Step 2: Order by run_time_utc descending and apply limit.
-    # Step 3: Execute and return row mappings.
-    # Example: schedule log modal fetches latest 50 runs.
+    """Return recent sync logs for a schedule, newest first."""
     query = select(sync_logs).where(sync_logs.c.schedule_id == schedule_id).order_by(sync_logs.c.run_time_utc.desc()).limit(limit)
     result = await db.execute(query)
     return result.mappings().all()
 
 
 async def get_completed_logs_by_server(db: AsyncSession, server_id: int, limit: int = 100):
-    """Get all completed sync logs for a specific server."""
-    # Input: db (AsyncSession), server_id (int), limit (int)
-    # Output: list
-    # Description: Returns joined schedule/log history for one server.
-    # Step 1: Join sync_logs with scheduled_syncs.
-    # Step 2: Filter by server_id and order by latest run time.
-    # Step 3: Limit result size and return mappings.
-    # Example: completed-logs API uses this for server timeline.
+    """Return joined sync log history for a specific server."""
     query = (
         select(
             sync_logs.c.id,
@@ -522,13 +456,7 @@ async def update_schedule_fields(
     one_time: bool | None = None,
     status: str | None = None,
 ):
-    # Input: db (AsyncSession), schedule_id (int), optional mutable fields
-    # Output: dict
-    # Description: Applies partial updates to schedule state/timestamps.
-    # Step 1: Build update payload from provided non-None values.
-    # Step 2: Return no-op message when payload is empty.
-    # Step 3: Update schedule row, commit, and return success message.
-    # Example: scheduler marks status as running/active/completed.
+    """Partially update mutable schedule fields and return status message."""
     values = {}
     if timezone is not None:
         values[scheduled_syncs.c.timezone] = timezone
@@ -553,13 +481,7 @@ async def update_schedule_fields(
 
 
 async def delete_schedule(db: AsyncSession, schedule_id: int):
-    # Input: db (AsyncSession), schedule_id (int)
-    # Output: dict
-    # Description: Soft-cancels a schedule by setting active false and status cancelled.
-    # Step 1: Update schedule row for given id with cancellation values.
-    # Step 2: Commit transaction.
-    # Step 3: Return deactivation message.
-    # Example: deleting schedule from UI stops future executions.
+    """Soft-cancel a schedule by deactivating it and setting cancelled status."""
     query = (
         update(scheduled_syncs)
         .where(scheduled_syncs.c.id == schedule_id)
@@ -571,16 +493,7 @@ async def delete_schedule(db: AsyncSession, schedule_id: int):
 
 
 async def get_sync_status(db: AsyncSession, server_name: str, server_url: str):
-    """
-    Get the sync status from the database.
-    """
-    # Input: db (AsyncSession), server_name (str), server_url (str)
-    # Output: list
-    # Description: Fetches last_sync_time checkpoint used for incremental pull.
-    # Step 1: Filter registered server row by name and url.
-    # Step 2: Select last_sync_time column.
-    # Step 3: Return mapping rows.
-    # Example: sync_metadata reads this checkpoint before pulling remote data.
+    """Return last sync timestamp checkpoint for a server."""
     query = select(registered_servers.c.last_sync_time).where(
         (registered_servers.c.server_name == server_name) & 
         (registered_servers.c.host_info == server_url)
