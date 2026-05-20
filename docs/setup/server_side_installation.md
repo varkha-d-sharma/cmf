@@ -15,11 +15,6 @@ If your enterprise routes egress server traffic through a proxy network, you mus
 
 ---
 
-## Orchestrated Deployment Process
-
-### start: Fetch Orchestration Blueprints
-Clone the source configuration assets directly from the official HewlettPackard repository:
-
 ### Installation Steps
 **Step 1: Clone the GitHub Repository**
 
@@ -42,7 +37,7 @@ $ cd cmf
 
 **Step 3: Create Environment Configuration**
 
-create a `.env` file using the `nano.env` command in the same directory as `docker-compose-server.yml` and add the following environmental parameters:
+create a `.env` file using the `nano .env` command in the same directory as `docker-compose-server.yml` and add the following environmental parameters:
 
 ```env
 CMF_DATA_DIR=./data                    
@@ -52,7 +47,7 @@ REACT_APP_CMF_API_URL=http://your-server-ip:80
 ```
 
 ```bash
-$ nano.env
+$ nano .env
 ```
 **Output:** creates env file, add the above 3-4 lines and save it using (CTRL+O, ENTER, CTRL+X)
 
@@ -116,45 +111,5 @@ $ docker compose -f docker-compose-server.yml stop
 > docker compose -f docker-compose-server.yml build --no-cache
 > docker compose -f docker-compose-server.yml up
 > ```
-
----
-
-## Troubleshooting
-
-### Python 3.9 Installation Issues on Ubuntu
-
-If you are using Python 3.9 on Ubuntu systems, you may encounter installation or virtual environment issues.
-
-**Issue**: When creating Python 3.9 virtual environments, you may encounter:
-
-```
-ModuleNotFoundError: No module named 'distutils.cmd'
-```
-
-**Root Cause**: Python 3.9 may be missing required modules like `distutils` or `venv` when installed on Ubuntu systems.
-
-**Resolution**:
-
-1. Add the deadsnakes PPA (provides newer Python versions):
-   
-   ```bash
-   sudo add-apt-repository ppa:deadsnakes/ppa
-   sudo apt-get update
-   ```
-2. Install Python 3.9 with required modules:
-   
-   ```bash
-   sudo apt install python3.9 python3.9-dev python3.9-distutils python3.9-venv
-   ```
-3. Verify the installation:
-   
-   ```bash
-   python3.9 --version
-   python3.9 -m venv test_env
-   ```
-
-This ensures Python 3.9 and its essential modules are fully installed and functional.
-
-> 💡 **Recommendation:** If you're starting fresh, we recommend using Python 3.10 to avoid these compatibility issues.
 
 ---

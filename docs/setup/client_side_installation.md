@@ -55,9 +55,16 @@ Before initiating the environment setup, review the foundational commands requir
 **Step 1: Activate the Virtual Environment**<br/><br/>
 **Description:** Activates an isolated Python environment to keep project packages separated from global system files.
 
-```bash
-$ source cmf_env/bin/activate
-```
+=== "WSL"
+    ```shell
+    $ source cmf_env/bin/activate
+    ```
+
+=== "Conda Environment"
+    ```shell
+    conda activate cmf_env
+    ```
+
 **Output:** (cmf_env)$
 <br>
 Prefixes your terminal shell prompt with (cmf_env) to signal that isolation is active.
@@ -127,14 +134,25 @@ Prints a single success message confirming that configuration is complete and lo
 **Description:** Launches a custom shell script workflow to execute pre-written testing or processing steps.
 
 ```bash
-$  .sh ./test_script.sh
+$  . sh ./test_script.sh
 ```
 **Output:** [5/5] [RUNNING PARSE STEP]
 <br>
 Streams real-time pipeline status updates directly to the console window, showing current execution step metrics.
 
 ---
-**Step 8: Push Metadata to the CMF Server**<br/><br/>
+
+**Step 8: Retrieves a detailed list of all recorded pipelines**<br/><br/>
+**Description:** Retrieves a detailed list of all recorded pipelines or components from your CMF server and saves the output directly into a specified file.
+
+```bash
+$  CMF pipeline list -f name of file
+```
+**Output:** 
+<br>
+
+---
+**Step 9: Push Metadata to the CMF Server**<br/><br/>
 **Description:**  Bundles and uploads the locally recorded tracking data for your specified pipeline run directly to your configured dashboard.
 
 ```bash
@@ -145,28 +163,5 @@ $  cmf metadata push --pipeline_name Test-env
 Returns an explicit confirmation string stating that the metadata transfer process has successfully initialized.
 
 ---
-
-## Troubleshooting Client Setup
-
-### Distutils Error on Python 3.9 (Ubuntu)
-**Symptom**: Virtual environment provisioning fails with: `ModuleNotFoundError: No module named 'distutils.cmd'`
-
-**Root Cause**: Canonical stripped `distutils` out of standard Ubuntu Python 3.9 base packages.
-
-**Resolution**: Execute the following commands to patch the native system packages:
-
-```bash
-sudo add-apt-repository ppa:deadsnakes/ppa -y
-sudo apt-get update
-sudo apt install python3.9 python3.9-dev python3.9-distutils python3.9-venv -y
-```
-
-Verify the environment generation patch:
-```bash
-python3.9 -m venv test_env
-```
-
-!!! tip "Standardization Recommendation"
-    To bypass distribution package gaps entirely, use **Python 3.10** as your base client platform.
 
 To learn more about client-side metadata installation, see the Getting Started Tutorial. **[Getting Started Tutorial](../../examples/getting_started)**.
