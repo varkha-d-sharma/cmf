@@ -21,6 +21,7 @@ import TensorBoard from "./pages/tensorboard";
 import Metahub from "./pages/metahub";
 import ArtifactsPostgres from "./pages/artifacts_postgres_grid";
 import ExecutionsPostgres from "./pages/executions_postgres_grid";
+import Search from "./pages/search";
 
 function App() {
   return (
@@ -33,6 +34,7 @@ function App() {
           <Route exact path="/display_lineage" element={<Lineage />} />
           <Route exact path="/tensorboard" element={<TensorBoard />} />
           <Route exact path="/metahub" element={<Metahub />} />
+          <Route exact path="/search" element={<Search />} />
         </Routes>
       </BrowserRouter>
     </div>

@@ -27,6 +27,7 @@ function DashboardHeader() {
     { to: "/display_lineage", label: "Lineage" },
     { to: "/tensorboard", label: "TensorBoard" },
     { to: "/metahub", label: "Metahub" },
+    { to: "/search", label: "AI Search" },
   ];
 
   return (

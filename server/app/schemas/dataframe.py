@@ -73,6 +73,10 @@ class MLMDPullRequest(BaseModel):
     pipeline_name:Optional[str] = Field(None, description="Name of the pipeline")
     exec_uuid: Optional[str] = Field(None, description="Execution UUID")
     last_sync_time: Optional[int] = Field(None, description="Epoch time in seconds")
+
+
+class NLQueryRequest(BaseModel):
+    question: str = Field(..., min_length=1, description="Natural language question to query the MLMD database")
     
 
     

@@ -49,6 +49,7 @@ from server.app.schemas.dataframe import (
     MLMDPullRequest,
     ArtifactByStageRequest,
     ExecutionByStageRequest,
+    NLQueryRequest,
 )
 import httpx
 import socket
@@ -715,6 +716,36 @@ async def sync_metadata(request: ServerRegistrationRequest, db: AsyncSession = D
 async def server_list(db: AsyncSession = Depends(get_db)):
     rows = await get_registered_server_details(db)
     return rows
+
+
+@app.post("/nlp_query")
+async def nlp_query(request: NLQueryRequest):
+    """
+    Accepts a natural language question, forwards it to the QueryWeaver service
+    which generates SQL via Ollama and executes it against the MLMD PostgreSQL
+    database, then returns the results to the caller.
+
+    Flow: UI -> this endpoint -> QueryWeaver (/query) -> Ollama (SQL gen) -> PostgreSQL
+    """
+    queryweaver_url = os.getenv("QUERYWEAVER_URL", "http://queryweaver:8000")
+    try:
+        async with httpx.AsyncClient(timeout=300.0) as client:
+            response = await client.post(
+                f"{queryweaver_url}/query",
+                json={"question": request.question},
+            )
+            response.raise_for_status()
+            return response.json()
+    except httpx.HTTPStatusError as exc:
+        raise HTTPException(
+            status_code=exc.response.status_code,
+            detail=exc.response.text,
+        )
+    except httpx.RequestError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=f"QueryWeaver service unreachable: {exc}",
+        )
 
 
 @app.get("/download-python-env")

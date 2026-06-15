@@ -273,6 +273,15 @@ class FastAPIClient {
       });
   }
 
+
+  // NLP query — sends a plain-English question to the backend which forwards
+  // it to QueryWeaver → Ollama → PostgreSQL and returns {sql_query, results, ai_response}.
+  async nlpQuery(question) {
+    return this.apiClient
+      .post(`/nlp_query`, { question })
+      .then(({ data }) => data);
+  }
+
 }
 
 
