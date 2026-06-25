@@ -364,6 +364,27 @@ async def execution_lineage(request: Request, uuid: str, pipeline_name: str):
     await check_pipeline_exists(pipeline_name)
     response = await async_api(query_execution_lineage_d3tree, query, pipeline_name, dict_of_exe_ids, uuid)
     return response
+
+@app.get("/hierarchical-lineage/tangled-tree/{uuid}/{pipeline_name}")
+async def hierarchical_tree_lineage(request: Request, uuid: str, pipeline_name: str):
+    '''
+    Returns dictionary of nodes and links for hierarchical lineage tracking.
+    '''
+    # Verify underlying MLMD database connectivity
+    await check_mlmd_file_exists()
+    
+    # Check if the requested pipeline is present
+    await check_pipeline_exists(pipeline_name)
+    
+    # Dispatch processing to the dedicated hierarchical query function
+    response = await async_api(
+        query_hierarchical_tree_lineage, 
+        query, 
+        pipeline_name, 
+        dict_of_exe_ids, 
+        uuid
+    )
+    return response
     
 
 @app.get("/artifact-lineage/tangled-tree/{pipeline_name}")

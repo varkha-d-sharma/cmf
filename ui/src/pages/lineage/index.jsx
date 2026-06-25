@@ -27,7 +27,14 @@ import ExecutionTree from "../../components/ExecutionTree";
 import ExecutionTangledDropdown from "../../components/ExecutionTangledDropdown";
 import ArtifactExecutionTangledTree from "../../components/ArtifactExecutionTangledTree";
 import Loader from "../../components/Loader";
-
+import HierarchicalLineageFlow from "../../components/HierarchicalLineageFlow";
+import hierarchicalDataJson from "../../data/Hierarchicaldata.json"
+import { transformPipelineData } from "../../components/HierarchicalLineageFlow/trasformdata";
+import Hierarchical_Lineage_1 from "../../components/HierarchicalLineageFlow/index1";
+import HierarchicalLineageFlow2 from "../../components/HierarchicalLineageFlow/index2";
+import HierarchicalLineageimpjson from "../../data/staged.json"
+import Hierarchical_LineageFlow from "../../components/HierarchicalLineageFlow/heirarchical_lineage";
+import { transformNestedStageData } from "../../components/HierarchicalLineageFlow/trasformeddata";
 const client = new FastAPIClient(config);
 
 const Lineage = () => {
@@ -37,6 +44,10 @@ const Lineage = () => {
     "Artifact_Tree",
     "Execution_Tree",
     "Artifact_Execution_Tree",
+    "100 Times Execution",
+    "Artifact_Execution_vartical",
+    "Artifact_Execution_horizontal",
+    "Heirarchical_Lineage"
   ];
   const [selectedLineageType, setSelectedLineageType] = useState("Artifact_Tree");
   const [selectedExecutionType, setSelectedExecutionType] = useState(null);
@@ -47,6 +58,11 @@ const Lineage = () => {
   const [artitreeData, setArtiTreeData] = useState(null);
   const [artiexetreeData, setArtiExeTreeData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [hierarchicalData, setHierarchicalData] = useState(null);
+  const [nodesInitialized, setNodesInitialized] = useState(false);
+  const [hierarchicalData1, setHierarchicalData1] = useState(null);
+  const [hierarchicalData2, setHierarchicalData2] = useState(null);
+  const [hierarchicalDataImp, setHierarchicalDataImp] = useState(null);
 
   // fetching list of pipelines
   useEffect(() => {
@@ -112,7 +128,16 @@ const Lineage = () => {
         fetchExecutionTypes(selectedPipeline, lineageType);
       } else if (lineageType === "Artifact_Execution_Tree") {
         fetchArtiExeTree(selectedPipeline);
-      } else {
+      } else if (lineageType === "100 Times Execution") {
+        fetchHierarchicalLineage(selectedPipeline, "");
+      } else if (lineageType === "Artifact_Execution_vartical") {
+        fetchHierarchicalLineage_1(selectedPipeline, "");
+      } else if (lineageType === "Artifact_Execution_horizontal") {
+        fetchHierarchicalLineage_2(selectedPipeline, "");
+      } else if (lineageType === "Heirarchical_Lineage") {
+        fetchHierarchicalLineageImp(selectedPipeline, "");
+      } 
+      else {
         fetchArtifactTree(selectedPipeline);
       }
     }
@@ -173,6 +198,58 @@ const Lineage = () => {
     });
     setLineageArtifactsKey((prevKey) => prevKey + 1);
   };
+
+const fetchHierarchicalLineage = () => {
+  setLoading(true);
+
+  const transformed =
+    transformPipelineData(hierarchicalDataJson);
+
+  setHierarchicalData(transformed);
+
+  setLoading(false);
+};
+
+  const fetchHierarchicalLineage_1 = (pipelineName) => {
+    setLoading(true);
+    client.getArtiExeTreeLineage(pipelineName).then((data) => {
+      if (data == null) {
+        setHierarchicalData1(null);
+      } else {
+        setHierarchicalData1(data);
+      }
+      setLoading(false);
+    }).catch(() => {
+      setHierarchicalData1(null);
+      setLoading(false);
+    });
+  };
+
+  const fetchHierarchicalLineage_2 = (pipelineName) => {
+    setLoading(true);
+    client.getArtiExeTreeLineage(pipelineName).then((data) => {
+      if (data == null) {
+        setHierarchicalData2(null);
+      } else {
+        setHierarchicalData2(data);
+      }
+      setLoading(false);
+    }).catch(() => {
+      setHierarchicalData2(null);
+      setLoading(false);
+    });
+  };
+
+const fetchHierarchicalLineageImp = () => {
+  setLoading(true);
+
+  const transformed =
+      transformNestedStageData(HierarchicalLineageimpjson);
+
+  setHierarchicalDataImp(transformed);
+
+  setLoading(false);
+};
 
   // Extract uuid from execution_type_name "Prepare_3f45" ---> "3f45"
   const extractUuid = (data) => {
@@ -324,6 +401,22 @@ const Lineage = () => {
                   />
                 </div>
               )}
+            {!loading && selectedPipeline !== null &&
+              selectedLineageType === "100 Times Execution" &&
+              hierarchicalData && (<HierarchicalLineageFlow data={hierarchicalData} />)
+            }
+            {!loading && selectedPipeline !== null &&
+              selectedLineageType === "Artifact_Execution_vartical" &&
+              hierarchicalData1 && (<Hierarchical_Lineage_1 data={hierarchicalData1} />)
+            }
+            {!loading && selectedPipeline !== null &&
+              selectedLineageType === "Artifact_Execution_horizontal" &&
+              hierarchicalData2 && (<HierarchicalLineageFlow2 data={hierarchicalData2} />)
+            }
+            {!loading && selectedPipeline !== null &&
+              selectedLineageType === "Heirarchical_Lineage" &&
+              hierarchicalDataImp && (<Hierarchical_LineageFlow data={hierarchicalDataImp} />)
+            }
           </div>
         </div>
         <Footer />

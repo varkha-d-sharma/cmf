@@ -117,6 +117,22 @@ class FastAPIClient {
       });
   }
 
+  async getHierarchicalLineage  (pipeline, uuid) {
+    return this.apiClient
+      .get(`/hierarchical-lineage/tangled-tree/${uuid}/${pipeline}`)
+      .then(({ data }) => {
+        return data;
+      });
+  }
+
+  async getHierarchicalTreeLineage  (pipeline, uuid) {
+    return this.apiClient
+      .get(`/hierarchical-lineage/tangled-tree/${uuid}/${pipeline}`)
+      .then(({ data }) => {
+        return data;
+      });
+  }
+
   async getArtiExeTreeLineage(pipeline) {
     return this.apiClient
       .get(`/artifact-execution-lineage/tangled-tree/${pipeline}`)
