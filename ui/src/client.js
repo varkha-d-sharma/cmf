@@ -79,7 +79,7 @@ class FastAPIClient {
 
   async getArtifactLineage(pipeline) {
     return this.apiClient
-      .get(`/artifact-lineage/force-directed-graph/${pipeline}`)
+      .get(`/v1/lineage/artifact/${pipeline}`)
       .then(({ data }) => {
         return data;
       });
@@ -87,7 +87,7 @@ class FastAPIClient {
 
   async getArtiTreeLineage(pipeline) {
     return this.apiClient
-      .get(`/artifact-lineage/tangled-tree/${pipeline}`)
+      .get(`/v1/lineage/artifact/${pipeline}`)
       .then(({ data }) => {
         return data;
       });
@@ -95,7 +95,11 @@ class FastAPIClient {
 
   async getExecutionTypes(pipeline) {
     return this.apiClient
-      .get(`/list-of-executions/${pipeline}`)
+      .get(`/v1/executions`, {
+        params: {
+          pipeline_name: pipeline,
+        },
+      })
       .then(({ data }) => {
         return data;
       });
@@ -103,7 +107,7 @@ class FastAPIClient {
 
   async getExecutionLineage(pipeline, uuid) {
     return this.apiClient
-      .get(`/execution-lineage/force-directed-graph/${pipeline}/${uuid}`)
+      .get(`/v1/lineage/execution/${uuid}/${pipeline}`)
       .then(({ data }) => {
         return data;
       });
@@ -111,7 +115,7 @@ class FastAPIClient {
 
   async getExecTreeLineage(pipeline, uuid) {
     return this.apiClient
-      .get(`/execution-lineage/tangled-tree/${uuid}/${pipeline}`)
+      .get(`/v1/lineage/execution/${uuid}/${pipeline}`)
       .then(({ data }) => {
         return data;
       });
@@ -119,7 +123,7 @@ class FastAPIClient {
 
   async getArtiExeTreeLineage(pipeline) {
     return this.apiClient
-      .get(`/artifact-execution-lineage/tangled-tree/${pipeline}`)
+      .get(`/v1/lineage/artifact-execution/${pipeline}`)
       .then(({ data }) => {
         return data;
       });
@@ -143,7 +147,7 @@ class FastAPIClient {
 
   async getPipelines(value) {
     try {
-      const { data } = await this.apiClient.get(`/pipelines`);
+      const { data } = await this.apiClient.get(`/v1/pipelines`);
       return data;
     } catch (error) {
       // Error already handled by interceptor, just return empty array
@@ -153,7 +157,7 @@ class FastAPIClient {
 
   async getModelCard(modelId) {
     return this.apiClient
-      .get(`/model-card`, {
+      .get(`/v1/metadata/model-card`, {
         params: {
           modelId: modelId,
         },
@@ -165,7 +169,7 @@ class FastAPIClient {
 
   async getPythonEnv(file_name) {
     return this.apiClient
-      .get(`/python-env`, {
+      .get(`/v1/metadata/python-env`, {
         params: {
           file_name: file_name
         },
@@ -178,7 +182,7 @@ class FastAPIClient {
 
   async getLabelData(file_name) {
     return this.apiClient
-      .get(`/label-data`, {
+      .get(`/v1/metadata/label-data`, {
         params: {
           file_name: file_name
         },
@@ -191,7 +195,7 @@ class FastAPIClient {
 
   async getServerRegistration(server_name, server_url) {
     return this.apiClient
-      .post(`/register-server`, {
+      .post(`/v1/servers/register`, {
         server_name: server_name,
         server_url: server_url,
       })
@@ -202,7 +206,7 @@ class FastAPIClient {
 
   async getRegistredServerList() {
     return this.apiClient
-      .get(`/server-list`)
+      .get(`/v1/servers`)
       .then(({ data }) => {
         return data;
       });
@@ -210,7 +214,7 @@ class FastAPIClient {
 
   async sync(serverName, serverUrl) {
     return this.apiClient
-      .post(`/sync`, {
+      .post(`/v1/servers/sync`, {
         server_name: serverName,
         server_url: serverUrl,
       })
@@ -244,13 +248,13 @@ class FastAPIClient {
     }
 
     return this.apiClient
-      .post(`/schedule-sync`, payload)
+      .post(`/v1/schedules`, payload)
       .then(({ data }) => data);
   }
 
   async getSchedules(serverId) {
     return this.apiClient
-      .get(`/schedules`, {
+      .get(`/v1/schedules`, {
         params: { server_id: serverId },
       })
       .then(({ data }) => data);
@@ -258,26 +262,27 @@ class FastAPIClient {
 
   async getScheduleLogs(scheduleId) {
     return this.apiClient
-      .get(`/schedule-sync/logs/${scheduleId}`)
+      .get(`/v1/schedules/${scheduleId}/logs`)
       .then(({ data }) => data);
   }
 
   async getCompletedLogs(serverId) {
     return this.apiClient
-      .get(`/server/${serverId}/completed-logs`)
+      .get(`/v1/servers/${serverId}/completed-logs`)
       .then(({ data }) => data);
   }
 
   async deleteSchedule(scheduleId) {
     return this.apiClient
-      .delete(`/schedule-sync/${scheduleId}`)
+      .delete(`/v1/schedules/${scheduleId}`)
       .then(({ data }) => data);
   }
   
   async getExecutionsByStage(pipelineName, stageName, activePage = 1, recordPerPage = 5, sortOrder = "desc", filterValue = "") {
     return this.apiClient
-      .get(`/executions-by-stage/${pipelineName}`, {
+      .get(`/v1/executions`, {
         params: {
+          pipeline_name: pipelineName,
           stage_name: stageName,
           active_page: activePage,
           record_per_page: recordPerPage,
@@ -292,7 +297,11 @@ class FastAPIClient {
 
   async getPipelineStages(pipelineName) {
     return this.apiClient
-      .get(`/pipeline-stages/${pipelineName}`)
+      .get(`/v1/executions/stages`, {
+        params: {
+          pipeline_name: pipelineName,
+        },
+      })
       .then(({ data }) => {
         return data;
       });
@@ -300,8 +309,9 @@ class FastAPIClient {
 
   async getArtifactTypesByStage(pipelineName, stageName) {
     return this.apiClient
-      .get(`/artifact-types-by-stage/${pipelineName}`, {
+      .get(`/v1/artifacts/types`, {
         params: {
+          pipeline_name: pipelineName,
           stage_name: stageName,
         },
       })
@@ -312,8 +322,9 @@ class FastAPIClient {
 
   async getArtifactsByStage(pipelineName, stageName, artifactType, sortOrder, activePage = 1, recordPerPage = 5, filter = "", sortField = "name") {
     return this.apiClient
-      .get(`/artifacts-by-stage/${pipelineName}`, {
+      .get(`/v1/artifacts`, {
         params: {
+          pipeline_name: pipelineName,
           stage_name: stageName,
           artifact_type: artifactType,
           sort_order: sortOrder,

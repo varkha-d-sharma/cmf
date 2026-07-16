@@ -64,6 +64,9 @@ from server.app.schemas.dataframe import (
     ArtifactByStageRequest,
     ExecutionByStageRequest,
 )
+from server.app.api.v1.metadata import router as metadata_router
+from server.app.api.v1.pipelines import router as pipelines_router
+from server.app.api.v1.servers import router as servers_router
 import httpx
 import socket
 import dotenv
@@ -114,6 +117,9 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="cmf-server", lifespan=lifespan, root_path="/api")
 
+app.include_router(metadata_router)
+app.include_router(pipelines_router)
+app.include_router(servers_router)
 
 # Add CORS middleware
 app.add_middleware(
