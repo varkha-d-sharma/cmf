@@ -14,6 +14,10 @@ def test_versioned_routers_are_registered():
     assert "/v1/servers/register" in routes
     assert "/v1/servers/sync" in routes
     assert "/v1/executions" in routes
+    assert "/v1/executions/stages" in routes
+    assert "/v1/artifacts" in routes
+    assert "/v1/artifacts/types" in routes
     assert "/v1/schedules" in routes
+    assert "/v1/schedules/{schedule_id}" in routes
     assert "/v1/lineage/execution/{uuid}/{pipeline_name}" in routes
     assert "/v1/lineage/artifact/{pipeline_name}" in routes

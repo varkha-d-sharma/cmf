@@ -157,7 +157,7 @@ class FastAPIClient {
 
   async getModelCard(modelId) {
     return this.apiClient
-      .get(`/v1/metadata/model-card`, {
+      .get(`/v1/model-card`, {
         params: {
           modelId: modelId,
         },
@@ -169,7 +169,7 @@ class FastAPIClient {
 
   async getPythonEnv(file_name) {
     return this.apiClient
-      .get(`/v1/metadata/python-env`, {
+      .get(`/v1/python-env`, {
         params: {
           file_name: file_name
         },
@@ -182,7 +182,7 @@ class FastAPIClient {
 
   async getLabelData(file_name) {
     return this.apiClient
-      .get(`/v1/metadata/label-data`, {
+      .get(`/v1/label-data`, {
         params: {
           file_name: file_name
         },

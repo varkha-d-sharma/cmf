@@ -425,8 +425,12 @@ async def get_pipeline_stages(
         "total_stages": 3
     }
     """
-    return await fetch_unique_execution_stages(db, pipeline_name)
+    print("DEBUG: get_pipeline_stages called with:", pipeline_name)
+    result = await fetch_unique_execution_stages(db, pipeline_name)
 
+    print("DEBUG: result =", result)
+
+    return result
 
 @app.get("/artifact-types-by-stage/{pipeline_name}")
 async def get_artifact_types_by_stage(

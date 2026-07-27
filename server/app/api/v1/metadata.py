@@ -49,6 +49,41 @@ async def normalized_list_of_executions(request: Request, pipeline_name: str):
     return await list_of_executions(request, pipeline_name)
 
 
+@router.get("/model-card")
+async def normalized_model_card(request: Request, modelId: int):
+    from server.app.main import model_card
+
+    return await model_card(request, modelId)
+
+
+@router.post("/python-env")
+async def normalized_upload_python_env(request: Request, file: UploadFile = File(...)):
+    from server.app.main import upload_python_env
+
+    return await upload_python_env(request, file)
+
+
+@router.get("/python-env")
+async def normalized_get_python_env(file_name: str):
+    from server.app.main import get_python_env
+
+    return await get_python_env(file_name)
+
+
+@router.post("/label")
+async def normalized_upload_label(request: Request, file: UploadFile = File(...)):
+    from server.app.main import upload_label
+
+    return await upload_label(request, file)
+
+
+@router.get("/label-data")
+async def normalized_get_label_data(file_name: str):
+    from server.app.main import get_label_data
+
+    return await get_label_data(file_name)
+
+
 @router.post("/metadata/push")
 async def metadata_push(info: MLMDPushRequest):
     from server.app.main import mlmd_push
