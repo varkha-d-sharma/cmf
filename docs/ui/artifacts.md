@@ -54,18 +54,18 @@ The main card displays artifacts with the following :
 | **Commit** | Git commit hash |
 
 The card-based layout provides a concise overview while allowing quick access to detailed information.
+
+**Card Interactions:**
+
+- Click the **artiact card** or **View All Properties**: Expands row to show detailed artifact metadata, custom properties, and version information
+- Click **Sort by**: Sort by NAME or Time (ascending/descending)
+- **Pagination controls**: Navigate through large artifact lists using Previous/Next buttons and page numbers
  
 ### 3.  Pipeline-Driven Navigation
 Select a pipeline from the home page of UI to access its specific operational stages.
 
 ### 4. Stage-Filtered Artifacts
 Click a stage (Prepare, Featurize, Train, Evaluate) to instantly view its input and output artifacts.
-
-**Interactions:**
-
-- Click the **artiact card** or **View All Properties**: Expands row to show detailed artifact metadata, custom properties, and version information
-- Click **Sort by**: Sort by NAME or Time (ascending/descending)
-- **Pagination controls**: Navigate through large artifact lists using Previous/Next buttons and page numbers
 
 
 
@@ -79,12 +79,11 @@ Click a stage (Prepare, Featurize, Train, Evaluate) to instantly view its input 
 4. Review the list of all datasets used in that pipeline
 5. Click the **artiact card** or **View All Properties** to view detailed artifact metadata for selected artifact
 
-### Example 2: View Models and Their Execution Context
+### Example 2: Explore the model card and associated data
 
 1. Select a pipeline from the sidebar
 2. Click on the **Model** tab to filter by model artifacts
-3. Review the **EXECUTION TYPE** column to see which pipeline stage created each model
-4. Click the **artiact card** or **View All Properties** to view training parameters, version information, and metrics
+3. Click **View Model Card** to see the model's information, execution details, and input/output artifacts. 
 
 ### Example 3: Track Metrics Over Time
 
