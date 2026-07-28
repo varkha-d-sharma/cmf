@@ -7,6 +7,7 @@ This module provides a singleton manager that:
 3. Handles results and errors
 4. Gracefully shuts down the subprocess
 5. Recovers from subprocess crashes via session registry and task log
+6. Handles queue failures with retry logic and automatic recovery
 """
 
 import multiprocessing
@@ -16,10 +17,14 @@ import logging
 import time
 import uuid
 import typing as t
+import queue
+import errno
 
 logger = logging.getLogger(__name__)
 
 MAX_RESTART_ATTEMPTS = 3
+MAX_QUEUE_PUT_RETRIES = 3
+QUEUE_PUT_RETRY_DELAY = 0.1  # seconds
 
 
 class CmfSubprocessManager:
@@ -80,6 +85,9 @@ class CmfSubprocessManager:
         # Tracks how many times the subprocess has been restarted
         self._restart_count = 0
 
+        # Lock for thread-safe queue operations
+        self._queue_lock = threading.Lock()
+
         logger.info("[CMF Manager] CmfSubprocessManager initialized")
     
     def start(self):
@@ -119,6 +127,127 @@ class CmfSubprocessManager:
             atexit.register(self.shutdown)
             
             logger.info(f"[CMF Manager] Worker subprocess started (PID: {self.worker_process.pid})")
+    
+    def _validate_queues(self) -> bool:
+        """Check if queues are in a valid state.
+        
+        Returns:
+            True if queues are valid, False otherwise
+        """
+        try:
+            if self.task_queue is None or self.result_queue is None:
+                return False
+            
+            # Check if queues are closed (they have _closed attribute when closed)
+            if hasattr(self.task_queue, '_closed') and self.task_queue._closed:
+                return False
+            if hasattr(self.result_queue, '_closed') and self.result_queue._closed:
+                return False
+            
+            return True
+        except Exception as e:
+            logger.error(f"[CMF Manager] Queue validation failed: {e}")
+            return False
+    
+    def _safe_put_task(self, task: t.Dict, timeout: float = 5.0) -> bool:
+        """Safely put a task on the queue with retry logic.
+        
+        Args:
+            task: Task dictionary to send
+            timeout: Timeout for each put attempt
+        
+        Returns:
+            True if successful, False if all retries failed
+        """
+        for attempt in range(MAX_QUEUE_PUT_RETRIES):
+            try:
+                if not self._validate_queues():
+                    logger.error(f"[CMF Manager] Invalid queue state on put attempt {attempt + 1}")
+                    if attempt < MAX_QUEUE_PUT_RETRIES - 1:
+                        time.sleep(QUEUE_PUT_RETRY_DELAY)
+                        continue
+                    return False
+                
+                with self._queue_lock:
+                    self.task_queue.put(task, timeout=timeout)
+                return True
+                
+            except queue.Full:
+                logger.warning(f"[CMF Manager] Task queue full on attempt {attempt + 1}")
+                if attempt < MAX_QUEUE_PUT_RETRIES - 1:
+                    time.sleep(QUEUE_PUT_RETRY_DELAY)
+                    continue
+                logger.error("[CMF Manager] Task queue remains full after retries")
+                return False
+                
+            except (ValueError, OSError, BrokenPipeError, EOFError) as e:
+                logger.error(f"[CMF Manager] Queue operation failed on attempt {attempt + 1}: {e}")
+                if attempt < MAX_QUEUE_PUT_RETRIES - 1:
+                    time.sleep(QUEUE_PUT_RETRY_DELAY)
+                    continue
+                return False
+                
+            except Exception as e:
+                logger.error(f"[CMF Manager] Unexpected error putting task (attempt {attempt + 1}): {e}")
+                if attempt < MAX_QUEUE_PUT_RETRIES - 1:
+                    time.sleep(QUEUE_PUT_RETRY_DELAY)
+                    continue
+                return False
+        
+        return False
+    
+    def _safe_get_result(self, timeout: float = 1.0) -> t.Optional[t.Dict]:
+        """Safely get a result from the queue with comprehensive error handling.
+        
+        Args:
+            timeout: Timeout for the get operation
+        
+        Returns:
+            Result dictionary or None if failed
+        
+        Raises:
+            QueueBrokenError: If queue is in a broken state and recovery needed
+        """
+        try:
+            if not self._validate_queues():
+                raise QueueBrokenError("Result queue is invalid or closed")
+            
+            with self._queue_lock:
+                result = self.result_queue.get(timeout=timeout)
+            return result
+            
+        except queue.Empty:
+            # This is expected - not an error
+            return None
+            
+        except (ValueError, OSError, BrokenPipeError, EOFError) as e:
+            logger.error(f"[CMF Manager] Queue operation failed during get: {e}")
+            raise QueueBrokenError(f"Result queue broken: {e}")
+            
+        except Exception as e:
+            logger.error(f"[CMF Manager] Unexpected error getting result: {e}")
+            raise QueueBrokenError(f"Unexpected queue error: {e}")
+    
+    def _cleanup_queues(self):
+        """Safely cleanup and close queues to prevent resource leaks."""
+        try:
+            if self.task_queue is not None:
+                try:
+                    # Close and join the queue
+                    self.task_queue.close()
+                    self.task_queue.join_thread()
+                except Exception as e:
+                    logger.warning(f"[CMF Manager] Error closing task_queue: {e}")
+            
+            if self.result_queue is not None:
+                try:
+                    self.result_queue.close()
+                    self.result_queue.join_thread()
+                except Exception as e:
+                    logger.warning(f"[CMF Manager] Error closing result_queue: {e}")
+                    
+        except Exception as e:
+            logger.error(f"[CMF Manager] Error during queue cleanup: {e}")
     
     def register_session(self, session_id: str, init_kwargs: t.Dict):
         """
@@ -193,14 +322,37 @@ class CmfSubprocessManager:
         # Track as in-flight before putting on queue
         self._inflight[task_id] = session_id
 
-        # Send task to subprocess
-        self.task_queue.put(task)
+        # Send task to subprocess with safe queue operation
+        if not self._safe_put_task(task):
+            self._inflight.pop(task_id, None)
+            # Queue is broken - trigger recovery
+            logger.error(f"[CMF Manager] Failed to submit task {task_id}, triggering recovery")
+            self._recover(failed_task=task)
+            # After recovery, retry
+            return self.submit_task(session_id, method, kwargs, timeout)
 
         # Wait for result
         start_time = time.time()
         while True:
             try:
-                result = self.result_queue.get(timeout=1.0)
+                result = self._safe_get_result(timeout=1.0)
+                
+                # None means Empty exception (timeout) - not an error
+                if result is None:
+                    # Check timeout
+                    if timeout is not None and (time.time() - start_time) > timeout:
+                        self._inflight.pop(task_id, None)
+                        raise TimeoutError(f"Task {task_id} timed out after {timeout}s")
+
+                    # Check if subprocess is still alive
+                    if not self.worker_process.is_alive():
+                        logger.error(f"[CMF Manager] Subprocess died during task {task_id}. Attempting recovery.")
+                        self._inflight.pop(task_id, None)
+                        self._recover(failed_task=task)
+                        # After recovery, re-submit this task
+                        return self.submit_task(session_id, method, kwargs, timeout)
+
+                    continue
 
                 # Check if this is our result
                 if result.get("task_id") == task_id:
@@ -226,23 +378,17 @@ class CmfSubprocessManager:
                 else:
                     # Not our result - put it back (shouldn't happen with FIFO execution)
                     logger.warning(f"[CMF Manager] Received result for wrong task: {result.get('task_id')}")
-                    self.result_queue.put(result)
+                    # Use safe put to handle errors
+                    if not self._safe_put_task(result, timeout=1.0):
+                        logger.error(f"[CMF Manager] Failed to return mismatched result to queue")
 
-            except multiprocessing.queues.Empty:
-                # Check timeout
-                if timeout is not None and (time.time() - start_time) > timeout:
-                    self._inflight.pop(task_id, None)
-                    raise TimeoutError(f"Task {task_id} timed out after {timeout}s")
-
-                # Check if subprocess is still alive
-                if not self.worker_process.is_alive():
-                    logger.error(f"[CMF Manager] Subprocess died during task {task_id}. Attempting recovery.")
-                    self._inflight.pop(task_id, None)
-                    self._recover(failed_task=task)
-                    # After recovery, re-submit this task
-                    return self.submit_task(session_id, method, kwargs, timeout)
-
-                continue
+            except QueueBrokenError as e:
+                # Queue is broken but subprocess might still be alive - trigger recovery
+                logger.error(f"[CMF Manager] Queue broken during task {task_id}: {e}. Attempting recovery.")
+                self._inflight.pop(task_id, None)
+                self._recover(failed_task=task)
+                # After recovery, re-submit this task
+                return self.submit_task(session_id, method, kwargs, timeout)
 
     def _recover(self, failed_task: t.Optional[t.Dict] = None):
         """
@@ -275,15 +421,22 @@ class CmfSubprocessManager:
                 f"[CMF Manager] Starting recovery (attempt {self._restart_count}/{MAX_RESTART_ATTEMPTS})"
             )
 
-            # Clean up dead process
+            # Clean up dead process and old queues
             if self.worker_process and self.worker_process.is_alive():
                 self.worker_process.terminate()
                 self.worker_process.join(timeout=3.0)
+            
+            # Close old queues to prevent resource leaks
+            self._cleanup_queues()
 
-            # Fresh communication channels
-            self.task_queue = multiprocessing.Queue()
-            self.result_queue = multiprocessing.Queue()
-            self.shutdown_event = multiprocessing.Event()
+            # Fresh communication channels with error handling
+            try:
+                self.task_queue = multiprocessing.Queue()
+                self.result_queue = multiprocessing.Queue()
+                self.shutdown_event = multiprocessing.Event()
+            except Exception as e:
+                logger.error(f"[CMF Manager] Failed to create new queues: {e}")
+                raise RuntimeError(f"Recovery failed: cannot create communication channels: {e}")
 
             # Start new subprocess
             from cmflib.cmf_worker_loop import worker_loop
@@ -300,13 +453,15 @@ class CmfSubprocessManager:
             for session_id, init_kwargs in list(self._session_registry.items()):
                 logger.info(f"[CMF Manager] Recovering session: {session_id}")
                 reinit_task_id = str(uuid.uuid4())
-                self.task_queue.put({
+                reinit_task = {
                     "task_id": reinit_task_id,
                     "session_id": session_id,
                     "method": "_init_session",
                     "kwargs": init_kwargs,
                     "timestamp": time.time()
-                })
+                }
+                if not self._safe_put_task(reinit_task):
+                    raise RuntimeError(f"Recovery failed: cannot submit session init for {session_id}")
                 self._wait_for_result(reinit_task_id)
 
             # Step 2: Replay confirmed tasks for each session in order
@@ -317,13 +472,15 @@ class CmfSubprocessManager:
                         # This task never fully completed; it will be re-submitted by submit_task
                         continue
                     replay_task_id = str(uuid.uuid4())
-                    self.task_queue.put({
+                    replay_task = {
                         "task_id": replay_task_id,
                         "session_id": session_id,
                         "method": entry["method"],
                         "kwargs": entry["kwargs"],
                         "timestamp": time.time()
-                    })
+                    }
+                    if not self._safe_put_task(replay_task):
+                        raise RuntimeError(f"Recovery failed: cannot replay task {replay_task_id}")
                     self._wait_for_result(replay_task_id)
 
             # Reset restart counter on successful recovery
@@ -348,7 +505,13 @@ class CmfSubprocessManager:
         start = time.time()
         while True:
             try:
-                result = self.result_queue.get(timeout=1.0)
+                result = self._safe_get_result(timeout=1.0)
+                if result is None:
+                    # Check timeout
+                    if time.time() - start > timeout:
+                        raise RuntimeError(f"[CMF Manager] Replay task {task_id} timed out")
+                    continue
+                    
                 if result.get("task_id") == task_id:
                     if result.get("status") == "error":
                         raise RuntimeError(
@@ -356,10 +519,10 @@ class CmfSubprocessManager:
                         )
                     return
                 else:
-                    self.result_queue.put(result)
-            except multiprocessing.queues.Empty:
-                if time.time() - start > timeout:
-                    raise RuntimeError(f"[CMF Manager] Replay task {task_id} timed out")
+                    if not self._safe_put_task(result, timeout=1.0):
+                        logger.warning(f"[CMF Manager] Failed to return mismatched result during replay")
+            except QueueBrokenError as e:
+                raise RuntimeError(f"[CMF Manager] Queue broken during replay of task {task_id}: {e}")
     
     def shutdown(self, timeout: float = 10.0):
         """
@@ -380,10 +543,17 @@ class CmfSubprocessManager:
             logger.info("[CMF Manager] Shutting down worker subprocess")
             
             # Signal shutdown
-            self.shutdown_event.set()
+            try:
+                self.shutdown_event.set()
+            except Exception as e:
+                logger.warning(f"[CMF Manager] Error setting shutdown event: {e}")
             
-            # Send poison pill
-            self.task_queue.put(None)
+            # Send poison pill with error handling
+            try:
+                if not self._safe_put_task(None, timeout=2.0):
+                    logger.warning("[CMF Manager] Failed to send poison pill, will terminate subprocess")
+            except Exception as e:
+                logger.warning(f"[CMF Manager] Error sending poison pill: {e}")
             
             # Wait for subprocess to exit
             if self.worker_process.is_alive():
@@ -399,13 +569,21 @@ class CmfSubprocessManager:
                         self.worker_process.kill()
                         self.worker_process.join()
             
-            # Cleanup
+            # Cleanup queues to prevent resource leaks
+            self._cleanup_queues()
+            
+            # Final status
             if self.worker_process.exitcode == 0:
                 logger.info("[CMF Manager] Worker subprocess exited cleanly")
             else:
                 logger.warning(f"[CMF Manager] Worker subprocess exited with code {self.worker_process.exitcode}")
             
             self._started = False
+
+
+class QueueBrokenError(Exception):
+    """Raised when a queue operation fails due to broken/closed queue."""
+    pass
 
 
 # Global singleton instance (lazy initialization)

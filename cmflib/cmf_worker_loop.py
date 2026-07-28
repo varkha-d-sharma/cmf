@@ -68,12 +68,17 @@ def worker_loop(
                     kwargs=kwargs
                 )
                 
-                # Send result back
-                result_queue.put({
-                    "task_id": task_id,
-                    "status": "success",
-                    "result": result
-                })
+                # Send result back with error handling
+                try:
+                    result_queue.put({
+                        "task_id": task_id,
+                        "status": "success",
+                        "result": result
+                    }, timeout=5.0)
+                except Exception as e:
+                    logger.error(f"[CMF Worker] Failed to send result for task {task_id}: {e}")
+                    # Result is lost - main process will eventually timeout
+                    # This is logged for debugging but cannot be recovered here
                 
             except multiprocessing.queues.Empty:
                 # Timeout - just check shutdown_event again
@@ -82,12 +87,16 @@ def worker_loop(
             except Exception as e:
                 # Task execution error - send back error result
                 logger.error(f"[CMF Worker] Error executing task {task_id}: {e}")
-                result_queue.put({
-                    "task_id": task_id,
-                    "status": "error",
-                    "error": str(e),
-                    "traceback": traceback.format_exc()
-                })
+                try:
+                    result_queue.put({
+                        "task_id": task_id,
+                        "status": "error",
+                        "error": str(e),
+                        "traceback": traceback.format_exc()
+                    }, timeout=5.0)
+                except Exception as put_error:
+                    logger.error(f"[CMF Worker] Failed to send error result for task {task_id}: {put_error}")
+                    # Error result is lost - main process will timeout
     
     except KeyboardInterrupt:
         logger.info("[CMF Worker] Interrupted by keyboard")

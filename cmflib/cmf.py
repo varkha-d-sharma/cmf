@@ -288,34 +288,37 @@ class Cmf:
     def __check_git_remote():
         """Executes precheck for git remote"""
         if not check_git_remote():
-            logger.error(
+            error_msg = (
                 "*** Error git remote not set ***\n"
                 "*** Run cmf init ***\n"
                 f"Current Directory: {os.getcwd()}"
             )
-            sys.exit(1)
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)
 
     @staticmethod
     def __check_default_remote():
         """Executes precheck for default dvc remote"""
         if not check_default_remote():
-            logger.error(
+            error_msg = (
                 "*** DVC not configured correctly ***\n"
                 "*** Run command cmf init ***\n"
                 f"Current Directory: {os.getcwd()}"
             )
-            sys.exit(1)
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)
 
     @staticmethod
     def __check_git_init():
         """Verifies that the directory is a git repo"""
         if not check_git_repo():
-            logger.error(
+            error_msg = (
                 "*** Not a git repo, Please do the following ***\n"
                 "*** Run Command cmf init ***\n"
                 f"Current Directory: {os.getcwd()}"
             )
-            sys.exit(1)
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)
     
     def finalize(self):
         """
