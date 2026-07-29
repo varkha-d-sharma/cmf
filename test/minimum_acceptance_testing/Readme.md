@@ -33,7 +33,7 @@ Follow the [CMF installation guide](../../docs/index.md#installation).
 ### 2. Install test dependencies
 ```bash
 cd cmf
-pip install -r test/minimum_acceptance_testing/requirements.txt
+pip install .[test]
 ```
 
 ### 3. Start required external services
