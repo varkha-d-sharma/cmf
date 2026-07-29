@@ -101,7 +101,7 @@ Edit `test/minimum_acceptance_testing/config.json` with your environment values:
 | Local | `cmf_server_url`, `local_path` |
 | MinioS3 | `cmf_server_url`, `minio_url`, `minio_endpoint_url`, `minio_access_key_id`, `minio_secret_key` |
 | AmazonS3 | `cmf_server_url`, `aws_url`, `aws_access_key_id`, `aws_secret_key`, `aws_session_token` |
-| SSH remote | `cmf_server_url`, `ssh_path`, `ssh_user`, `ssh_password` |
+| SSH remote | `cmf_server_url`, `ssh_path`, `ssh_user`, `ssh_password` (optional: `ssh_port`, defaults to `22`) |
 | OSDF | `cmf_server_url`, `osdf_path`, `osdf_cache`, `osdf_access_token` |
 
 > If any required field is empty, `test_cmf_init_<backend>` will immediately FAIL with:
@@ -170,11 +170,11 @@ Each backend module runs 8 tests in this fixed order:
 
 Tests make HTTP calls to the live running cmf-server. No direct Postgres connection is required.
 
-| Test | Endpoint |
-|---|---|
-| `test_read_root` | `GET /` |
-| `test_display_pipelines` | `GET /api/pipelines` |
-| `test_display_artifact_types` | `GET /api/artifact_types` |
-| `test_display_executions` | `GET /api/executions-by-stage/{pipeline}` |
-| `test_display_artifacts` | `GET /api/artifacts-by-stage/{pipeline}` |
+| Test | Endpoint | Notes |
+|---|---|---|
+| `test_read_root` | `GET /` | Health check — expects HTTP 200 |
+| `test_display_pipelines` | `GET /api/pipelines` | Expects a list (may be empty) |
+| `test_display_artifact_types` | `GET /api/artifact_types` | Accepts 200 or 404 (404 when no mlmd pushed yet) |
+| `test_display_executions` | `GET /api/pipeline-stages/{pipeline}` then `GET /api/executions-by-stage/{pipeline}?stage_name=...` | Iterates over all stages; skipped automatically if pipeline has no stages yet |
+| `test_display_artifacts` | `GET /api/pipeline-stages/{pipeline}` then `GET /api/artifacts-by-stage/{pipeline}?stage_name=...&artifact_type=Dataset` | Iterates over all stages; skipped automatically if pipeline has no stages yet |
 
