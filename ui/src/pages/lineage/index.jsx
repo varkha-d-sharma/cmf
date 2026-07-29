@@ -29,6 +29,7 @@ import ArtifactExecutionTangledTree from "../../components/ArtifactExecutionTang
 import Loader from "../../components/Loader";
 import Hierarchical_LineageFlow from "../../components/HeirarchicalLineageFlow/heirarchical_lineage";
 import { transformNestedStageData } from "../../components/HeirarchicalLineageFlow/trasformeddata";
+import HierarchicalLineageFlow from "../../components/VarticalLineage";
 
 const client = new FastAPIClient(config);
 
@@ -318,31 +319,49 @@ const Lineage = () => {
               selectedPipeline !== null &&
               selectedLineageType === "Execution_Tree" &&
               execDropdownData !== null &&
-              executionData !== null && (
-                <div style={{ justifyContent: "center", alignItems: "center" }}>
-                  <ExecutionTree
-                    key={lineageArtifactsKey}
-                    data={executionData}
-                  />
-                </div>
-              )}
+              executionData !== null && 
+              // (
+              //   <div style={{ justifyContent: "center", alignItems: "center" }}>
+              //     <ExecutionTree
+              //       key={lineageArtifactsKey}
+              //       data={executionData}
+              //     />
+              //   </div>
+              // )
+              (<HierarchicalLineageFlow key={lineageArtifactsKey} data={executionData}/>)
+              }
             {!loading &&
               selectedPipeline !== null &&
               selectedLineageType === "Artifact_Tree" &&
-              artitreeData !== null && (
-                <div
-                  style={{
-                    justifyContent: "center",
-                    alignItems: "center",
-                    padding: "20px",
-                  }}
-                >
-                  <TangledTree key={lineageArtifactsKey} data={artitreeData} />
-                </div>
-              )}
+              artitreeData !== null && 
+              // (
+              //   <div
+              //     style={{
+              //       justifyContent: "center",
+              //       alignItems: "center",
+              //       padding: "20px",
+              //     }}
+              //   >
+              //     <TangledTree key={lineageArtifactsKey} data={artitreeData} />
+              //   </div>
+              // )
+              (<HierarchicalLineageFlow key={lineageArtifactsKey} data={artitreeData}/>)
+              }
             {!loading &&
               selectedPipeline !== null &&
               selectedLineageType === "Artifact_Execution_Tree" &&
+              artiexetreeData !== null && 
+              // (
+              //   <div style={{ justifyContent: "center", alignItems: "center" }}>
+              //     <ArtifactExecutionTangledTree
+              //       key={lineageArtifactsKey}
+              //       data={artiexetreeData}
+              //     />
+              //   </div>
+              // )
+              (<HierarchicalLineageFlow key={lineageArtifactsKey} data={artiexetreeData}/>)
+              }
+              {!loading && selectedPipeline !== null &&
               artiexetreeData !== null && (
                 <div style={{ justifyContent: "center", alignItems: "center" }}>
                   <ArtifactExecutionTangledTree
