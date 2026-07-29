@@ -1,0 +1,288 @@
+import React, { useMemo } from "react";
+import ReactFlow, { Controls, Background, MiniMap, MarkerType, useNodes } from "reactflow";
+import dagre from "dagre";
+import LineageNode from "./lineagenode";
+
+import "reactflow/dist/style.css";
+import "./index.css";
+
+const nodeTypes = { lineageNode: LineageNode };
+const nodeWidth = 220;
+const nodeHeight = 90;
+
+// MiniMap Node Component with text value lookup using useNodes()
+const CustomMiniMapNode = ({ id, x, y, width, height }) => {
+  const nodes = useNodes();
+  const graphNode = nodes.find((n) => n.id === id);
+
+  const nodeType = graphNode?.data?.type || "Node";
+  const nodeName = graphNode?.data?.name || "";
+
+  const getBackgroundColor = (type) => {
+    switch (type) {
+      case "Dataset": return "#10b981";
+      case "Model": return "#f59e0b";
+      case "Metrics": return "#ef4444";
+      case "Execution": return "#3b82f6";
+      default: return "#64748b";
+    }
+  };
+
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <rect
+        width={width}
+        height={height}
+        rx={8}
+        ry={8}
+        fill={getBackgroundColor(nodeType)}
+        stroke="#ffffff"
+        strokeWidth={2}
+      />
+      <text
+        x={width / 2}
+        y={height / 3 + 4}
+        textAnchor="middle"
+        fill="#ffffff"
+        style={{
+          fontSize: "20px",
+          fontWeight: "bold",
+          fontFamily: "Inter, sans-serif",
+          pointerEvents: "none",
+        }}
+      >
+        {nodeType.toUpperCase()}
+      </text>
+      <text
+        x={width / 2}
+        y={(2 * height) / 3 + 8}
+        textAnchor="middle"
+        fill="rgba(255, 255, 255, 0.9)"
+        style={{
+          fontSize: "16px",
+          fontFamily: "Inter, sans-serif",
+          pointerEvents: "none",
+        }}
+      >
+        {nodeName.length > 18 ? `${nodeName.substring(0, 16)}...` : nodeName}
+      </text>
+    </g>
+  );
+};
+
+const transformLineageData = (rawJson) => {
+  const flatItems = rawJson.flat();
+  const originalNodeMap = new Map();
+
+  const determineType = (id) => {
+    if (id.includes("metrics")) return "Metrics";
+    if (id.includes("model")) return "Model";
+    if (id.includes("train") || id.includes("test") || id.includes(".xml")) return "Dataset";
+    return "Execution";
+  };
+
+  flatItems.forEach((item) => {
+    const sortedParents = item.parents ? Array.from(new Set(item.parents)).sort() : [];
+    const type = determineType(item.id);
+
+    if (!originalNodeMap.has(item.id)) {
+      originalNodeMap.set(item.id, {
+        id: item.id,
+        name: item.id,
+        type,
+        parents: sortedParents,
+      });
+    }
+
+    sortedParents.forEach((parentId) => {
+      if (!originalNodeMap.has(parentId)) {
+        originalNodeMap.set(parentId, {
+          id: parentId,
+          name: parentId,
+          type: determineType(parentId),
+          parents: [],
+        });
+      }
+    });
+  });
+
+  const rawLinks = [];
+  const edgeSet = new Set();
+
+  originalNodeMap.forEach((node) => {
+    node.parents.forEach((parentId) => {
+      if (parentId !== node.id) {
+        const edgeKey = `${parentId}->${node.id}`;
+        if (!edgeSet.has(edgeKey)) {
+          edgeSet.add(edgeKey);
+          rawLinks.push({ source: parentId, target: node.id });
+        }
+      }
+    });
+  });
+
+  const adjacency = new Map();
+  rawLinks.forEach(({ source, target }) => {
+    if (!adjacency.has(source)) adjacency.set(source, new Set());
+    adjacency.get(source).add(target);
+  });
+
+  const reachabilityCache = new Map();
+  const isReachableWithoutEdge = (source, target, skipDirectEdge) => {
+    const cacheKey = `${source}->${target}:${skipDirectEdge}`;
+    if (reachabilityCache.has(cacheKey)) {
+      return reachabilityCache.get(cacheKey);
+    }
+
+    const visited = new Set();
+    const stack = [...(adjacency.get(source) || [])].filter(
+      (next) => !(skipDirectEdge && next === target)
+    );
+
+    let reachable = false;
+    while (stack.length) {
+      const current = stack.pop();
+      if (current === target) {
+        reachable = true;
+        break;
+      }
+      if (visited.has(current)) continue;
+      visited.add(current);
+      (adjacency.get(current) || []).forEach((next) => {
+        if (!visited.has(next)) {
+          stack.push(next);
+        }
+      });
+    }
+
+    reachabilityCache.set(cacheKey, reachable);
+    return reachable;
+  };
+
+  const links = rawLinks.filter(({ source, target }) => {
+    return !isReachableWithoutEdge(source, target, true);
+  });
+
+  return { nodes: Array.from(originalNodeMap.values()), links };
+}; // closes transformLineageData
+
+// Layout configured for horizontal flow (left -> right)
+const getLayoutedElements = (nodes, edges) => {
+  const g = new dagre.graphlib.Graph();
+  // Left -> Right layout — reduced spacing to make nodes more compact
+  g.setGraph({ rankdir: "LR", ranksep: 80, nodesep: 20 });
+  g.setDefaultEdgeLabel(() => ({}));
+
+  nodes.forEach((node) => g.setNode(node.id, { width: nodeWidth, height: nodeHeight }));
+
+  // Deduplicate edges before adding to dagre
+  const graphEdgeSet = new Set();
+  edges.forEach((edge) => {
+    const source = String(edge.source ?? "");
+    const target = String(edge.target ?? "");
+    const key = `${source}->${target}`;
+    if (source && target && source !== target && !graphEdgeSet.has(key)) {
+      graphEdgeSet.add(key);
+      g.setEdge(source, target);
+    }
+  });
+
+  dagre.layout(g);
+
+  const positioned = nodes.map((node) => {
+    const position = g.node(node.id) || { x: 0, y: 0 };
+    return { ...node, rawX: position.x, rawY: position.y };
+  });
+
+  // Use dagre positions directly. For LR layout: x => column, y => row
+  return positioned.map((node) => {
+    node.position = {
+      x: node.rawX - nodeWidth / 2,
+      y: node.rawY - nodeHeight / 2,
+    };
+    node.targetPosition = "left";
+    node.sourcePosition = "right";
+    return node;
+  });
+};
+
+const HierarchicalLineageFlow = ({ data }) => {
+  const proOptions = { hideAttribution: true };
+  const { nodes, edges } = useMemo(() => {
+    if (!data || data.length === 0) return { nodes: [], edges: [] };
+
+    const formattedData = Array.isArray(data) && !data.nodes ? transformLineageData(data) : data;
+
+    const rfNodes = formattedData.nodes.map((node) => ({
+      id: node.id,
+      type: "lineageNode",
+      position: { x: 0, y: 0 },
+      data: { ...node },
+    }));
+
+    // Linking of node logic rendered here. Deduplicate links and use straight edges for LR layout.
+    const edgeSet = new Set();
+    const rfEdges = (formattedData?.links ?? formattedData?.edges ?? []).reduce((acc, link) => {
+      const source = String(link.source ?? link.from ?? "");
+      const target = String(link.target ?? link.to ?? "");
+      if (!source || !target || source === target) return acc;
+      const key = `${source}->${target}`;
+      if (!edgeSet.has(key)) {
+        edgeSet.add(key);
+        acc.push({
+          id: `edge-${source}-${target}`,
+          source,
+          target,
+          type: "straight",
+          markerEnd: {
+            type: MarkerType.Arrow,
+            color: "#b1b1b7",
+          },
+          style: {
+            stroke: "#b1b1b7",
+            strokeWidth: 1.5,
+          },
+        });
+      }
+      return acc;
+    }, []);
+    return {
+      nodes: getLayoutedElements(rfNodes, rfEdges),
+      edges: rfEdges,
+    };
+  }, [data]);
+
+  return (
+    <div style={{ width: "100%", height: "85vh", position: "relative" }}>
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        nodeTypes={nodeTypes}
+        fitView
+        fitViewOptions={{ padding: 0.15 }}
+        minZoom={0.2}
+        proOptions={proOptions}
+      >
+        <MiniMap
+          position="bottom-right"
+          nodeComponent={CustomMiniMapNode}
+          maskColor="rgba(241, 245, 249, 0.4)"
+          style={{
+            backgroundColor: "#f8fafc",
+            border: "1px solid #cbd5e1",
+            borderRadius: "8px",
+            width: 300,
+            height: 160,
+            position: "fixed",
+          }}
+          zoomable
+          pannable
+        />
+        <Controls />
+        <Background />
+      </ReactFlow>
+    </div>
+  );
+};
+
+export default HierarchicalLineageFlow;
