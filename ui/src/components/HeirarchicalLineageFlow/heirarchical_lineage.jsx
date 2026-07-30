@@ -1,21 +1,34 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import ReactFlow, { Controls, Background, MiniMap, MarkerType, useNodes } from "reactflow";
 import dagre from "dagre";
 import "reactflow/dist/style.css";
 import "./index.css";
 import LineageNode1 from "./lineagenode";
 
-const nodeTypes = { lineageNode: LineageNode1 };
 const nodeWidth = 220; 
 const nodeHeight = 80;
 
-// Central color of Environment, Stage, and Execution nodes in the lineage tree
+const StageGroupNode = ({ data, style }) => (
+  <div
+    className="stage-group-card"
+    style={{
+      ...style,
+      width: data.width || style?.width,
+      height: data.height || style?.height,
+    }}
+  />
+);
+
+const nodeTypes = { lineageNode: LineageNode1, stageGroup: StageGroupNode };
+
+// Central color of Environment, Stage, StageGroup, and Execution nodes in the lineage tree
 const getNodeThemeColor = (type) => {
   switch (type) {
     case "Environment": return "#10b981"; // Green
     case "Stage": return "#f59e0b";   // Amber / Orange
+    case "StageGroup": return "#94a3b8"; // Slate gray for group outline in minimap
     case "Model": return "#f59e0b";   // Alias fallback
-    case "Node": return "#ef4444"; // Red
+    case "Node": return "#64748b"; // Use gray instead of red
     case "Execution": return "#3b82f6"; // Blue
     default: return "#64748b";        // Gray
   }
@@ -127,8 +140,8 @@ const getLayoutedElements = (nodes = [], edges = []) => {
   
   g.setGraph({
     rankdir: "TB",
-    ranksep: 100,       // Vertical gap between Environment and Stages
-    nodesep: 40,        // MUCH closer horizontal spacing between your Stage blocks
+    ranksep: 110,       // Vertical gap between Environment and Stages
+    nodesep: 100,       // Even horizontal spacing between stage groups
     edgesep: 20,
     marginx: 40,
     marginy: 40
@@ -198,6 +211,51 @@ const getLayoutedElements = (nodes = [], edges = []) => {
   });
 };
 
+// Write below getStageGroupNodes function for added the block for each particular stage.
+const getStageGroupNodes = (layoutedNodes, edges) => {
+  const stageNodes = layoutedNodes.filter((node) => node.data?.type === "Stage");
+
+  return stageNodes.map((stageNode) => {
+    const groupChildren = [stageNode];
+    const childEdges = edges.filter((edge) => edge.source === stageNode.id);
+
+    childEdges.forEach((edge) => {
+      const childNode = layoutedNodes.find((node) => node.id === edge.target);
+      if (childNode) {
+        groupChildren.push(childNode);
+      }
+    });
+
+    const xMin = Math.min(...groupChildren.map((child) => child.position.x));
+    const yMin = Math.min(...groupChildren.map((child) => child.position.y));
+    const xMax = Math.max(...groupChildren.map((child) => child.position.x + (child.width || nodeWidth)));
+    const yMax = Math.max(...groupChildren.map((child) => child.position.y + (child.height || nodeHeight)));
+    const paddingX = 32;
+    const paddingY = 40;
+
+    const groupWidth = xMax - xMin + paddingX * 2;
+    const groupHeight = yMax - yMin + paddingY * 2;
+
+    return {
+      id: `stage-group-${stageNode.id}`,
+      type: "stageGroup",
+      position: { x: xMin - paddingX, y: yMin - paddingY },
+      data: {
+        label: stageNode.data?.name || "Stage",
+        type: "StageGroup",
+        width: groupWidth,
+        height: groupHeight,
+      },
+      selectable: false,
+      draggable: false,
+      style: {
+        pointerEvents: "none",
+      },
+      zIndex: 0,
+    };
+  });
+};
+
 const Hierarchical_LineageFlow = ({ data }) => {
   // Disable the default ReactFlow watermarks on the canvas surface
   const proOptions = { hideAttribution: true };
@@ -224,22 +282,21 @@ const Hierarchical_LineageFlow = ({ data }) => {
       type: "step", 
       markerEnd: { 
         type: MarkerType.Arrow, 
-        color: "#b1b1b7"
+        color: "#4b5563"
       },
       style: {
-        stroke: "#b1b1b7",
-        strokeWidth: 1.5,
+        stroke: "#374151",
+        strokeWidth: 3,
+        opacity: 1,
       }
     }));
 
     // Layout uses the FULL edge list so every execution sibling gets
     // correctly positioned in its vertical stack
     const layoutedNodes = getLayoutedElements(rfNodes, rfEdges);
+    const stageGroupNodes = getStageGroupNodes(layoutedNodes, rfEdges);
 
-    // Only AFTER layout, filter which edges are actually rendered.
-    // Keep just the first Stage -> Execution edge per stage (to anchor
-    // the stack visually) and drop the rest, so no connecting line
-    // appears between stacked execution boxes.
+    // Keep only the first Stage -> Execution edge per stage, hide subsequent execution links.
     const seenExecutionEdgeForSource = new Set();
     const renderEdges = rfEdges.filter((edge) => {
       const targetNode = layoutedNodes.find((n) => n.id === edge.target);
@@ -254,7 +311,7 @@ const Hierarchical_LineageFlow = ({ data }) => {
     });
 
     return {
-      nodes: layoutedNodes,
+      nodes: [...stageGroupNodes, ...layoutedNodes],
       edges: renderEdges,
     };
   }, [data]);

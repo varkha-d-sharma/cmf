@@ -48,7 +48,7 @@ const HANDLE_HIDDEN_STYLE = {
 // Bascically,custom node component.
 const LineageNode1 = ({ data }) => {
   const [showTooltip, setShowTooltip] = useState(false);
-  const { backgroundColor, fullUuid, ...rest } = data;
+  const { backgroundColor, fullUuid, id, ...rest } = data;
   const tooltipData = { ...rest, uuid: fullUuid || data.uuid };
 
   // Only hide the connector dots on Execution node boxes;
