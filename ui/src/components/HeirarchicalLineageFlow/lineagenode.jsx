@@ -49,7 +49,11 @@ const HANDLE_HIDDEN_STYLE = {
 const LineageNode1 = ({ data }) => {
   const [showTooltip, setShowTooltip] = useState(false);
   const { backgroundColor, fullUuid, id, ...rest } = data;
-  const tooltipData = { ...rest, uuid: fullUuid || data.uuid };
+  const tooltipData = {
+    ...rest,
+    type: data.type === "Environment" ? "PIPELINE_NAME" : rest.type,
+    uuid: fullUuid || data.uuid,
+  };
 
   // Only hide the connector dots on Execution node boxes;
   // Pipeline and Stage nodes keep their default visible handles
