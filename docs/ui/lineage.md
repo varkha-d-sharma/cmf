@@ -69,24 +69,31 @@ The Lineage page offers three different visualization modes:
 
 ![Artifact Execution Tree Lineage](../assets/artifact_exec_tree_lineage.png)
 
-### 4. Heirarchical Lineage
+### 4. Hierarchical Lineage
 
-**Purpose**: High-level, multi-column tree abstraction tracking task orchestration flows branching from root configurations down through execution chains.
+**Purpose**: Shows all stages of a pipeline and their executions in order, so you can follow the full pipeline flow from start to end.
+
+**How it works**:
+
+The view starts with the pipeline name at the top. Each stage of the pipeline appears as a column below it. Within each column, executions are listed vertically in the order they were run — oldest at the top, newest at the bottom.
 
 **Use Cases**:
 
-- Tracking simultaneous execution tracks branching from a single environment or pipeline root.
-- Tracing linear execution histories sequentially across multiple stages like preparation, features, training, and evaluation.
-- Auditing full procedural histories by analyzing vertically ordered step progressions.
+- See all pipeline stages side by side in a single view
+- Track the sequence of executions within each stage
+- Quickly identify how many times each stage has run
 
 **Features**:
 
-- Environment-centric root anchoring branching into independent functional swimlanes.
-- Color-coded stage markers distinguishing entry hooks from down-stream operational tasks.
-- Distinct step blocks capturing individual execution hashes sequentially.
-- Vertical progression layouts tracing step dependencies from top to bottom.
+- Pipeline name shown as the root node at the top
+- Each stage displayed as a separate column with its executions stacked vertically
+- Color-coded nodes: pipeline anme (green), stages (orange), executions (blue)
+- Zoom in / zoom out controls
+- Hover over any node to see a tooltip with its name and key details
+- Pan across the diagram using the hand cursor
+- Mini-map in the corner for quick navigation on large pipelines
 
-![Heirarchical Lineage](../assets/Hierarchical_lineage.png)
+![Hierarchical Lineage](../assets/Hierarchical_lineage.png)
 
 
 ## Using the Lineage Page

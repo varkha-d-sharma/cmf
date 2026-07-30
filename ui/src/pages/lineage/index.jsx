@@ -27,8 +27,8 @@ import ExecutionTree from "../../components/ExecutionTree";
 import ExecutionTangledDropdown from "../../components/ExecutionTangledDropdown";
 import ArtifactExecutionTangledTree from "../../components/ArtifactExecutionTangledTree";
 import Loader from "../../components/Loader";
-import Hierarchical_LineageFlow from "../../components/HeirarchicalLineageFlow/heirarchical_lineage";
-import { transformNestedStageData } from "../../components/HeirarchicalLineageFlow/trasformeddata";
+import { transformLineageData } from "../../components/HeirarchicalLineageFlow/trasformeddata";
+import Hierarchical_Lineage_Flow from "../../components/HeirarchicalLineageFlow/heirarchical_lineage_flow";
 
 const client = new FastAPIClient(config);
 
@@ -50,7 +50,7 @@ const Lineage = () => {
   const [artitreeData, setArtiTreeData] = useState(null);
   const [artiexetreeData, setArtiExeTreeData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [hierarchicalDataImp, setHierarchicalDataImp] = useState(null);
+  const [hierarchicalData, setHierarchicalData] = useState(null);
 
   // fetching list of pipelines
   useEffect(() => {
@@ -186,17 +186,17 @@ const Lineage = () => {
     setLoading(true);
     client.getHierarchicalLineage(pipelineName).then((data) => {
       if (data === null) {
-        setHierarchicalDataImp(null);
+        setHierarchicalData(null);
         setLoading(false);
         return;
       }
-      const transformed = transformNestedStageData(data);
-      setHierarchicalDataImp(transformed);
+      const transformed = transformLineageData(data);
+      setHierarchicalData(transformed);
       setLoading(false);
       
     }).catch((err) => {
       console.error("Failed to fetch hierarchical lineage:", err);
-      setHierarchicalDataImp(null);
+      setHierarchicalData(null);
       setLoading(false);
     });
   };
@@ -353,7 +353,7 @@ const Lineage = () => {
               )}
               {!loading && selectedPipeline !== null &&
               selectedLineageType === "Heirarchical_Lineage" &&
-              hierarchicalDataImp && (<Hierarchical_LineageFlow  key={lineageArtifactsKey} data={hierarchicalDataImp} />)
+              hierarchicalData && (<Hierarchical_Lineage_Flow  key={lineageArtifactsKey} data={hierarchicalData} />)
             }
           </div>
         </div>
