@@ -1,3 +1,4 @@
+#!/bin/bash
 ###
 # Copyright (2026) Hewlett Packard Enterprise Development LP
 #
@@ -14,7 +15,6 @@
 # limitations under the License.
 ###
 
-#!/bin/bash
 # Re-execute with bash if invoked via 'sh cmf-start.sh'
 if [ -z "${BASH_VERSION:-}" ]; then
     exec bash "$0" "$@"
@@ -27,8 +27,8 @@ fi
 # It will automatically take environment variables from the .env file if present.
 # 
 # Usage:
-#   ./cmf-start.sh            # start all services
-#   ./cmf-start.sh --no-build # skip rebuilding images (faster if nothing changed)
+#   sh ./cmf-start.sh            # start all services
+#   sh ./cmf-start.sh --no-build # skip rebuilding images (faster if nothing changed)
 
 set -u
 
