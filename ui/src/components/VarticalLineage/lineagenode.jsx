@@ -1,3 +1,31 @@
+/***
+ * Copyright (2023) Hewlett Packard Enterprise Development LP
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * You may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ ***/
+
+/**
+ * @file LineageNode Custom Component for React Flow Canvas
+ * @description Renders a standardized custom node layout used for pipeline and graph visualization.
+ * 
+ * Key Functions & Features:
+ * - Dynamic Styling (`getColor`): Maps specific color schemes to node types (Dataset, Execution, Stage, etc.).
+ * - Badge Classification (`getBadgeLabel`): Generates localized text labels for metadata visual categorization tags.
+ * - Interactive Tooltips (`showTooltip`): Exposes raw node parameters as a pretty-printed JSON overlay on hover.
+ * - Clean Edge Layouts (`HANDLE_HIDDEN_STYLE`): Automatically collapses connection handle points exclusively for 
+ *   "Execution" nodes to eliminate layout line clutter, while maintaining default connectivity ports on environment wrappers.
+ */
+
 import React, { useState } from "react";
 import { Handle, Position } from "reactflow";
 
@@ -26,7 +54,7 @@ const getColor = (type) => {
 };
 
 const getBadgeLabel = (type) => {
-  if (type === "Environment") return "PIPELINE_NAME";
+  if (type === "Environment") return "PIPELINE";
   return type ? type.toUpperCase() : "NODE";
 };
 
@@ -42,7 +70,7 @@ const HANDLE_HIDDEN_STYLE = {
 
 const LineageNode1 = ({ data }) => {
   const [showTooltip, setShowTooltip] = useState(false);
-  const { backgroundColor, fullUuid, ...rest } = data;
+  const { backgroundColor, fullUuid, id, ...rest } = data;
   const tooltipData = { ...rest, uuid: fullUuid || data.uuid };
 
   // Only hide the connector dots on Execution node boxes;

@@ -292,53 +292,39 @@ const Lineage = () => {
               selectedPipeline !== null &&
               selectedLineageType === "Execution_Tree" &&
               execDropdownData !== null &&
-              executionData !== null && 
-              // (
-              //   <div style={{ justifyContent: "center", alignItems: "center" }}>
-              //     <ExecutionTree
-              //       key={lineageArtifactsKey}
-              //       data={executionData}
-              //     />
-              //   </div>
-              // )
-              (<HierarchicalLineageFlow key={lineageArtifactsKey} data={executionData}/>)
-              }
+              executionData !== null && ( 
+              <div>
+              <HierarchicalLineageFlow
+                LineageTypes={LineageTypes} 
+                lineageType={selectedLineageType} 
+                key={lineageArtifactsKey} 
+                data={executionData}/>
+                </div>
+              )}
             {!loading &&
               selectedPipeline !== null &&
               selectedLineageType === "Artifact_Tree" &&
-              artitreeData !== null && 
-              // (
-              //   <div
-              //     style={{
-              //       justifyContent: "center",
-              //       alignItems: "center",
-              //       padding: "20px",
-              //     }}
-              //   >
-              //     <TangledTree key={lineageArtifactsKey} data={artitreeData} />
-              //   </div>
-              // )
-              (<HierarchicalLineageFlow key={lineageArtifactsKey} data={artitreeData}/>)
+              artitreeData !== null && (
+              <div>
+              <HierarchicalLineageFlow 
+                LineageTypes={LineageTypes} 
+                lineageType={selectedLineageType} 
+                key={lineageArtifactsKey} 
+                data={artitreeData}/>
+              </div>)
               }
             {!loading &&
               selectedPipeline !== null &&
               selectedLineageType === "Artifact_Execution_Tree" &&
-              artiexetreeData !== null && 
-              // (
-              //   <div style={{ justifyContent: "center", alignItems: "center" }}>
-              //     <ArtifactExecutionTangledTree
-              //       key={lineageArtifactsKey}
-              //       data={artiexetreeData}
-              //     />
-              //   </div>
-              // )
-              (<HierarchicalLineageFlow key={lineageArtifactsKey} data={artiexetreeData}/>)
+              artiexetreeData !== null && (
+                <div>
+              <HierarchicalLineageFlow 
+                LineageTypes={LineageTypes} 
+                lineageType={selectedLineageType} 
+                key={lineageArtifactsKey} 
+                data={artiexetreeData}/>
+              </div>)
               }
-
-              {/* {!loading && selectedPipeline !== null &&
-              selectedLineageType === "Artifact_Execution_vartical" &&
-              hierarchicalData1 && (<HierarchicalLineageFlow data={hierarchicalData1} />)
-            } */}
           </div>
         </div>
         <Footer />

@@ -1,12 +1,35 @@
+/***
+ * Copyright (2023) Hewlett Packard Enterprise Development LP
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * You may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ ***/
+
+/**
+ * Renders an interactive hierarchical lineage graph using React Flow and Dagre.
+ * Transforms raw lineage data into nodes and edges, computes an automatic
+ * top-down layout, and displays the lineage with custom nodes, edge routing,
+ * MiniMap, zoom/pan controls, and fit-to-view support.
+ */
+
 import React, { useMemo } from "react";
 import ReactFlow, { Controls, Background, MiniMap, MarkerType, useNodes } from "reactflow";
 import dagre from "dagre";
-import LineageNode from "./lineagenode";
 
 import "reactflow/dist/style.css";
 import "./index.css";
+import LineageNode1 from "./lineagenode";
 
-const nodeTypes = { lineageNode: LineageNode };
+const nodeTypes = { lineageNode: LineageNode1 };
 const nodeWidth = 220;
 const nodeHeight = 90;
 
@@ -64,7 +87,7 @@ const CustomMiniMapNode = ({ id, x, y, width, height }) => {
           pointerEvents: "none",
         }}
       >
-        {nodeName.length > 18 ? `${nodeName.substring(0, 16)}...` : nodeName}
+        {nodeName.length > 18 ?` ${nodeName.substring(0, 16)}...` : nodeName}
       </text>
     </g>
   );
@@ -166,48 +189,55 @@ const transformLineageData = (rawJson) => {
   return { nodes: Array.from(originalNodeMap.values()), links };
 }; // closes transformLineageData
 
-// Layout configured for horizontal flow (left -> right)
+// FIXED: Layout configured for vertical flow with top/bottom anchors
 const getLayoutedElements = (nodes, edges) => {
   const g = new dagre.graphlib.Graph();
-  // Left -> Right layout — reduced spacing to make nodes more compact
-  g.setGraph({ rankdir: "LR", ranksep: 80, nodesep: 20 });
+  g.setGraph({ rankdir: "TB", ranksep: 140, nodesep: 60 }); // ranksep raised from 100 to 140
   g.setDefaultEdgeLabel(() => ({}));
 
   nodes.forEach((node) => g.setNode(node.id, { width: nodeWidth, height: nodeHeight }));
-
-  // Deduplicate edges before adding to dagre
-  const graphEdgeSet = new Set();
-  edges.forEach((edge) => {
-    const source = String(edge.source ?? "");
-    const target = String(edge.target ?? "");
-    const key = `${source}->${target}`;
-    if (source && target && source !== target && !graphEdgeSet.has(key)) {
-      graphEdgeSet.add(key);
-      g.setEdge(source, target);
-    }
-  });
+  edges.forEach((edge) => g.setEdge(edge.source, edge.target));
 
   dagre.layout(g);
 
   const positioned = nodes.map((node) => {
-    const position = g.node(node.id) || { x: 0, y: 0 };
+    const position = g.node(node.id);
     return { ...node, rawX: position.x, rawY: position.y };
   });
 
-  // Use dagre positions directly. For LR layout: x => column, y => row
+  const rowMap = new Map();
+  positioned.forEach((node) => {
+    const rowKey = Math.round(node.rawY / 10) * 10;
+    if (!rowMap.has(rowKey)) rowMap.set(rowKey, []);
+    rowMap.get(rowKey).push(node);
+  });
+
+  const FIXED_GAP = nodeWidth + 60;
+
+  rowMap.forEach((rowNodes) => {
+    rowNodes.sort((a, b) => a.rawX - b.rawX);
+    const totalWidth = (rowNodes.length - 1) * FIXED_GAP;
+    const startX = -totalWidth / 2;
+
+    rowNodes.forEach((node, index) => {
+      node.evenX = startX + index * FIXED_GAP;
+    });
+  });
+
   return positioned.map((node) => {
     node.position = {
-      x: node.rawX - nodeWidth / 2,
+      x: node.evenX - nodeWidth / 2,
       y: node.rawY - nodeHeight / 2,
     };
-    node.targetPosition = "left";
-    node.sourcePosition = "right";
+    node.targetPosition = "top";
+    node.sourcePosition = "bottom";
     return node;
   });
 };
 
-const HierarchicalLineageFlow = ({ data }) => {
+const HierarchicalLineageFlow = ({ data, lineageType }) => {
   const proOptions = { hideAttribution: true };
+  const isArtifactExecutionLineage = lineageType === "Artifact_Execution_Tree";
   const { nodes, edges } = useMemo(() => {
     if (!data || data.length === 0) return { nodes: [], edges: [] };
 
@@ -220,37 +250,26 @@ const HierarchicalLineageFlow = ({ data }) => {
       data: { ...node },
     }));
 
-    // Linking of node logic rendered here. Deduplicate links and use straight edges for LR layout.
-    const edgeSet = new Set();
-    const rfEdges = (formattedData?.links ?? formattedData?.edges ?? []).reduce((acc, link) => {
-      const source = String(link.source ?? link.from ?? "");
-      const target = String(link.target ?? link.to ?? "");
-      if (!source || !target || source === target) return acc;
-      const key = `${source}->${target}`;
-      if (!edgeSet.has(key)) {
-        edgeSet.add(key);
-        acc.push({
-          id: `edge-${source}-${target}`,
-          source,
-          target,
-          type: "straight",
-          markerEnd: {
-            type: MarkerType.Arrow,
-            color: "#b1b1b7",
-          },
-          style: {
-            stroke: "#b1b1b7",
-            strokeWidth: 1.5,
-          },
-        });
+    //Linking of node logic rendered here.
+    const rfEdges = (formattedData?.links ?? formattedData?.edges ??[]).map((link, index) => ({
+      id: `edge-${index}`,
+      source: link.source,
+      target: link.target,
+      type: isArtifactExecutionLineage ? "simplebezier" : "step",
+      markerEnd: {
+        type: MarkerType.Arrow,
+        color: "#b1b1b7"
+      },
+      style: {
+        stroke: "#b1b1b7",
+        strokeWidth: 1.5,
       }
-      return acc;
-    }, []);
+    }));
     return {
       nodes: getLayoutedElements(rfNodes, rfEdges),
       edges: rfEdges,
     };
-  }, [data]);
+  }, [data, lineageType]);
 
   return (
     <div style={{ width: "100%", height: "85vh", position: "relative" }}>
