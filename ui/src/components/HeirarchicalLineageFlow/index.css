@@ -77,11 +77,11 @@
 
 .minimap-node-Metrics,
 .minimap-node-Node {
-  fill: #64748b !important; /* Gray */
+  fill: #ffffff !important; /* White */
 }
 
 .minimap-node-StageGroup {
-  fill: #94a3b8 !important; /* Slate */
+  fill: #ffffff !important; /* White */
 }
 
 .minimap-node-Execution,

@@ -127,7 +127,7 @@ class FastAPIClient {
 
   async getHierarchicalLineage(pipeline) {
     return this.apiClient
-      .get(`/hierarchical-lineage/tangled-tree/${pipeline}`)
+      .get(`/hierarchical-lineage/react-flow-dagre/${pipeline}`)
       .then(({ data }) => {
         return data;
       });

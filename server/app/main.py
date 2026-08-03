@@ -611,6 +611,7 @@ async def artifact_execution_lineage(request: Request, pipeline_name: str):
     return response
 
 
+@app.get("/hierarchical-lineage/react-flow-dagre/{pipeline_name}")
 @app.get("/hierarchical-lineage/tangled-tree/{pipeline_name}")
 async def hierarchical_lineage(request: Request, pipeline_name: str):
     """

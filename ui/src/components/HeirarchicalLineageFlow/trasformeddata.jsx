@@ -14,10 +14,22 @@
  * limitations under the License.
  ***/
 
-// need to add comments and why this file is here and what is the use expain in comments
+/**
+ * @file Data Transformers for Lineage View Graphs
+ * @description Automatically detects and normalizes raw MLMD backend data shapes into consistent graph structures.
+ * 
+ * This module exports `transformLineageData`, which handles two distinct visualization data flows:
+ * 1. Flat Lineage Format: Processes a raw flat array of related artifact dependencies into a network graph.
+ *    - Uses string-matching rule algorithms (`determineType`) to classify IDs into Metrics, Stages, or Datasets.
+ * 2. Hierarchical Stage Format: Processes nested stage pipeline wrappers down into individual executions.
+ *    - Unrolls hierarchical parent-child schemas recursively (`addExecutionChildren`) into discrete layout node sets.
+ * 
+ * @returns {Object} A unified graph schema object containing flat `nodes` and directional edge `links`.
+ */
 
-// The transformer used for hierarchical lineage data.
-// Supports both nested stage payloads and flat lineage item payloads.
+/**
+ * Detects a node's UI type (Metrics, Stage, Dataset, or Execution) using keyword string matching.
+ */
 
 const determineType = (id) => {
   if (!id) return "Execution";
@@ -36,6 +48,10 @@ const determineType = (id) => {
   }
   return "Execution";
 };
+
+/**
+ * Transforms a raw flat array of related artifacts into a deduplicated graph of nodes and links.
+ */
 
 const transformFlatLineageData = (rawJson) => {
   const nodesMap = new Map();
@@ -73,6 +89,10 @@ const transformFlatLineageData = (rawJson) => {
 
   return { nodes: Array.from(nodesMap.values()), links };
 };
+
+/**
+ * Transforms backend hierarchical pipeline data down into a flat list of nodes and links.
+ */
 
 const transformNestedStageData = (rawJson) => {
   const nodes = [];
@@ -126,6 +146,10 @@ const transformNestedStageData = (rawJson) => {
 
   return { nodes, links };
 };
+
+/**
+ * Main router that detects the raw data shape and passes it to the correct transformer.
+ */
 
 export const transformLineageData = (rawJson) => {
   if (!rawJson) return { nodes: [], links: [] };
