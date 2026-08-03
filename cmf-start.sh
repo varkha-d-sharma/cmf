@@ -19,16 +19,6 @@
 if [ -z "${BASH_VERSION:-}" ]; then
     exec bash "$0" "$@"
 fi
-# cmf-start.sh
-#
-# Starts the CMF server stack quietly and tells you when each service is ready.
-# Run this instead of 'docker compose up' for a clean, user-friendly experience.
-# Make sure environment variables are set correctly before running the script.
-# It will automatically take environment variables from the .env file if present.
-# 
-# Usage:
-#   sh ./cmf-start.sh            # start all services
-#   sh ./cmf-start.sh --no-build # skip rebuilding images (faster if nothing changed)
 
 set -u
 
@@ -54,7 +44,7 @@ fi
 
 NGINX_HTTP_PORT="${NGINX_HTTP_PORT:-80}"
 MCP_EXTERNAL_PORT="${MCP_EXTERNAL_PORT:-8382}"
-SERVICE_WAIT_TIMEOUT="${SERVICE_WAIT_TIMEOUT:-300}"   # seconds before giving up
+SERVICE_WAIT_TIMEOUT="${SERVICE_WAIT_TIMEOUT:-120}"   # seconds before giving up
 
 # Derive base URL from REACT_APP_CMF_API_URL (set in .env), fall back to localhost
 CMF_BASE_URL="${REACT_APP_CMF_API_URL:-http://localhost:${NGINX_HTTP_PORT}}"
@@ -93,7 +83,8 @@ spinner_stop() {
 
 # ── Cleanup on any exit ───────────────────────────────────────────────────────
 _cleanup() { spinner_stop; }
-trap '_cleanup' EXIT INT TERM
+trap '_cleanup' EXIT
+trap 'spinner_stop; exit 130' INT TERM
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 log_step()  { echo -e "  ${YELLOW}▸${NC}  $*"; }
@@ -226,8 +217,12 @@ if wait_for_http "${CMF_BASE_URL}/api/" "$SERVICE_WAIT_TIMEOUT"; then
     log_url "${CMF_BASE_URL}/api/"
 else
     spinner_stop
-    log_warn "CMF Server did not respond within ${SERVICE_WAIT_TIMEOUT}s."
+    log_error "CMF Server did not respond within ${SERVICE_WAIT_TIMEOUT}s."
     log_info "Check logs:  docker compose -f docker-compose-server.yml logs server"
+    echo ""
+    log_info "Skipping UI and MCP checks — CMF Server must be healthy first."
+    echo ""
+    exit 1
 fi
 echo ""
 
@@ -247,11 +242,11 @@ echo ""
 
 # ── Wait for MCP Server ───────────────────────────────────────────────────────
 spinner_start "Waiting for MCP Server to become ready..."
-if wait_for_http "http://${CMF_HOST}:${MCP_EXTERNAL_PORT}/health" "$SERVICE_WAIT_TIMEOUT"; then
+if wait_for_http "http://${CMF_HOST}:${MCP_EXTERNAL_PORT}/mcp/" "$SERVICE_WAIT_TIMEOUT"; then
     spinner_stop
     MCP_OK=true
     log_ok "MCP Server is ready!"
-    log_url "http://${CMF_HOST}:${MCP_EXTERNAL_PORT}"
+    log_url "http://${CMF_HOST}:${MCP_EXTERNAL_PORT}/mcp/"
 else
     spinner_stop
     log_warn "MCP Server did not respond within ${SERVICE_WAIT_TIMEOUT}s."
@@ -265,9 +260,8 @@ _box_row "                   Service Access Summary"
 _box_sep
 _svc_row "$SERVER_OK" "CMF Server" "${CMF_BASE_URL}/api/"
 _svc_row "$UI_OK"     "CMF UI"     "${CMF_BASE_URL}"
-_svc_row "$MCP_OK"    "MCP Server" "http://${CMF_HOST}:${MCP_EXTERNAL_PORT}"
+_svc_row "$MCP_OK"    "MCP Server" "http://${CMF_HOST}:${MCP_EXTERNAL_PORT}/mcp/"
 _box_sep
 _box_row "  Stop:   docker compose -f docker-compose-server.yml down"
-_box_row "  Manual: docker compose -f docker-compose-server.yml up -d"
 _box_bot
 echo ""
