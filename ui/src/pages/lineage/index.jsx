@@ -301,7 +301,7 @@ const Lineage = () => {
               //     />
               //   </div>
               // )
-              (<HierarchicalLineageFlow key={lineageArtifactsKey} data={executionData}/>)
+              (<HierarchicalLineageFlow LineageTypes={LineageTypes} lineageType={selectedLineageType} key={lineageArtifactsKey} data={executionData}/>)
               }
             {!loading &&
               selectedPipeline !== null &&
@@ -318,7 +318,7 @@ const Lineage = () => {
               //     <TangledTree key={lineageArtifactsKey} data={artitreeData} />
               //   </div>
               // )
-              (<HierarchicalLineageFlow key={lineageArtifactsKey} data={artitreeData}/>)
+              (<HierarchicalLineageFlow LineageTypes={LineageTypes} lineageType={selectedLineageType} key={lineageArtifactsKey} data={artitreeData}/>)
               }
             {!loading &&
               selectedPipeline !== null &&
@@ -332,7 +332,7 @@ const Lineage = () => {
               //     />
               //   </div>
               // )
-              (<HierarchicalLineageFlow key={lineageArtifactsKey} data={artiexetreeData}/>)
+              (<HierarchicalLineageFlow LineageTypes={LineageTypes} lineageType={selectedLineageType} key={lineageArtifactsKey} data={artiexetreeData}/>)
               }
 
               {/* {!loading && selectedPipeline !== null &&

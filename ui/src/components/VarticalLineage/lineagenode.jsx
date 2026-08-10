@@ -26,6 +26,7 @@ const getColor = (type) => {
 };
 
 const getBadgeLabel = (type) => {
+  console.log("getBadgeLabel type:", type);
   if (type === "Environment") return "PIPELINE_NAME";
   return type ? type.toUpperCase() : "NODE";
 };
@@ -41,9 +42,11 @@ const HANDLE_HIDDEN_STYLE = {
 };
 
 const LineageNode1 = ({ data }) => {
+  console.log("...data",data)
   const [showTooltip, setShowTooltip] = useState(false);
   const { backgroundColor, fullUuid, ...rest } = data;
   const tooltipData = { ...rest, uuid: fullUuid || data.uuid };
+
 
   // Only hide the connector dots on Execution node boxes;
   // Pipeline and Stage nodes keep their default visible handles
