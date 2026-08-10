@@ -111,18 +111,18 @@ services:
       dockerfile: ./mcp/Dockerfile
     environment:
       CMF_BASE_URL: ${CMF_BASE_URL:-http://server:8080}
-      HTTP_PROXY: ${HTTP_PROXY:-}
-      HTTPS_PROXY: ${HTTPS_PROXY:-}
-      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,server}
-      http_proxy: ${http_proxy:-}
-      https_proxy: ${https_proxy:-}
-      no_proxy: ${no_proxy:-localhost,127.0.0.1,server}
       CMF2_BASE_URL: ${CMF2_BASE_URL:-}
       CMF3_BASE_URL: ${CMF3_BASE_URL:-}
       CMF4_BASE_URL: ${CMF4_BASE_URL:-}
       MCP_HOST: 0.0.0.0
       MCP_PORT: 8000
       MCP_TRANSPORT_SECURITY: ${MCP_TRANSPORT_SECURITY:-disabled}
+      HTTP_PROXY: ${HTTP_PROXY:-}
+      HTTPS_PROXY: ${HTTPS_PROXY:-}
+      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,server}
+      http_proxy: ${http_proxy:-}
+      https_proxy: ${https_proxy:-}
+      no_proxy: ${no_proxy:-localhost,127.0.0.1,server}
     # External port mapping: host:container
     ports:
       - "${MCP_EXTERNAL_PORT:-8382}:8000"
