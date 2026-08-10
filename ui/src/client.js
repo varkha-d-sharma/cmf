@@ -36,16 +36,54 @@ class FastAPIClient {
     };
     const client = axios.create(initialConfig);
 
-    // Simple error interceptor
+    // Response interceptor to handle standardized API response format
     client.interceptors.response.use(
-      (response) => response,
+      (response) => {
+        // Check if response has standardized format
+        if (response.data && typeof response.data === 'object' && 'status' in response.data && 'code' in response.data && 'data' in response.data) {
+          const apiResponse = response.data;
+          
+          // If status is error or code indicates error, throw error
+          if (apiResponse.status === 'error' || apiResponse.code >= 400) {
+            const error = new Error(apiResponse.message);
+            error.code = apiResponse.code;
+            error.errors = apiResponse.errors;
+            error.requestId = apiResponse.meta?.request_id;
+            throw error;
+          }
+          
+          // Return unwrapped data for successful responses
+          return {
+            ...response,
+            data: apiResponse.data, // Extract the actual data from standardized format
+            meta: apiResponse.meta, // Keep meta for pagination info if needed
+            message: apiResponse.message,
+          };
+        }
+        
+        // Return response as-is if not in standardized format (legacy endpoints)
+        return response;
+      },
       (error) => {
         console.error('API Error:', error);
-        // Show simple error message to user
+        
+        // Handle standardized error response
+        if (error.response?.data?.status === 'error' || error.response?.data?.code >= 400) {
+          const apiError = error.response.data;
+          console.error('Standardized error:', apiError);
+          error.message = apiError.message;
+          error.code = apiError.code;
+          error.errors = apiError.errors;
+          error.requestId = apiError.meta?.request_id;
+        }
+        
+        // Show error message to user
         if (error.response?.status >= 500) {
           alert('Server error. Please try again later.');
         } else if (error.request && !error.response) {
           alert('Server connection refused. The backend service may be down. Please restart your Docker container and try again.');
+        } else if (error.response?.status === 422) {
+          alert(`Validation error: ${error.message}`);
         }
         return Promise.reject(error);
       }
@@ -95,11 +133,7 @@ class FastAPIClient {
 
   async getExecutionTypes(pipeline) {
     return this.apiClient
-      .get(`/v1/executions`, {
-        params: {
-          pipeline_name: pipeline,
-        },
-      })
+      .get(`/v1/executions/${pipeline}`)
       .then(({ data }) => {
         return data;
       });
