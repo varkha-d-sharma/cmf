@@ -22,8 +22,7 @@
  */
 
 import React, { useMemo } from "react";
-import ReactFlow, { Controls, Background, MiniMap, MarkerType, useNodes } from "reactflow";
-import dagre from "dagre";
+import ReactFlow, { Controls, Background, MiniMap, MarkerType } from "reactflow";
 
 import "reactflow/dist/style.css";
 import "./index.css";
@@ -32,24 +31,24 @@ import LineageNode1 from "./lineagenode";
 const nodeTypes = { lineageNode: LineageNode1 };
 const nodeWidth = 220;
 const nodeHeight = 90;
+const RANK_GAP = nodeHeight + 140;
+const FIXED_GAP = nodeWidth + 60;
 
-// MiniMap Node Component with text value lookup using useNodes()
-const CustomMiniMapNode = ({ id, x, y, width, height }) => {
-  const nodes = useNodes();
-  const graphNode = nodes.find((n) => n.id === id);
+const EDGE_MARKER_END = { type: MarkerType.Arrow, color: "#b1b1b7" };
+const EDGE_STYLE = { stroke: "#b1b1b7", strokeWidth: 1.5 };
 
-  const nodeType = graphNode?.data?.type || "Node";
-  const nodeName = graphNode?.data?.name || "";
+const TYPE_COLORS = {
+  Dataset: "#10b981",
+  Model: "#f59e0b",
+  Metrics: "#ef4444",
+  Execution: "#3b82f6",
+};
+const getBackgroundColor = (type) => TYPE_COLORS[type] || "#64748b";
 
-  const getBackgroundColor = (type) => {
-    switch (type) {
-      case "Dataset": return "#10b981";
-      case "Model": return "#f59e0b";
-      case "Metrics": return "#ef4444";
-      case "Execution": return "#3b82f6";
-      default: return "#64748b";
-    }
-  };
+const CustomMiniMapNode = ({ id, x, y, width, height, nodeDataMap }) => {
+  const graphNode = nodeDataMap.get(id);
+  const nodeType = graphNode?.type || "Node";
+  const nodeName = graphNode?.name || "";
 
   return (
     <g transform={`translate(${x},${y})`}>
@@ -131,6 +130,7 @@ const transformLineageData = (rawJson) => {
 
   const rawLinks = [];
   const edgeSet = new Set();
+  const adjacency = new Map();
 
   originalNodeMap.forEach((node) => {
     node.parents.forEach((parentId) => {
@@ -139,95 +139,122 @@ const transformLineageData = (rawJson) => {
         if (!edgeSet.has(edgeKey)) {
           edgeSet.add(edgeKey);
           rawLinks.push({ source: parentId, target: node.id });
+          if (!adjacency.has(parentId)) adjacency.set(parentId, new Set());
+          adjacency.get(parentId).add(node.id);
         }
       }
     });
   });
 
-  const adjacency = new Map();
-  rawLinks.forEach(({ source, target }) => {
-    if (!adjacency.has(source)) adjacency.set(source, new Set());
-    adjacency.get(source).add(target);
-  });
-
-  const reachabilityCache = new Map();
-  const isReachableWithoutEdge = (source, target, skipDirectEdge) => {
-    const cacheKey = `${source}->${target}:${skipDirectEdge}`;
-    if (reachabilityCache.has(cacheKey)) {
-      return reachabilityCache.get(cacheKey);
-    }
-
+  const reachabilityFrom = new Map();
+  const computeReachable = (start) => {
+    if (reachabilityFrom.has(start)) return reachabilityFrom.get(start);
     const visited = new Set();
-    const stack = [...(adjacency.get(source) || [])].filter(
-      (next) => !(skipDirectEdge && next === target)
-    );
-
-    let reachable = false;
+    const stack = [...(adjacency.get(start) || [])];
     while (stack.length) {
       const current = stack.pop();
-      if (current === target) {
-        reachable = true;
-        break;
-      }
       if (visited.has(current)) continue;
       visited.add(current);
       (adjacency.get(current) || []).forEach((next) => {
-        if (!visited.has(next)) {
-          stack.push(next);
-        }
+        if (!visited.has(next)) stack.push(next);
       });
     }
-
-    reachabilityCache.set(cacheKey, reachable);
-    return reachable;
+    reachabilityFrom.set(start, visited);
+    return visited;
   };
 
   const links = rawLinks.filter(({ source, target }) => {
-    return !isReachableWithoutEdge(source, target, true);
+    const neighbours = adjacency.get(source);
+    if (!neighbours || neighbours.size <= 1) return true;
+    for (const w of neighbours) {
+      if (w === target) continue;
+      if (computeReachable(w).has(target)) {
+        return false;
+      }
+    }
+    return true;
   });
 
   return { nodes: Array.from(originalNodeMap.values()), links };
 }; // closes transformLineageData
 
-// FIXED: Layout configured for vertical flow with top/bottom anchors
+// ---- Fast custom layout (replaces dagre.layout) ----
 const getLayoutedElements = (nodes, edges) => {
-  const g = new dagre.graphlib.Graph();
-  g.setGraph({ rankdir: "TB", ranksep: 140, nodesep: 60 }); // ranksep raised from 100 to 140
-  g.setDefaultEdgeLabel(() => ({}));
+  const nodeIds = nodes.map((n) => n.id);
+  const adjacency = new Map();
+  const parentsOf = new Map();
+  nodeIds.forEach((id) => {
+    adjacency.set(id, new Set());
+    parentsOf.set(id, []);
+  });
+  edges.forEach(({ source, target }) => {
+    if (!adjacency.has(source)) adjacency.set(source, new Set());
+    adjacency.get(source).add(target);
+    if (!parentsOf.has(target)) parentsOf.set(target, []);
+    parentsOf.get(target).push(source);
+  });
 
-  nodes.forEach((node) => g.setNode(node.id, { width: nodeWidth, height: nodeHeight }));
-  edges.forEach((edge) => g.setEdge(edge.source, edge.target));
+  const inDegree = new Map();
+  nodeIds.forEach((id) => inDegree.set(id, 0));
+  edges.forEach(({ target }) => inDegree.set(target, (inDegree.get(target) || 0) + 1));
 
-  dagre.layout(g);
+  const rank = new Map();
+  const queue = [];
+  nodeIds.forEach((id) => {
+    if ((inDegree.get(id) || 0) === 0) {
+      rank.set(id, 0);
+      queue.push(id);
+    }
+  });
 
-  const positioned = nodes.map((node) => {
-    const position = g.node(node.id);
-    return { ...node, rawX: position.x, rawY: position.y };
+  const remaining = new Map(inDegree);
+  let qi = 0;
+  while (qi < queue.length) {
+    const u = queue[qi++];
+    const uRank = rank.get(u) || 0;
+    (adjacency.get(u) || new Set()).forEach((v) => {
+      if (!rank.has(v) || rank.get(v) < uRank + 1) rank.set(v, uRank + 1);
+      remaining.set(v, remaining.get(v) - 1);
+      if (remaining.get(v) === 0) queue.push(v);
+    });
+  }
+  nodeIds.forEach((id) => {
+    if (!rank.has(id)) rank.set(id, 0);
   });
 
   const rowMap = new Map();
-  positioned.forEach((node) => {
-    const rowKey = Math.round(node.rawY / 10) * 10;
-    if (!rowMap.has(rowKey)) rowMap.set(rowKey, []);
-    rowMap.get(rowKey).push(node);
+  nodeIds.forEach((id) => {
+    const r = rank.get(id);
+    if (!rowMap.has(r)) rowMap.set(r, []);
+    rowMap.get(r).push(id);
   });
+  const sortedRanks = Array.from(rowMap.keys()).sort((a, b) => a - b);
 
-  const FIXED_GAP = nodeWidth + 60;
-
-  rowMap.forEach((rowNodes) => {
-    rowNodes.sort((a, b) => a.rawX - b.rawX);
-    const totalWidth = (rowNodes.length - 1) * FIXED_GAP;
+  const xPosition = new Map();
+  sortedRanks.forEach((r) => {
+    const rowIds = rowMap.get(r);
+    if (r !== 0) {
+      rowIds.sort((a, b) => {
+        const aParents = parentsOf.get(a) || [];
+        const bParents = parentsOf.get(b) || [];
+        const aBary = aParents.length
+          ? aParents.reduce((sum, p) => sum + (xPosition.get(p) ?? 0), 0) / aParents.length
+          : 0;
+        const bBary = bParents.length
+          ? bParents.reduce((sum, p) => sum + (xPosition.get(p) ?? 0), 0) / bParents.length
+          : 0;
+        return aBary - bBary;
+      });
+    }
+    const totalWidth = (rowIds.length - 1) * FIXED_GAP;
     const startX = -totalWidth / 2;
-
-    rowNodes.forEach((node, index) => {
-      node.evenX = startX + index * FIXED_GAP;
-    });
+    rowIds.forEach((id, index) => xPosition.set(id, startX + index * FIXED_GAP));
   });
 
-  return positioned.map((node) => {
+  return nodes.map((node) => {
     node.position = {
-      x: node.evenX - nodeWidth / 2,
-      y: node.rawY - nodeHeight / 2,
+      x: (xPosition.get(node.id) ?? 0) - nodeWidth / 2,
+      y: rank.get(node.id) * RANK_GAP - nodeHeight / 2,
     };
     node.targetPosition = "top";
     node.sourcePosition = "bottom";
@@ -238,11 +265,10 @@ const getLayoutedElements = (nodes, edges) => {
 const HierarchicalLineageFlow = ({ data, lineageType }) => {
   const proOptions = { hideAttribution: true };
   const isArtifactExecutionLineage = lineageType === "Artifact_Execution_Tree";
+
   const { nodes, edges } = useMemo(() => {
     if (!data || data.length === 0) return { nodes: [], edges: [] };
-
     const formattedData = Array.isArray(data) && !data.nodes ? transformLineageData(data) : data;
-
     const rfNodes = formattedData.nodes.map((node) => ({
       id: node.id,
       type: "lineageNode",
@@ -250,26 +276,30 @@ const HierarchicalLineageFlow = ({ data, lineageType }) => {
       data: { ...node },
     }));
 
-    //Linking of node logic rendered here.
-    const rfEdges = (formattedData?.links ?? formattedData?.edges ??[]).map((link, index) => ({
+    const rfEdges = (formattedData?.links ?? formattedData?.edges ?? []).map((link, index) => ({
       id: `edge-${index}`,
       source: link.source,
       target: link.target,
       type: isArtifactExecutionLineage ? "simplebezier" : "step",
-      markerEnd: {
-        type: MarkerType.Arrow,
-        color: "#b1b1b7"
-      },
-      style: {
-        stroke: "#b1b1b7",
-        strokeWidth: 1.5,
-      }
+      markerEnd: EDGE_MARKER_END,
+      style: EDGE_STYLE,
     }));
-    return {
-      nodes: getLayoutedElements(rfNodes, rfEdges),
-      edges: rfEdges,
-    };
+
+    const laidOutNodes = getLayoutedElements(rfNodes, rfEdges);
+
+    return { nodes: laidOutNodes, edges: rfEdges };
   }, [data, lineageType]);
+
+  const nodeDataMap = useMemo(() => {
+    const map = new Map();
+    nodes.forEach((n) => map.set(n.id, n.data));
+    return map;
+  }, [nodes]);
+
+  const minimapNodeComponent = useMemo(
+    () => (props) => <CustomMiniMapNode {...props} nodeDataMap={nodeDataMap} />,
+    [nodeDataMap]
+  );
 
   return (
     <div style={{ width: "100%", height: "85vh", position: "relative" }}>
@@ -281,10 +311,14 @@ const HierarchicalLineageFlow = ({ data, lineageType }) => {
         fitViewOptions={{ padding: 0.15 }}
         minZoom={0.2}
         proOptions={proOptions}
+        onlyRenderVisibleElements
+        nodesDraggable={false}
+        nodesConnectable={false}
+        elementsSelectable={false}
       >
         <MiniMap
           position="bottom-right"
-          nodeComponent={CustomMiniMapNode}
+          nodeComponent={minimapNodeComponent}
           maskColor="rgba(241, 245, 249, 0.4)"
           style={{
             backgroundColor: "#f8fafc",

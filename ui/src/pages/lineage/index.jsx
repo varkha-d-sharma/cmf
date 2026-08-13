@@ -54,21 +54,26 @@ const Lineage = () => {
     fetchPipelines();
   }, []);
 
-  const fetchPipelines = () => {
+  const fetchPipelines = async () => {
     setLoading(true);
-    client.getPipelines("").then((data) => {
+    try {
+      const data = await client.getPipelines("")
       setPipelines(data);
-      setSelectedPipeline(data[0]);
-      // when pipeline is updated we need to update the lineage selection too
-      // in my opinion this is also not needed as we have selectedLineage has
-      // default value
-      if (data[0]) {
-        setSelectedLineageType(LineageTypes[0]);
-        // call artifact lineage as it is default
-        fetchArtifactTree(data[0]);
+      if (!data || data.length === 0) {
+        setSelectedPipeline(null);
+        return;
       }
+      const pipeline = data[0];
+      setSelectedPipeline(pipeline);
+      setSelectedLineageType("Artifact_Tree");
+      const treeData = await client.getArtiTreeLineage(pipeline);
+      setArtiTreeData(treeData);
+    } catch (error) {
+      console.error("Error loading lineage:", error);
+      setArtiTreeData(null);
+    } finally {
       setLoading(false);
-    });
+    }
   };
 
   const handlePipelineClick = (pipeline) => {
@@ -169,7 +174,6 @@ const Lineage = () => {
         } else {
           fetchExecTree(pipelineName, uuid);
         }
-        setLoading(false);
       }
     });
     setLineageArtifactsKey((prevKey) => prevKey + 1);

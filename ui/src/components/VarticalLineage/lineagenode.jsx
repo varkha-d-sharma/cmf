@@ -14,18 +14,6 @@
  * limitations under the License.
  ***/
 
-/**
- * @file LineageNode Custom Component for React Flow Canvas
- * @description Renders a standardized custom node layout used for pipeline and graph visualization.
- * 
- * Key Functions & Features:
- * - Dynamic Styling (`getColor`): Maps specific color schemes to node types (Dataset, Execution, Stage, etc.).
- * - Badge Classification (`getBadgeLabel`): Generates localized text labels for metadata visual categorization tags.
- * - Interactive Tooltips (`showTooltip`): Exposes raw node parameters as a pretty-printed JSON overlay on hover.
- * - Clean Edge Layouts (`HANDLE_HIDDEN_STYLE`): Automatically collapses connection handle points exclusively for 
- *   "Execution" nodes to eliminate layout line clutter, while maintaining default connectivity ports on environment wrappers.
- */
-
 import React, { useState } from "react";
 import { Handle, Position } from "reactflow";
 
@@ -47,7 +35,7 @@ const getColor = (type) => {
 
     case "Environment":
       return "#14b8a6";
-      
+
     default:
       return "#64748b";
   }
@@ -69,14 +57,10 @@ const HANDLE_HIDDEN_STYLE = {
 };
 
 const LineageNode1 = ({ data }) => {
-  console.log("...data",data)
   const [showTooltip, setShowTooltip] = useState(false);
   const { backgroundColor, fullUuid, id, ...rest } = data;
   const tooltipData = { ...rest, uuid: fullUuid || data.uuid };
 
-
-  // Only hide the connector dots on Execution node boxes;
-  // Pipeline and Stage nodes keep their default visible handles
   const isExecution = data.type === "Execution";
   const targetHandleStyle = isExecution ? HANDLE_HIDDEN_STYLE : undefined;
   const sourceHandleStyle = isExecution ? HANDLE_HIDDEN_STYLE : undefined;
@@ -99,25 +83,25 @@ const LineageNode1 = ({ data }) => {
       {data.uuid && <div className="lineage-subtitle">{data.uuid}</div>}
 
       {showTooltip && (
-      <pre
-        className="lineage-tooltip"
-        style={{
-        maxHeight: "160px",
-        maxWidth: "280px",
-        overflowY: "auto",
-        overflowX: "hidden",
-        whiteSpace: "pre-wrap",
-        wordBreak: "break-word",
-        margin: 0,
-      }}
-    >
-    {JSON.stringify(tooltipData, null, 2)}
-  </pre>
-)}
+        <pre
+          className="lineage-tooltip"
+          style={{
+            maxHeight: "160px",
+            maxWidth: "280px",
+            overflowY: "auto",
+            overflowX: "hidden",
+            whiteSpace: "pre-wrap",
+            wordBreak: "break-word",
+            margin: 0,
+          }}
+        >
+          {JSON.stringify(tooltipData, null, 2)}
+        </pre>
+      )}
 
       <Handle type="source" position={Position.Bottom} style={sourceHandleStyle} />
     </div>
   );
 };
 
-export default LineageNode1;
+export default React.memo(LineageNode1);
