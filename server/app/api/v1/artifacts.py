@@ -1,6 +1,9 @@
 from cmflib.cmfquery import CmfQuery
-from server.app.schemas.cmf_query_schema import ErrorDetail, PipelineNameRequest, StandardResponse
+from fastapi import APIRouter, Depends
+from server.app.api.dependencies import get_cmf_query
+from server.app.schemas.cmf_query_schema import ErrorDetail, StandardResponse
 
+router = APIRouter()
 
 def list_all_artifacts(query: CmfQuery) -> StandardResponse:
     artifact_names = query.get_all_artifacts()
@@ -25,7 +28,7 @@ def list_all_artifacts(query: CmfQuery) -> StandardResponse:
             "artifacts": artifact_names,
             "total_artifacts": len(artifact_names),
         },
-            message="Artifacts retrieved successfully",
+        message="Artifacts retrieved successfully",
     )
 
 
@@ -52,7 +55,17 @@ def list_all_artifact_types(query: CmfQuery) -> StandardResponse:
             "artifact_types": artifact_types,
             "total_artifact_types": len(artifact_types),
         },
-            message="Artifacts retrieved successfully",
+        message="Artifacts retrieved successfully",
     )
+
+
+@router.get("", response_model=StandardResponse)
+def cmfquery_list_artifacts(query: CmfQuery = Depends(get_cmf_query)):
+    return list_all_artifacts(query)
+
+
+@router.get("/types", response_model=StandardResponse)
+def cmfquery_list_artifact_types(query: CmfQuery = Depends(get_cmf_query)):
+    return list_all_artifact_types(query)
 
 

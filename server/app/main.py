@@ -71,10 +71,7 @@ from jsonpath_ng.ext import parse
 from cmflib.cmf_federation import update_mlmd
 from datetime import datetime
 from zoneinfo import ZoneInfo
-from server.app.api.v1 import pipelines as cmfquery_pipelines
-from server.app.api.v1 import artifacts as cmfquery_artifacts
-from server.app.api.v1 import executions as cmfquery_executions
-from server.app.schemas.cmf_query_schema import StageNameRequest, StandardResponse, PipelineNameRequest
+from server.app.api.v1.router import api_v1_router
 
 dotenv.load_dotenv()
 
@@ -117,6 +114,8 @@ async def lifespan(app: FastAPI):
     dict_of_exe_ids.clear()
 
 app = FastAPI(title="cmf-server", lifespan=lifespan, root_path="/api")
+app.state.cmf_query = query
+app.include_router(api_v1_router)
 
 # Add CORS middleware
 app.add_middleware(
@@ -1098,60 +1097,6 @@ async def update_global_exe_dict(pipeline_name):
     output_dict = await async_api(get_all_exe_ids, query, pipeline_name)
     dict_of_exe_ids[pipeline_name] = output_dict[pipeline_name]  
     return
-
-
-# ---- CmfQuery APIs ----
-@app.get("/v1/pipelines", response_model=StandardResponse, tags=["CmfQuery - Pipelines"])
-async def cmfquery_list_pipelines():
-    return cmfquery_pipelines.list_pipeline_names(query)
-
-
-@app.get("/v1/pipelines/id/", response_model=StandardResponse, tags=["CmfQuery - Pipelines"])
-async def cmfquery_get_pipeline_id(
-    request: PipelineNameRequest = Depends(),
-):
-    return cmfquery_pipelines.return_pipeline_id(request, query)
-
-
-@app.get("/v1/pipelines/stages/", response_model=StandardResponse, tags=["CmfQuery - Pipelines"])
-async def cmfquery_get_pipeline_stages(
-    request: PipelineNameRequest = Depends(),
-):
-    return cmfquery_pipelines.list_pipeline_stages(request, query)
-
-
-# @app.get("/v1/pipelines/executions/", response_model=StandardResponse, tags=["CmfQuery - Pipelines"])
-# async def cmfquery_get_pipeline_executions(
-#     response: Response,
-#     request: PipelineNameRequest = Depends(),
-# ):
-#     result = cmfquery_pipelines.get_pipeline_executions(request, query)
-#     response.status_code = result.code
-#     return result
-
-
-@app.get("/v1/artifacts", response_model=StandardResponse, tags=["CmfQuery - Artifacts"])
-def cmfquery_list_artifacts():
-    return cmfquery_artifacts.list_all_artifacts(query)
-
-
-@app.get("/v1/artifacts/types", response_model=StandardResponse, tags=["CmfQuery - Artifacts"])
-def cmfquery_list_artifact_types():
-    return cmfquery_artifacts.list_all_artifact_types(query)
-
-
-@app.get("/v1/executions/list_executions_in_pipeline_stages", response_model=StandardResponse, tags=["CmfQuery - Executions"])
-def cmfquery_list_executions_in_pipeline_stages(
-    request: StageNameRequest = Depends(),
-):
-    return cmfquery_executions.list_executions_in_pipeline_stages(request, query)
-
-
-@app.get("/v1/executions/get_executions_in_pipeline_stages", response_model=StandardResponse, tags=["CmfQuery - Executions"])
-def cmfquery_get_executions_in_pipeline_stages(
-    request: StageNameRequest = Depends(),
-):
-    return cmfquery_executions.get_executions_in_pipeline_stages(request, query)
 
 
 # Function to checks if mlmd file exists on server

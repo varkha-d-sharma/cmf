@@ -1,6 +1,9 @@
 from cmflib.cmfquery import CmfQuery
+from fastapi import APIRouter, Depends
+from server.app.api.dependencies import get_cmf_query
 from server.app.schemas.cmf_query_schema import ErrorDetail, StageNameRequest, StandardResponse
 
+router = APIRouter()
 
 def _mlmd_properties_to_dict(properties) -> dict:
     output = {}
@@ -29,6 +32,10 @@ def _execution_to_dict(execution) -> dict:
         "properties": _mlmd_properties_to_dict(execution.properties),
         "custom_properties": _mlmd_properties_to_dict(execution.custom_properties),
     }
+
+
+def _dataframe_records(dataframe) -> list[dict]:
+    return dataframe.where(dataframe.notna(), None).to_dict(orient="records")
 
 
 def list_executions_in_pipeline_stages(request: StageNameRequest, query: CmfQuery) -> StandardResponse:
@@ -82,8 +89,24 @@ def get_executions_in_pipeline_stages(request: StageNameRequest, query: CmfQuery
         code=200,
         data={
             "stage_name": request.stage_name,
-            "executions": [ _execution_to_dict(row) for _, row in executions.iterrows()],
+            "executions": _dataframe_records(executions),
             "total_executions": len(executions),
         },
         message="Executions associated with pipeline stage retrieved successfully",
     )
+
+
+@router.get("/get_executions_in_pipeline_stages", response_model=StandardResponse)
+def cmfquery_get_executions_in_pipeline_stages(
+    request: StageNameRequest = Depends(),
+    query: CmfQuery = Depends(get_cmf_query),
+):
+    return get_executions_in_pipeline_stages(request, query)
+
+
+@router.get("/list_executions_in_pipeline_stages", response_model=StandardResponse)
+def cmfquery_list_executions_in_pipeline_stages(
+    request: StageNameRequest = Depends(),
+    query: CmfQuery = Depends(get_cmf_query),
+):
+    return list_executions_in_pipeline_stages(request, query)
