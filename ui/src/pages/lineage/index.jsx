@@ -27,8 +27,8 @@ import ExecutionTree from "../../components/ExecutionTree";
 import ExecutionTangledDropdown from "../../components/ExecutionTangledDropdown";
 import ArtifactExecutionTangledTree from "../../components/ArtifactExecutionTangledTree";
 import Loader from "../../components/Loader";
-import { transformLineageData } from "../../components/HeirarchicalLineageFlow/trasformeddata";
-import Hierarchical_Lineage_Flow from "../../components/HeirarchicalLineageFlow/index";
+import { transformLineageData } from "../../components/HierarchicalLineageFlow/trasformeddata";
+import Hierarchical_Lineage_Flow from "../../components/HierarchicalLineageFlow/index";
 
 const client = new FastAPIClient(config);
 
