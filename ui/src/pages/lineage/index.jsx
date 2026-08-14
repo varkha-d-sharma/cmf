@@ -14,6 +14,8 @@
  * limitations under the License.
  ***/
 
+// The CommandLineageComponent is a common component used to display artifact lineage, execution lineage, and artifact execution lineage.
+
 import React, { useEffect, useState } from "react";
 import FastAPIClient from "../../client";
 import config from "../../config";
@@ -27,7 +29,7 @@ import ExecutionTree from "../../components/ExecutionTree";
 import ExecutionTangledDropdown from "../../components/ExecutionTangledDropdown";
 import ArtifactExecutionTangledTree from "../../components/ArtifactExecutionTangledTree";
 import Loader from "../../components/Loader";
-import CommanLineageComponent from "../../components/VerticalLineage";
+import CommonLineageComponent from "../../components/CommonLineageComponent";
 
 const client = new FastAPIClient(config);
 
@@ -298,7 +300,8 @@ const Lineage = () => {
               execDropdownData !== null &&
               executionData !== null && ( 
               <div>
-              <CommanLineageComponent
+              {/* Renders the common lineage component for execution lineage data */}
+              <CommonLineageComponent
                 LineageTypes={LineageTypes} 
                 lineageType={selectedLineageType} 
                 key={lineageArtifactsKey} 
@@ -310,7 +313,8 @@ const Lineage = () => {
               selectedLineageType === "Artifact_Tree" &&
               artitreeData !== null && (
               <div>
-              <CommanLineageComponent 
+              {/* Renders the common lineage component for artifact lineage data */}
+              <CommonLineageComponent 
                 LineageTypes={LineageTypes} 
                 lineageType={selectedLineageType} 
                 key={lineageArtifactsKey} 
@@ -322,7 +326,8 @@ const Lineage = () => {
               selectedLineageType === "Artifact_Execution_Tree" &&
               artiexetreeData !== null && (
                 <div>
-              <CommanLineageComponent 
+              {/* Renders the common lineage component for artifact execution lineage data */}
+              <CommonLineageComponent 
                 LineageTypes={LineageTypes} 
                 lineageType={selectedLineageType} 
                 key={lineageArtifactsKey} 

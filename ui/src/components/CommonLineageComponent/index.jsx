@@ -261,7 +261,7 @@ const getLayoutedElements = (nodes, edges) => {
   });
 };
 
-const CommanLineageComponent = ({ data, lineageType }) => {
+const CommonLineageComponent = ({ data, lineageType }) => {
   const proOptions = { hideAttribution: true };
   const isArtifactExecutionLineage = lineageType === "Artifact_Execution_Tree";
 
@@ -337,4 +337,4 @@ const CommanLineageComponent = ({ data, lineageType }) => {
   );
 };
 
-export default CommanLineageComponent;
+export default CommonLineageComponent;
