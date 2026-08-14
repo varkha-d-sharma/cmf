@@ -27,7 +27,7 @@ import ExecutionTree from "../../components/ExecutionTree";
 import ExecutionTangledDropdown from "../../components/ExecutionTangledDropdown";
 import ArtifactExecutionTangledTree from "../../components/ArtifactExecutionTangledTree";
 import Loader from "../../components/Loader";
-import HierarchicalLineageFlow from "../../components/VarticalLineage";
+import CommanLineageComponent from "../../components/VerticalLineage";
 
 const client = new FastAPIClient(config);
 
@@ -298,7 +298,7 @@ const Lineage = () => {
               execDropdownData !== null &&
               executionData !== null && ( 
               <div>
-              <HierarchicalLineageFlow
+              <CommanLineageComponent
                 LineageTypes={LineageTypes} 
                 lineageType={selectedLineageType} 
                 key={lineageArtifactsKey} 
@@ -310,7 +310,7 @@ const Lineage = () => {
               selectedLineageType === "Artifact_Tree" &&
               artitreeData !== null && (
               <div>
-              <HierarchicalLineageFlow 
+              <CommanLineageComponent 
                 LineageTypes={LineageTypes} 
                 lineageType={selectedLineageType} 
                 key={lineageArtifactsKey} 
@@ -322,7 +322,7 @@ const Lineage = () => {
               selectedLineageType === "Artifact_Execution_Tree" &&
               artiexetreeData !== null && (
                 <div>
-              <HierarchicalLineageFlow 
+              <CommanLineageComponent 
                 LineageTypes={LineageTypes} 
                 lineageType={selectedLineageType} 
                 key={lineageArtifactsKey} 

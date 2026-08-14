@@ -23,12 +23,11 @@
 
 import React, { useMemo } from "react";
 import ReactFlow, { Controls, Background, MiniMap, MarkerType } from "reactflow";
-
 import "reactflow/dist/style.css";
 import "./index.css";
-import LineageNode1 from "./lineagenode";
+import lineagenode from "./lineagenode";
 
-const nodeTypes = { lineageNode: LineageNode1 };
+const nodeTypes = { lineageNode: lineagenode };
 const nodeWidth = 220;
 const nodeHeight = 90;
 const RANK_GAP = nodeHeight + 140;
@@ -262,7 +261,7 @@ const getLayoutedElements = (nodes, edges) => {
   });
 };
 
-const HierarchicalLineageFlow = ({ data, lineageType }) => {
+const CommanLineageComponent = ({ data, lineageType }) => {
   const proOptions = { hideAttribution: true };
   const isArtifactExecutionLineage = lineageType === "Artifact_Execution_Tree";
 
@@ -338,4 +337,4 @@ const HierarchicalLineageFlow = ({ data, lineageType }) => {
   );
 };
 
-export default HierarchicalLineageFlow;
+export default CommanLineageComponent;

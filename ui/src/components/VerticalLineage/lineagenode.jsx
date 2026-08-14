@@ -56,7 +56,7 @@ const HANDLE_HIDDEN_STYLE = {
   background: "transparent",
 };
 
-const LineageNode1 = ({ data }) => {
+const LineageNode = ({ data }) => {
   const [showTooltip, setShowTooltip] = useState(false);
   const { backgroundColor, fullUuid, id, ...rest } = data;
   const tooltipData = { ...rest, uuid: fullUuid || data.uuid };
@@ -104,4 +104,4 @@ const LineageNode1 = ({ data }) => {
   );
 };
 
-export default React.memo(LineageNode1);
+export default React.memo(LineageNode);
