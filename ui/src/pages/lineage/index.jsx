@@ -14,6 +14,8 @@
  * limitations under the License.
  ***/
 
+// The CommandLineageComponent is a common component used to display artifact lineage, execution lineage, and artifact execution lineage.
+
 import React, { useEffect, useState } from "react";
 import FastAPIClient from "../../client";
 import config from "../../config";
@@ -27,8 +29,7 @@ import ExecutionTree from "../../components/ExecutionTree";
 import ExecutionTangledDropdown from "../../components/ExecutionTangledDropdown";
 import ArtifactExecutionTangledTree from "../../components/ArtifactExecutionTangledTree";
 import Loader from "../../components/Loader";
-import { transformLineageData } from "../../components/HierarchicalLineageFlow/trasformeddata";
-import Hierarchical_Lineage_Flow from "../../components/HierarchicalLineageFlow/index";
+import CommonLineageComponent from "../../components/CommonLineageComponent";
 
 const client = new FastAPIClient(config);
 
@@ -57,21 +58,26 @@ const Lineage = () => {
     fetchPipelines();
   }, []);
 
-  const fetchPipelines = () => {
+  const fetchPipelines = async () => {
     setLoading(true);
-    client.getPipelines("").then((data) => {
+    try {
+      const data = await client.getPipelines("")
       setPipelines(data);
-      setSelectedPipeline(data[0]);
-      // when pipeline is updated we need to update the lineage selection too
-      // in my opinion this is also not needed as we have selectedLineage has
-      // default value
-      if (data[0]) {
-        setSelectedLineageType(LineageTypes[0]);
-        // call artifact lineage as it is default
-        fetchArtifactTree(data[0]);
+      if (!data || data.length === 0) {
+        setSelectedPipeline(null);
+        return;
       }
+      const pipeline = data[0];
+      setSelectedPipeline(pipeline);
+      setSelectedLineageType("Artifact_Tree");
+      const treeData = await client.getArtiTreeLineage(pipeline);
+      setArtiTreeData(treeData);
+    } catch (error) {
+      console.error("Error loading lineage:", error);
+      setArtiTreeData(null);
+    } finally {
       setLoading(false);
-    });
+    }
   };
 
   const handlePipelineClick = (pipeline) => {
@@ -176,7 +182,6 @@ const Lineage = () => {
         } else {
           fetchExecTree(pipelineName, uuid);
         }
-        setLoading(false);
       }
     });
     setLineageArtifactsKey((prevKey) => prevKey + 1);
@@ -318,43 +323,50 @@ const Lineage = () => {
               selectedPipeline !== null &&
               selectedLineageType === "Execution_Tree" &&
               execDropdownData !== null &&
-              executionData !== null && (
-                <div style={{ justifyContent: "center", alignItems: "center" }}>
-                  <ExecutionTree
-                    key={lineageArtifactsKey}
-                    data={executionData}
-                  />
+              executionData !== null && ( 
+              <div>
+              {/* Renders the common lineage component for execution lineage data */}
+              <CommonLineageComponent
+                LineageTypes={LineageTypes} 
+                lineageType={selectedLineageType} 
+                key={lineageArtifactsKey} 
+                data={executionData}/>
                 </div>
               )}
             {!loading &&
               selectedPipeline !== null &&
               selectedLineageType === "Artifact_Tree" &&
               artitreeData !== null && (
-                <div
-                  style={{
-                    justifyContent: "center",
-                    alignItems: "center",
-                    padding: "20px",
-                  }}
-                >
-                  <TangledTree key={lineageArtifactsKey} data={artitreeData} />
-                </div>
-              )}
+              <div>
+              {/* Renders the common lineage component for artifact lineage data */}
+              <CommonLineageComponent 
+                LineageTypes={LineageTypes} 
+                lineageType={selectedLineageType} 
+                key={lineageArtifactsKey} 
+                data={artitreeData}/>
+              </div>)
+              }
             {!loading &&
               selectedPipeline !== null &&
               selectedLineageType === "Artifact_Execution_Tree" &&
               artiexetreeData !== null && (
-                <div style={{ justifyContent: "center", alignItems: "center" }}>
-                  <ArtifactExecutionTangledTree
-                    key={lineageArtifactsKey}
-                    data={artiexetreeData}
-                  />
-                </div>
-              )}
-              {!loading && selectedPipeline !== null &&
-              selectedLineageType === "Heirarchical_Lineage" &&
-              hierarchicalData && (<Hierarchical_Lineage_Flow  key={lineageArtifactsKey} data={hierarchicalData} />)
-            }
+                <div>
+              {/* Renders the common lineage component for artifact execution lineage data */}
+              <CommonLineageComponent 
+                LineageTypes={LineageTypes} 
+                lineageType={selectedLineageType} 
+                key={lineageArtifactsKey} 
+                data={artiexetreeData}/>
+              </div>)
+              }
+              {!loading && 
+                selectedPipeline !== null &&
+                selectedLineageType === "Heirarchical_Lineage" &&
+                hierarchicalData && 
+                (<Hierarchical_Lineage_Flow  
+                  key={lineageArtifactsKey} 
+                  data={hierarchicalData} />)
+              }
           </div>
         </div>
         <Footer />
