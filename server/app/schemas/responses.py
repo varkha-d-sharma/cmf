@@ -17,7 +17,6 @@ class PaginationMeta(BaseModel):
 
 class ResponseMeta(BaseModel):
     """Response metadata"""
-    request_id: str = ""
     timestamp: str = ""
     pagination: Optional[PaginationMeta] = None
 
@@ -42,7 +41,6 @@ def success_response(
     message: str = "Success",
     code: int = 200,
     pagination: Optional[PaginationMeta] = None,
-    request_id: str = "",
 ) -> APIResponse:
     """Create a success response"""
     return APIResponse(
@@ -52,7 +50,6 @@ def success_response(
         message=message,
         errors=[],
         meta=ResponseMeta(
-            request_id=request_id,
             timestamp=datetime.utcnow().isoformat() + "Z",
             pagination=pagination,
         ),
@@ -64,7 +61,6 @@ def error_response(
     code: int = 400,
     errors: Optional[List[Dict[str, Any]]] = None,
     data: Any = None,
-    request_id: str = "",
 ) -> APIResponse:
     """Create an error response"""
     return APIResponse(
@@ -74,7 +70,6 @@ def error_response(
         message=message,
         errors=errors or [],
         meta=ResponseMeta(
-            request_id=request_id,
             timestamp=datetime.utcnow().isoformat() + "Z",
         ),
     )
@@ -86,7 +81,6 @@ def partial_response(
     code: int = 206,
     errors: Optional[List[Dict[str, Any]]] = None,
     pagination: Optional[PaginationMeta] = None,
-    request_id: str = "",
 ) -> APIResponse:
     """Create a partial success response"""
     return APIResponse(
@@ -96,7 +90,6 @@ def partial_response(
         message=message,
         errors=errors or [],
         meta=ResponseMeta(
-            request_id=request_id,
             timestamp=datetime.utcnow().isoformat() + "Z",
             pagination=pagination,
         ),

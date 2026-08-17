@@ -3,7 +3,7 @@
 from typing import Any, Callable, Optional, Coroutine
 from functools import wraps
 from fastapi import Request
-from server.app.core.responses import success_response, PaginationMeta, APIResponse
+from server.app.schemas.responses import success_response, PaginationMeta, APIResponse
 from server.app.core.exceptions import InternalServerError
 import logging
 
@@ -27,17 +27,6 @@ def wrap_endpoint_response(
     @wraps(func)
     async def wrapper(*args, **kwargs) -> APIResponse:
         try:
-            request: Optional[Request] = None
-            # Try to find Request object in args/kwargs
-            for arg in args:
-                if isinstance(arg, Request):
-                    request = arg
-                    break
-            if not request and "request" in kwargs:
-                request = kwargs["request"]
-            
-            request_id = getattr(request.state, "request_id", "") if request else ""
-            
             # Call the original function
             result = await func(*args, **kwargs)
             
@@ -47,14 +36,11 @@ def wrap_endpoint_response(
                 message=message,
                 code=code,
                 pagination=pagination,
-                request_id=request_id,
             )
         except Exception as e:
-            request_id = getattr(request.state, "request_id", "") if request else ""
             logger.error(
-                f"[{request_id}] Error in {func.__name__}: {str(e)}",
+                f"Error in {func.__name__}: {str(e)}",
                 exc_info=True,
-                extra={"request_id": request_id},
             )
             raise InternalServerError(f"Error in {func.__name__}: {str(e)}")
     
@@ -69,24 +55,12 @@ def handle_endpoint_error(func: Callable) -> Callable:
     @wraps(func)
     async def wrapper(*args, **kwargs) -> Any:
         try:
-            request: Optional[Request] = None
-            for arg in args:
-                if isinstance(arg, Request):
-                    request = arg
-                    break
-            if not request and "request" in kwargs:
-                request = kwargs["request"]
-            
-            request_id = getattr(request.state, "request_id", "") if request else ""
-            
             result = await func(*args, **kwargs)
             return result
         except Exception as e:
-            request_id = getattr(request.state, "request_id", "") if request else ""
             logger.error(
-                f"[{request_id}] Unhandled error in {func.__name__}: {str(e)}",
+                f"Unhandled error in {func.__name__}: {str(e)}",
                 exc_info=True,
-                extra={"request_id": request_id},
             )
             # Re-raise to let global exception handlers deal with it
             raise

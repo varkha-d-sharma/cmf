@@ -15,9 +15,9 @@ from fastapi.responses import HTMLResponse, PlainTextResponse
 import pandas as pd
 
 from server.app.db.dbconfig import get_db
-from server.app.schemas.dataframe import MLMDPullRequest, MLMDPushRequest
-from server.app.core.responses import success_response
-from server.app.core.globals import (
+from server.app.schemas.requests import MLMDPullRequest, MLMDPushRequest
+from server.app.schemas.responses import success_response
+from server.app.main import (
     query,
     dict_of_art_ids,
     dict_of_exe_ids,
@@ -296,13 +296,11 @@ async def get_label_data(file_name: str) -> str:
 
 @router.post("/mlmd/push")
 async def normalized_mlmd_push(request: Request, info: MLMDPushRequest):
-    request_id = getattr(request.state, "request_id", "")
     result = await mlmd_push(info)
     return success_response(
         data=result,
         message="MLMD pushed successfully",
         code=200,
-        request_id=request_id,
     )
 
 
@@ -313,121 +311,101 @@ async def normalized_mlmd_pull(request: Request, info: MLMDPullRequest):
 
 @router.get("/lineage/execution/{uuid}/{pipeline_name}")
 async def normalized_execution_lineage(request: Request, uuid: str, pipeline_name: str):
-    request_id = getattr(request.state, "request_id", "")
     result = await execution_lineage(request, uuid, pipeline_name)
     return success_response(
         data=result,
         message="Execution lineage retrieved successfully",
         code=200,
-        request_id=request_id,
     )
 
 
 @router.get("/lineage/artifact/{pipeline_name}")
 async def normalized_artifact_lineage(request: Request, pipeline_name: str):
-    request_id = getattr(request.state, "request_id", "")
     result = await artifact_lineage_tangled(request, pipeline_name)
     return success_response(
         data=result,
         message="Artifact lineage retrieved successfully",
         code=200,
-        request_id=request_id,
     )
 
 
 @router.get("/lineage/artifact-execution/{pipeline_name}")
 async def normalized_artifact_execution_lineage(request: Request, pipeline_name: str):
-    request_id = getattr(request.state, "request_id", "")
     result = await artifact_execution_lineage(request, pipeline_name)
     return success_response(
         data=result,
         message="Artifact-execution lineage retrieved successfully",
         code=200,
-        request_id=request_id,
     )
 
 
 @router.get("/executions/{pipeline_name}")
 async def normalized_list_of_executions(request: Request, pipeline_name: str):
-    request_id = getattr(request.state, "request_id", "")
     result = await list_of_executions(request, pipeline_name)
     return success_response(
         data=result,
         message="Executions retrieved successfully",
         code=200,
-        request_id=request_id,
     )
 
 
 @router.get("/model-card")
 async def normalized_model_card(request: Request, modelId: int):
-    request_id = getattr(request.state, "request_id", "")
     result = await model_card(request, modelId)
     return success_response(
         data=result,
         message="Model card retrieved successfully",
         code=200,
-        request_id=request_id,
     )
 
 
 @router.post("/python-env")
 async def normalized_upload_python_env(request: Request, file: UploadFile = File(...)):
-    request_id = getattr(request.state, "request_id", "")
     result = await upload_python_env(request, file)
     return success_response(
         data=result,
         message="Python environment uploaded successfully",
         code=201,
-        request_id=request_id,
     )
 
 
 @router.get("/python-env")
 async def normalized_get_python_env(request: Request, file_name: str):
-    request_id = getattr(request.state, "request_id", "")
     result = await get_python_env(file_name)
     return success_response(
         data=result,
         message="Python environment retrieved successfully",
         code=200,
-        request_id=request_id,
     )
 
 
 @router.post("/label")
 async def normalized_upload_label(request: Request, file: UploadFile = File(...)):
-    request_id = getattr(request.state, "request_id", "")
     result = await upload_label(request, file)
     return success_response(
         data=result,
         message="Label uploaded successfully",
         code=201,
-        request_id=request_id,
     )
 
 
 @router.get("/label-data")
 async def normalized_get_label_data(request: Request, file_name: str):
-    request_id = getattr(request.state, "request_id", "")
     result = await get_label_data(file_name)
     return success_response(
         data=result,
         message="Label data retrieved successfully",
         code=200,
-        request_id=request_id,
     )
 
 
 @router.post("/metadata/push")
 async def metadata_push(request: Request, info: MLMDPushRequest):
-    request_id = getattr(request.state, "request_id", "")
     result = await mlmd_push(info)
     return success_response(
         data=result,
         message="MLMD pushed successfully",
         code=200,
-        request_id=request_id,
     )
 
 
@@ -438,120 +416,100 @@ async def metadata_pull(request: Request, info: MLMDPullRequest):
 
 @router.get("/metadata/artifact-types")
 async def metadata_artifact_types(request: Request):
-    request_id = getattr(request.state, "request_id", "")
     result = await artifact_types()
     return success_response(
         data=result,
         message="Artifact types retrieved successfully",
         code=200,
-        request_id=request_id,
     )
 
 
 @router.get("/metadata/model-card")
 async def metadata_model_card(request: Request, modelId: int):
-    request_id = getattr(request.state, "request_id", "")
     result = await model_card(request, modelId)
     return success_response(
         data=result,
         message="Model card retrieved successfully",
         code=200,
-        request_id=request_id,
     )
 
 
 @router.get("/metadata/execution-lineage/{uuid}/{pipeline_name}")
 async def metadata_execution_lineage(request: Request, uuid: str, pipeline_name: str):
-    request_id = getattr(request.state, "request_id", "")
     result = await execution_lineage(request, uuid, pipeline_name)
     return success_response(
         data=result,
         message="Execution lineage retrieved successfully",
         code=200,
-        request_id=request_id,
     )
 
 
 @router.get("/metadata/artifact-lineage/{pipeline_name}")
 async def metadata_artifact_lineage(request: Request, pipeline_name: str):
-    request_id = getattr(request.state, "request_id", "")
     result = await artifact_lineage_tangled(request, pipeline_name)
     return success_response(
         data=result,
         message="Artifact lineage retrieved successfully",
         code=200,
-        request_id=request_id,
     )
 
 
 @router.get("/metadata/artifact-execution-lineage/{pipeline_name}")
 async def metadata_artifact_execution_lineage(request: Request, pipeline_name: str):
-    request_id = getattr(request.state, "request_id", "")
     result = await artifact_execution_lineage(request, pipeline_name)
     return success_response(
         data=result,
         message="Artifact-execution lineage retrieved successfully",
         code=200,
-        request_id=request_id,
     )
 
 
 @router.get("/metadata/list-of-executions/{pipeline_name}")
 async def metadata_list_of_executions(request: Request, pipeline_name: str):
-    request_id = getattr(request.state, "request_id", "")
     result = await list_of_executions(request, pipeline_name)
     return success_response(
         data=result,
         message="Executions retrieved successfully",
         code=200,
-        request_id=request_id,
     )
 
 
 @router.post("/metadata/python-env")
 async def metadata_upload_python_env(request: Request, file: UploadFile = File(...)):
-    request_id = getattr(request.state, "request_id", "")
     result = await upload_python_env(request, file)
     return success_response(
         data=result,
         message="Python environment uploaded successfully",
         code=201,
-        request_id=request_id,
     )
 
 
 @router.get("/metadata/python-env")
 async def metadata_get_python_env(request: Request, file_name: str):
-    request_id = getattr(request.state, "request_id", "")
     result = await get_python_env(file_name)
     return success_response(
         data=result,
         message="Python environment retrieved successfully",
         code=200,
-        request_id=request_id,
     )
 
 
 @router.post("/metadata/label")
 async def metadata_upload_label(request: Request, file: UploadFile = File(...)):
-    request_id = getattr(request.state, "request_id", "")
     result = await upload_label(request, file)
     return success_response(
         data=result,
         message="Label uploaded successfully",
         code=201,
-        request_id=request_id,
     )
 
 
 @router.get("/metadata/label-data")
 async def metadata_get_label_data(request: Request, file_name: str):
 
-    request_id = getattr(request.state, "request_id", "")
     result = await get_label_data(file_name)
     return success_response(
         data=result,
         message="Label data retrieved successfully",
         code=200,
-        request_id=request_id,
     )

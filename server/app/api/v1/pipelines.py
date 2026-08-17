@@ -16,9 +16,9 @@ from server.app.db.dbqueries import (
     fetch_artifact_types_by_stage,
     fetch_artifacts_by_stage,
 )
-from server.app.schemas.dataframe import ArtifactByStageRequest, ExecutionByStageRequest
-from server.app.core.responses import success_response
-from server.app.core.globals import query
+from server.app.schemas.requests import ArtifactByStageRequest, ExecutionByStageRequest
+from server.app.schemas.responses import success_response
+from server.app.main import query
 
 router = APIRouter(prefix="/v1", tags=["pipelines"])
 
@@ -179,13 +179,11 @@ async def get_artifacts_by_stage(
 
 @router.get("/pipelines")
 async def list_pipelines(request: Request):
-    request_id = getattr(request.state, "request_id", "")
     result = await pipelines(request)
     return success_response(
         data=result,
         message="Pipelines retrieved successfully",
         code=200,
-        request_id=request_id,
     )
 
 
@@ -196,13 +194,11 @@ async def standardized_executions(
     query_params: ExecutionByStageRequest = Depends(),
     db: AsyncSession = Depends(get_db),
 ):
-    request_id = getattr(request.state, "request_id", "")
     result = await get_executions_by_stage(pipeline_name, query_params, db)
     return success_response(
         data=result,
         message="Executions retrieved successfully",
         code=200,
-        request_id=request_id,
     )
 
 
@@ -212,13 +208,11 @@ async def standardized_execution_stages(
     pipeline_name: str = Query(..., description="Pipeline name"),
     db: AsyncSession = Depends(get_db),
 ):
-    request_id = getattr(request.state, "request_id", "")
     result = await get_pipeline_stages(pipeline_name, db)
     return success_response(
         data=result,
         message="Pipeline stages retrieved successfully",
         code=200,
-        request_id=request_id,
     )
 
 
@@ -229,13 +223,11 @@ async def standardized_artifact_types(
     stage_name: str = Query(..., description="Stage name (Context_Type value)"),
     db: AsyncSession = Depends(get_db),
 ):
-    request_id = getattr(request.state, "request_id", "")
     result = await get_artifact_types_by_stage(pipeline_name, stage_name, db)
     return success_response(
         data=result,
         message="Artifact types retrieved successfully",
         code=200,
-        request_id=request_id,
     )
 
 
@@ -246,13 +238,11 @@ async def standardized_artifacts(
     query_params: ArtifactByStageRequest = Depends(),
     db: AsyncSession = Depends(get_db),
 ):
-    request_id = getattr(request.state, "request_id", "")
     result = await get_artifacts_by_stage(pipeline_name, query_params, db)
     return success_response(
         data=result,
         message="Artifacts retrieved successfully",
         code=200,
-        request_id=request_id,
     )
 
 
@@ -263,25 +253,21 @@ async def pipeline_executions(
     query_params: ExecutionByStageRequest = Depends(),
     db: AsyncSession = Depends(get_db),
 ):
-    request_id = getattr(request.state, "request_id", "")
     result = await get_executions_by_stage(pipeline_name, query_params, db)
     return success_response(
         data=result,
         message="Pipeline executions retrieved successfully",
         code=200,
-        request_id=request_id,
     )
 
 
 @router.get("/pipelines/{pipeline_name}/stages")
 async def pipeline_stages(request: Request, pipeline_name: str, db: AsyncSession = Depends(get_db)):
-    request_id = getattr(request.state, "request_id", "")
     result = await get_pipeline_stages(pipeline_name, db)
     return success_response(
         data=result,
         message="Pipeline stages retrieved successfully",
         code=200,
-        request_id=request_id,
     )
 
 
@@ -292,13 +278,11 @@ async def pipeline_artifact_types_by_stage(
     stage_name: str = Query(..., description="Stage name (Context_Type value)"),
     db: AsyncSession = Depends(get_db),
 ):
-    request_id = getattr(request.state, "request_id", "")
     result = await get_artifact_types_by_stage(pipeline_name, stage_name, db)
     return success_response(
         data=result,
         message="Artifact types retrieved successfully",
         code=200,
-        request_id=request_id,
     )
 
 
@@ -309,11 +293,9 @@ async def pipeline_artifacts_by_stage(
     query_params: ArtifactByStageRequest = Depends(),
     db: AsyncSession = Depends(get_db),
 ):
-    request_id = getattr(request.state, "request_id", "")
     result = await get_artifacts_by_stage(pipeline_name, query_params, db)
     return success_response(
         data=result,
         message="Artifacts retrieved successfully",
         code=200,
-        request_id=request_id,
     )

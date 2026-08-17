@@ -55,7 +55,7 @@ from pathlib import Path
 import os
 import json
 import typing as t
-from server.app.schemas.dataframe import (
+from server.app.schemas.requests import (
     MLMDPushRequest,
     ServerRegistrationRequest, 
     AcknowledgeRequest,
@@ -64,9 +64,6 @@ from server.app.schemas.dataframe import (
     ArtifactByStageRequest,
     ExecutionByStageRequest,
 )
-from server.app.api.v1.metadata import router as metadata_router
-from server.app.api.v1.pipelines import router as pipelines_router
-from server.app.api.v1.servers import router as servers_router
 import httpx
 import socket
 import dotenv
@@ -76,22 +73,41 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
-from server.app.core.middleware import RequestIDMiddleware
 from server.app.core.exceptions import APIException
-from server.app.core.responses import error_response
+from server.app.schemas.responses import error_response
 
 dotenv.load_dotenv()
 
-# Import globals from the dedicated globals module
-from server.app.core.globals import (
-    query,
-    dict_of_art_ids,
-    dict_of_exe_ids,
-    pipeline_locks,
-    lock_counts,
-    LOCAL_ADDRESSES,
-    REACT_APP_CMF_API_URL,
-)
+# ==================== Global Variables ====================
+# Initialize CMF Query instance for server
+query = CmfQuery(is_server=True)
+
+# Cache for artifact and execution IDs
+dict_of_art_ids = {}
+dict_of_exe_ids = {}
+
+# Lock management for concurrent pipeline operations
+pipeline_locks = {}
+lock_counts: defaultdict[str, int] = defaultdict(int)
+
+# API Configuration
+REACT_APP_CMF_API_URL = os.getenv("REACT_APP_CMF_API_URL", "http://localhost:8080")
+
+# Local address detection for server registration validation
+LOCAL_ADDRESSES = set()
+LOCAL_ADDRESSES.update(["127.0.0.1", "localhost"])
+hostname = extract_hostname(REACT_APP_CMF_API_URL)
+LOCAL_ADDRESSES.add(hostname)
+# Adding hostname if IP is given
+LOCAL_ADDRESSES.add(get_fqdn(hostname))
+print("Local addresses= ", LOCAL_ADDRESSES)
+
+# ==================== Router Imports ====================
+# Import routers after globals are defined
+from server.app.api.v1.metadata import router as metadata_router
+from server.app.api.v1.pipelines import router as pipelines_router
+from server.app.api.v1.servers import router as servers_router
+
 #lifespan used to prevent multiple loading and save time for visualization.
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -131,9 +147,6 @@ app.include_router(pipelines_router)
 app.include_router(metadata_router)
 app.include_router(servers_router)
 
-# Add Request ID Middleware (must be added first, before other middleware)
-app.add_middleware(RequestIDMiddleware)
-
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
@@ -147,13 +160,11 @@ app.add_middleware(
 @app.exception_handler(APIException)
 async def api_exception_handler(request: Request, exc: APIException):
     """Handle custom API exceptions"""
-    request_id = getattr(request.state, "request_id", "")
     response = error_response(
         message=exc.message,
         code=exc.code,
         errors=exc.errors,
         data=exc.data,
-        request_id=request_id,
     )
     return JSONResponse(status_code=exc.code, content=response.dict())
 
@@ -161,7 +172,6 @@ async def api_exception_handler(request: Request, exc: APIException):
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     """Handle Pydantic validation errors"""
-    request_id = getattr(request.state, "request_id", "")
     # Parse validation errors
     errors = []
     for error in exc.errors():
@@ -176,7 +186,6 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         message="Request validation failed",
         code=422,
         errors=errors,
-        request_id=request_id,
     )
     return JSONResponse(status_code=422, content=response.dict())
 
@@ -184,12 +193,10 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
     """Handle FastAPI HTTPException"""
-    request_id = getattr(request.state, "request_id", "")
     response = error_response(
         message=str(exc.detail),
         code=exc.status_code,
         errors=[],
-        request_id=request_id,
     )
     return JSONResponse(status_code=exc.status_code, content=response.dict())
 

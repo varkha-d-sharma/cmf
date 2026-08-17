@@ -33,9 +33,9 @@ from server.app.db.dbqueries import (
     get_completed_logs_by_server,
     delete_schedule,
 )
-from server.app.schemas.dataframe import ScheduleCreateRequest, ServerRegistrationRequest
-from server.app.core.responses import success_response
-from server.app.core.globals import (
+from server.app.schemas.requests import ScheduleCreateRequest, ServerRegistrationRequest
+from server.app.schemas.responses import success_response
+from server.app.main import (
     query,
     LOCAL_ADDRESSES,
     dict_of_art_ids,
@@ -407,143 +407,119 @@ async def delete_schedule_route(schedule_id: int, db: AsyncSession = Depends(get
 
 @router.post("/servers/register")
 async def register_server_route(request: Request, info: ServerRegistrationRequest, db: AsyncSession = Depends(get_db)):
-    request_id = getattr(request.state, "request_id", "")
     result = await register_server(info, db)
     return success_response(
         data=result,
         message="Server registered successfully",
         code=201,
-        request_id=request_id,
     )
 
 
 @router.post("/servers/sync")
 async def sync_server(request: Request, info: ServerRegistrationRequest, db: AsyncSession = Depends(get_db), skip_logging: bool = False):
-    request_id = getattr(request.state, "request_id", "")
     result = await sync_metadata(info, db, skip_logging)
     return success_response(
         data=result,
         message="Server synced successfully",
         code=200,
-        request_id=request_id,
     )
 
 
 @router.get("/servers")
 async def list_servers(request: Request, db: AsyncSession = Depends(get_db)):
-    request_id = getattr(request.state, "request_id", "")
     result = await server_list(db)
     return success_response(
         data=result,
         message="Servers retrieved successfully",
         code=200,
-        request_id=request_id,
     )
 
 
 @router.post("/schedules")
 async def create_schedule(request: Request, schedule_info: ScheduleCreateRequest, db: AsyncSession = Depends(get_db)):
-    request_id = getattr(request.state, "request_id", "")
     result = await schedule_sync(schedule_info, db)
     return success_response(
         data=result,
         message="Schedule created successfully",
         code=201,
-        request_id=request_id,
     )
 
 
 @router.post("/servers/schedules")
 async def create_schedule_legacy(request: Request, schedule_info: ScheduleCreateRequest, db: AsyncSession = Depends(get_db)):
-    request_id = getattr(request.state, "request_id", "")
     result = await schedule_sync(schedule_info, db)
     return success_response(
         data=result,
         message="Schedule created successfully",
         code=201,
-        request_id=request_id,
     )
 
 
 @router.get("/schedules")
 async def list_schedules_standard(request: Request, server_id: Optional[int] = None, db: AsyncSession = Depends(get_db)):
-    request_id = getattr(request.state, "request_id", "")
     result = await get_schedules(server_id, db)
     return success_response(
         data=result,
         message="Schedules retrieved successfully",
         code=200,
-        request_id=request_id,
     )
 
 
 @router.get("/servers/schedules")
 async def list_schedules(request: Request, server_id: Optional[int] = None, db: AsyncSession = Depends(get_db)):
-    request_id = getattr(request.state, "request_id", "")
     result = await get_schedules(server_id, db)
     return success_response(
         data=result,
         message="Schedules retrieved successfully",
         code=200,
-        request_id=request_id,
     )
 
 
 @router.get("/schedules/{schedule_id}/logs")
 async def schedule_logs_standard(request: Request, schedule_id: int, db: AsyncSession = Depends(get_db)):
-    request_id = getattr(request.state, "request_id", "")
     result = await get_schedule_logs(schedule_id, db)
     return success_response(
         data=result,
         message="Schedule logs retrieved successfully",
         code=200,
-        request_id=request_id,
     )
 
 
 @router.get("/servers/schedules/{schedule_id}/logs")
 async def schedule_logs(request: Request, schedule_id: int, db: AsyncSession = Depends(get_db)):
-    request_id = getattr(request.state, "request_id", "")
     result = await get_schedule_logs(schedule_id, db)
     return success_response(
         data=result,
         message="Schedule logs retrieved successfully",
         code=200,
-        request_id=request_id,
     )
 
 
 @router.get("/servers/{server_id}/completed-logs")
 async def server_completed_logs(request: Request, server_id: int, db: AsyncSession = Depends(get_db)):
-    request_id = getattr(request.state, "request_id", "")
     result = await get_server_completed_logs(server_id, db)
     return success_response(
         data=result,
         message="Server completed logs retrieved successfully",
         code=200,
-        request_id=request_id,
     )
 
 
 @router.delete("/schedules/{schedule_id}")
 async def delete_schedule_standard(request: Request, schedule_id: int, db: AsyncSession = Depends(get_db)):
-    request_id = getattr(request.state, "request_id", "")
     result = await delete_schedule_route(schedule_id, db)
     return success_response(
         data=result,
         message="Schedule deleted successfully",
         code=200,
-        request_id=request_id,
     )
 
 
 @router.delete("/servers/schedules/{schedule_id}")
 async def delete_server_schedule(request: Request, schedule_id: int, db: AsyncSession = Depends(get_db)):
-    request_id = getattr(request.state, "request_id", "")
     result = await delete_schedule_route(schedule_id, db)
     return success_response(
         data=result,
         message="Schedule deleted successfully",
         code=200,
-        request_id=request_id,
     )
