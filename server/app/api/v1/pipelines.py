@@ -16,7 +16,7 @@ from server.app.db.dbqueries import (
     fetch_artifact_types_by_stage,
     fetch_artifacts_by_stage,
 )
-from server.app.schemas.requests import ArtifactByStageRequest, ExecutionByStageRequest
+from server.app.schemas.requests import ArtifactByStagePipelineRequest, ArtifactByStageRequest, ExecutionByStageRequest, ExecutionByStagePipelineRequest,  ArtifactTypesByStageRequest, ArtifactTypesByStagePipelineRequest
 from server.app.schemas.responses import success_response
 from server.app.main import query
 
@@ -187,13 +187,13 @@ async def list_pipelines(request: Request):
     )
 
 
-@router.get("/executions")
+@router.post("/executions")
 async def standardized_executions(
     request: Request,
-    pipeline_name: str = Query(..., description="Pipeline name"),
-    query_params: ExecutionByStageRequest = Depends(),
+    query_params: ExecutionByStageRequest,
     db: AsyncSession = Depends(get_db),
 ):
+    pipeline_name = query_params.pipeline_name
     result = await get_executions_by_stage(pipeline_name, query_params, db)
     return success_response(
         data=result,
@@ -216,14 +216,17 @@ async def standardized_execution_stages(
     )
 
 
-@router.get("/artifacts/types")
+@router.post("/artifacts/types")
 async def standardized_artifact_types(
     request: Request,
-    pipeline_name: str = Query(..., description="Pipeline name"),
-    stage_name: str = Query(..., description="Stage name (Context_Type value)"),
+    query_params: ArtifactTypesByStageRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    result = await get_artifact_types_by_stage(pipeline_name, stage_name, db)
+    result = await get_artifact_types_by_stage(
+        query_params.pipeline_name,
+        query_params.stage_name,
+        db,
+    )
     return success_response(
         data=result,
         message="Artifact types retrieved successfully",
@@ -231,13 +234,13 @@ async def standardized_artifact_types(
     )
 
 
-@router.get("/artifacts")
+@router.post("/artifacts")
 async def standardized_artifacts(
     request: Request,
-    pipeline_name: str = Query(..., description="Pipeline name"),
-    query_params: ArtifactByStageRequest = Depends(),
+    query_params: ArtifactByStageRequest,
     db: AsyncSession = Depends(get_db),
 ):
+    pipeline_name = query_params.pipeline_name
     result = await get_artifacts_by_stage(pipeline_name, query_params, db)
     return success_response(
         data=result,
@@ -246,11 +249,11 @@ async def standardized_artifacts(
     )
 
 
-@router.get("/pipelines/{pipeline_name}/executions")
+@router.post("/pipelines/{pipeline_name}/executions")
 async def pipeline_executions(
     request: Request,
+    query_params: ExecutionByStagePipelineRequest,
     pipeline_name: str,
-    query_params: ExecutionByStageRequest = Depends(),
     db: AsyncSession = Depends(get_db),
 ):
     result = await get_executions_by_stage(pipeline_name, query_params, db)
@@ -271,14 +274,14 @@ async def pipeline_stages(request: Request, pipeline_name: str, db: AsyncSession
     )
 
 
-@router.get("/pipelines/{pipeline_name}/artifact-types-by-stage")
+@router.post("/pipelines/{pipeline_name}/artifact-types-by-stage")
 async def pipeline_artifact_types_by_stage(
     request: Request,
     pipeline_name: str,
-    stage_name: str = Query(..., description="Stage name (Context_Type value)"),
+    query_params: ArtifactTypesByStagePipelineRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    result = await get_artifact_types_by_stage(pipeline_name, stage_name, db)
+    result = await get_artifact_types_by_stage(pipeline_name, query_params.stage_name, db)
     return success_response(
         data=result,
         message="Artifact types retrieved successfully",
@@ -286,11 +289,11 @@ async def pipeline_artifact_types_by_stage(
     )
 
 
-@router.get("/pipelines/{pipeline_name}/artifacts-by-stage")
+@router.post("/pipelines/{pipeline_name}/artifacts-by-stage")
 async def pipeline_artifacts_by_stage(
     request: Request,
     pipeline_name: str,
-    query_params: ArtifactByStageRequest = Depends(),
+    query_params: ArtifactByStagePipelineRequest,
     db: AsyncSession = Depends(get_db),
 ):
     result = await get_artifacts_by_stage(pipeline_name, query_params, db)

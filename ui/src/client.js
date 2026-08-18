@@ -314,15 +314,13 @@ class FastAPIClient {
   
   async getExecutionsByStage(pipelineName, stageName, activePage = 1, recordPerPage = 5, sortOrder = "desc", filterValue = "") {
     return this.apiClient
-      .get(`/v1/executions`, {
-        params: {
-          pipeline_name: pipelineName,
-          stage_name: stageName,
-          active_page: activePage,
-          record_per_page: recordPerPage,
-          sort_order: sortOrder,
-          filter_value: filterValue,
-        },
+      .post(`/v1/executions`, {
+        pipeline_name: pipelineName,
+        stage_name: stageName,
+        active_page: activePage,
+        record_per_page: recordPerPage,
+        sort_order: sortOrder,
+        filter_value: filterValue,
       })
       .then(({ data }) => {
         return data;
@@ -343,11 +341,9 @@ class FastAPIClient {
 
   async getArtifactTypesByStage(pipelineName, stageName) {
     return this.apiClient
-      .get(`/v1/artifacts/types`, {
-        params: {
-          pipeline_name: pipelineName,
-          stage_name: stageName,
-        },
+      .post(`/v1/artifacts/types`, {
+        pipeline_name: pipelineName,
+        stage_name: stageName,
       })
       .then(({ data }) => {
         return data;
@@ -356,17 +352,15 @@ class FastAPIClient {
 
   async getArtifactsByStage(pipelineName, stageName, artifactType, sortOrder, activePage = 1, recordPerPage = 5, filter = "", sortField = "name") {
     return this.apiClient
-      .get(`/v1/artifacts`, {
-        params: {
-          pipeline_name: pipelineName,
-          stage_name: stageName,
-          artifact_type: artifactType,
-          sort_order: sortOrder,
-          active_page: activePage,
-          record_per_page: recordPerPage,
-          filter_value: filter,
-          sort_field: sortField,
-        },
+      .post(`/v1/artifacts`, {
+        pipeline_name: pipelineName,
+        stage_name: stageName,
+        artifact_type: artifactType,
+        sort_order: sortOrder,
+        active_page: activePage,
+        record_per_page: recordPerPage,
+        filter_value: filter,
+        sort_field: sortField,
       })
       .then(({ data }) => {
         return data;

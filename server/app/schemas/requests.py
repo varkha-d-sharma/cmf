@@ -41,6 +41,7 @@ class BaseRequest(BaseModel):
 
 
 class ExecutionByStageRequest(BaseRequest):
+    pipeline_name: str = Field(..., description="Pipeline name")
     stage_name: str = Field(..., description="Stage name (Context_Type value)")
     sort_order: str = Field("DESC", description="Sort order: ASC or DESC")
 
@@ -52,6 +53,7 @@ class ExecutionByStageRequest(BaseRequest):
 
 
 class ArtifactByStageRequest(BaseRequest):
+    pipeline_name: str = Field(..., description="Pipeline name")
     sort_field: str = Field("name", description="Column to sort by (default: name)")
     stage_name: str = Field(..., description="Stage name (Context_Type value)")
     artifact_type: str = Field(..., description="Artifact type to filter")
@@ -153,3 +155,20 @@ class ScheduleUpdateRequest(BaseModel):
     timezone: str = Field("UTC", description="IANA timezone")
     start_time_local_iso: Optional[str] = Field(None, description="Local ISO datetime")
     one_time: Optional[bool] = Field(None, description="Toggle one-time behavior")
+class ExecutionByStagePipelineRequest(BaseRequest):
+    stage_name: str = Field(..., description="Stage name (Context_Type value)")
+    sort_order: str = Field("DESC", description="Sort order: ASC or DESC")
+
+
+class ArtifactByStagePipelineRequest(BaseRequest):
+    sort_field: str = Field("name", description="Column to sort by (default: name)")
+    stage_name: str = Field(..., description="Stage name (Context_Type value)")
+    artifact_type: str = Field(..., description="Artifact type to filter")
+
+
+class ArtifactTypesByStageRequest(BaseModel):
+    pipeline_name: str = Field(..., description="Pipeline name")
+    stage_name: str = Field(..., description="Stage name (Context_Type value)")
+
+class ArtifactTypesByStagePipelineRequest(BaseModel):
+    stage_name: str = Field(..., description="Stage name (Context_Type value)")
