@@ -1,7 +1,6 @@
 # cmf-server api's
 import io
 import time
-import zipfile
 from fastapi import FastAPI, Request, HTTPException, Query, UploadFile, File, Depends
 from fastapi.responses import HTMLResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -15,57 +14,31 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from collections import defaultdict
 from server.app.utils import extract_hostname, get_fqdn
 from server.app.get_data import (
-    get_mlmd_from_server,
-    get_artifact_types,
+    
     get_all_artifact_ids,
     get_all_exe_ids,
     async_api,
-    get_model_data,
-    executions_list,
-    server_mlmd_pull,
-    log_sync_attempt,
     compute_next_run_from_recurrence,
-    compute_initial_next_run_utc,
 )
 from server.app.query_execution_lineage_d3tree import query_execution_lineage_d3tree
 from server.app.query_artifact_lineage_d3tree import query_artifact_lineage_d3tree
 from server.app.query_visualization_artifact_execution import query_visualization_artifact_execution
 from server.app.db.dbconfig import get_db, init_db, async_session
 from server.app.db.dbqueries import (
-    fetch_unique_execution_stages,
-    fetch_executions_by_stage,
-    fetch_artifacts_by_stage,
-    fetch_artifact_types_by_stage,
-    register_server_details,
-    get_registered_server_details,
-    get_sync_status,
-    update_sync_status,
-    create_schedule,
-    list_schedules,
     due_schedules,
     update_next_run,
     log_sync_run,
-    list_sync_logs,
-    get_completed_logs_by_server,
     get_registered_server_by_id,
     update_schedule_fields,
-    delete_schedule,
 )
 from pathlib import Path
 import os
 import json
 import typing as t
 from server.app.schemas.requests import (
-    MLMDPushRequest,
-    ServerRegistrationRequest, 
-    AcknowledgeRequest,
-    MLMDPullRequest,
-    ScheduleCreateRequest,
-    ArtifactByStageRequest,
-    ExecutionByStageRequest,
+    ServerRegistrationRequest,  
 )
 import httpx
-import socket
 import dotenv
 from jsonpath_ng.ext import parse
 from cmflib.cmf_federation import update_mlmd
@@ -107,6 +80,9 @@ print("Local addresses= ", LOCAL_ADDRESSES)
 from server.app.api.v1.metadata import router as metadata_router
 from server.app.api.v1.pipelines import router as pipelines_router
 from server.app.api.v1.servers import router as servers_router
+from server.app.api.v1.executions import router as executions_router
+from server.app.api.v1.artifacts import router as artifacts_router
+from server.app.api.v1.lineage import router as lineage_router
 
 #lifespan used to prevent multiple loading and save time for visualization.
 @asynccontextmanager
@@ -146,6 +122,9 @@ app = FastAPI(title="cmf-server", lifespan=lifespan, root_path="/api")
 app.include_router(pipelines_router)
 app.include_router(metadata_router)
 app.include_router(servers_router)
+app.include_router(executions_router)
+app.include_router(artifacts_router)
+app.include_router(lineage_router)
 
 # Add CORS middleware
 app.add_middleware(
@@ -336,7 +315,9 @@ async def read_root(request: Request):
 # - Metadata functions: server/app/api/v1/metadata.py
 # - Pipeline functions: server/app/api/v1/pipelines.py  
 # - Server functions: server/app/api/v1/servers.py
-
+# - Execution functions: server/app/api/v1/executions.py
+# - Artifact functions: server/app/api/v1/artifacts.py
+# - Lineage functions: server/app/api/v1/lineage.py
 
 """
 following APIs are no longer in use within the project but is retained for reference or potential future use.
