@@ -361,11 +361,13 @@ const Lineage = () => {
                 data={artiexetreeData}/>
               </div>)
               }
+              {/* Renders the hierarchical lineage component for artifact lineage data */}
               {!loading && 
                 selectedPipeline !== null &&
                 selectedLineageType === "Heirarchical_Lineage" &&
                 hierarchicalData && 
-                (<Hierarchical_Lineage_Flow
+                (
+                <Hierarchical_Lineage_Flow
                   key={lineageArtifactsKey} 
                   data={hierarchicalData} />)
               }

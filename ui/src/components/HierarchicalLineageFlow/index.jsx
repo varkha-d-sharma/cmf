@@ -31,10 +31,9 @@
  *   Execution nodes beneath their parent stage.
  * - Groups each Stage and its associated Execution nodes inside a visual
  *   Stage container for improved readability.
- * - Provides custom node rendering for both the main graph and the MiniMap,
- *   including color coding based on node type.
  * - Configures graph interactions such as zooming, panning, fit-to-view,
- *   navigation controls, background grid, and a customized MiniMap.
+ *   navigation controls, background grid, and a customized MiniMap
+ *   (shared canvas/MiniMap plumbing lives in ./LineageFlowCommon).
  * - Optimizes rendering with memoization and simplifies the visual flow by
  *   displaying only the primary Stage-to-Execution connection where multiple
  *   execution nodes exist.
@@ -45,14 +44,13 @@
  */
 
 import React, { useMemo } from "react";
-import ReactFlow, { Controls, Background, MiniMap, MarkerType, useNodes } from "reactflow";
 import dagre from "dagre";
-import "reactflow/dist/style.css";
 import "./index.css";
 import LineageNode from "./lineagenode";
 import { transformLineageData } from "./trasformeddata";
+import { buildReactFlowEdges, buildReactFlowNodes, nodeWidth, LineageCanvas } from "../../pages/lineage/LineageFlowCommon";
+ ; // adjust the path to wherever you place the shared file
 
-const nodeWidth = 220; 
 const nodeHeight = 80;
 
 const StageGroupNode = ({ data, style }) => (
@@ -81,61 +79,11 @@ const getNodeThemeColor = (type) => {
   }
 };
 
-// MiniMap Node Component 
-const CustomMiniMapNode = ({ id, x, y, width, height }) => {
-  const nodes = useNodes();
-  const graphNode = nodes.find((n) => n.id === id);
-  
-  const nodeType = graphNode?.data?.type || "Node";
-  const nodeName = graphNode?.data?.name || "";
-
-  return (
-    <g transform={`translate(${x},${y})`}>
-      <rect
-        width={width}
-        height={height}
-        rx={8}
-        ry={8}
-        fill={getNodeThemeColor(nodeType)}
-        stroke="#ffffff"
-        strokeWidth={2}
-      />
-      <text
-        x={width / 2}
-        y={height / 3 + 4}
-        textAnchor="middle"
-        fill="#ffffff"
-        style={{
-          fontSize: "20px",
-          fontWeight: "bold",
-          fontFamily: "Inter, sans-serif",
-          pointerEvents: "none",
-        }}
-      >
-        {nodeType.toUpperCase()}
-      </text>
-      <text
-        x={width / 2}
-        y={(2 * height) / 3 + 8}
-        textAnchor="middle"
-        fill="rgba(255, 255, 255, 0.9)"
-        style={{
-          fontSize: "16px",
-          fontFamily: "Inter, sans-serif",
-          pointerEvents: "none",
-        }}
-      >
-        {nodeName.length > 18 ? `${nodeName.substring(0, 16)}...` : nodeName}
-      </text>
-    </g>
-  );
-};
-
 // Layout reconfigured for a top-down vertical tree structure with side-by-side spacing
 // The core layout engine, using dagre for "Backbone" and manual math for Execution leaves.
 const getLayoutedElements = (nodes = [], edges = []) => {
   const g = new dagre.graphlib.Graph();
-  
+
   g.setGraph({
     rankdir: "TB",
     ranksep: 110,       // Vertical gap between Environment and Stages
@@ -255,39 +203,18 @@ const getStageGroupNodes = (layoutedNodes, edges) => {
 };
 
 const Hierarchical_Lineage_Flow = ({ data }) => {
-  // Disable the default ReactFlow watermarks on the canvas surface
-  const proOptions = { hideAttribution: true };
   const { nodes, edges } = useMemo(() => {
     if (!data || data.length === 0) return { nodes: [], edges: [] };
 
     const formattedData = Array?.isArray(data) && !data?.nodes ? transformLineageData(data) : data;
 
-    // Map business object properties into standard ReactFlow Node specifications
-    const rfNodes = formattedData?.nodes?.map((node) => ({
-      id: node.id,
-      type: "lineageNode",
-      position: { x: 0, y: 0 },
-      data: { 
-        ...node,
-      }, 
-    }));
-
-    // Convert links/edges array into ReactFlow formatted visual connections
-    const rfEdges = (formattedData?.links ?? formattedData?.edges ??[]).map((link, index) => ({
-      id: `edge-${index}`,
-      source: link.source,
-      target: link.target,
-      type: "step", 
-      markerEnd: { 
-        type: MarkerType.Arrow, 
-        color: "#4b5563"
-      },
-      style: {
-        stroke: "#374151",
-        strokeWidth: 3,
-        opacity: 1,
-      }
-    }));
+    const rfNodes = buildReactFlowNodes(formattedData?.nodes);
+    const rfEdges = buildReactFlowEdges(formattedData?.links ?? formattedData?.edges ?? [], {
+      edgeType: "step",
+      markerColor: "#4b5563",
+      stroke: "#374151",
+      strokeWidth: 3,
+    });
 
     // Layout uses the FULL edge list so every execution sibling gets
     // correctly positioned in its vertical stack
@@ -315,37 +242,15 @@ const Hierarchical_Lineage_Flow = ({ data }) => {
   }, [data]);
 
   return (
-    <div style={{ width: "100%", height: "85vh", position: "relative" }}>
-      <ReactFlow 
-        nodes={nodes} 
-        edges={edges} 
-        nodeTypes={nodeTypes} 
-        fitView                        
-        fitViewOptions={{ padding: 0.15, includeHiddenNodes: true }} // Adjusted padding for cleaner fitting on vertical trees
-        defaultViewport={{x: 0, y: 0, zoom:1}}
-        minZoom={0.2}
-        maxZoom={2}
-        proOptions={proOptions}
-      >
-        <MiniMap 
-          position="bottom-right" 
-          nodeComponent={CustomMiniMapNode} 
-          maskColor="rgba(241, 245, 249, 0.4)"
-          style={{
-            backgroundColor: "#f8fafc",
-            border: "1px solid #cbd5e1",
-            borderRadius: "8px",
-            width: 300, 
-            height: 160,
-            position: "fixed"
-          }}
-          zoomable
-          pannable
-        />
-        <Controls />
-        <Background />
-      </ReactFlow>
-    </div>
+    <LineageCanvas
+      nodes={nodes}
+      edges={edges}
+      nodeTypes={nodeTypes}
+      colorFn={getNodeThemeColor}
+      fitViewOptions={{ padding: 0.15, includeHiddenNodes: true }}
+      defaultViewport={{ x: 0, y: 0, zoom: 1 }}
+      maxZoom={2}
+    />
   );
 };
 

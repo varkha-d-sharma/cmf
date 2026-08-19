@@ -15,26 +15,29 @@
  ***/
 
 /**
- * Renders an interactive hierarchical lineage graph using React Flow and Dagre.
- * Transforms raw lineage data into nodes and edges, computes an automatic
- * top-down layout, and displays the lineage with custom nodes, edge routing,
- * MiniMap, zoom/pan controls, and fit-to-view support.
+ * Renders an interactive hierarchical lineage graph using React Flow.
+ * Transforms raw lineage data into nodes and edges, computes a fast
+ * top-down rank/barycenter layout, and displays the lineage with custom
+ * nodes, edge routing, MiniMap, zoom/pan controls, and fit-to-view support.
+ *
+ * Shared MiniMap/canvas/node-edge-mapping code lives in ./LineageFlowCommon.
  */
 
 import React, { useMemo } from "react";
-import ReactFlow, { Controls, Background, MiniMap, MarkerType } from "reactflow";
-import "reactflow/dist/style.css";
 import "./index.css";
-import lineagenode from "./lineagenode";
+import lineagenode from "../HierarchicalLineageFlow/lineagenode";
+import { LineageCanvas, nodeWidth, buildReactFlowNodes, buildReactFlowEdges} from "../../pages/lineage/LineageFlowCommon";
+// import {
+//   nodeWidth,
+//   buildReactFlowNodes,
+//   buildReactFlowEdges,
+//   LineageCanvas,
+// } from "./LineageFlowCommon"; // adjust the path to wherever you place the shared file
 
 const nodeTypes = { lineageNode: lineagenode };
-const nodeWidth = 220;
 const nodeHeight = 90;
 const RANK_GAP = nodeHeight + 140;
 const FIXED_GAP = nodeWidth + 60;
-
-const EDGE_MARKER_END = { type: MarkerType.Arrow, color: "#b1b1b7" };
-const EDGE_STYLE = { stroke: "#b1b1b7", strokeWidth: 1.5 };
 
 const TYPE_COLORS = {
   Dataset: "#10b981",
@@ -43,53 +46,6 @@ const TYPE_COLORS = {
   Execution: "#3b82f6",
 };
 const getBackgroundColor = (type) => TYPE_COLORS[type] || "#64748b";
-
-const CustomMiniMapNode = ({ id, x, y, width, height, nodeDataMap }) => {
-  const graphNode = nodeDataMap.get(id);
-  const nodeType = graphNode?.type || "Node";
-  const nodeName = graphNode?.name || "";
-
-  return (
-    <g transform={`translate(${x},${y})`}>
-      <rect
-        width={width}
-        height={height}
-        rx={8}
-        ry={8}
-        fill={getBackgroundColor(nodeType)}
-        stroke="#ffffff"
-        strokeWidth={2}
-      />
-      <text
-        x={width / 2}
-        y={height / 3 + 4}
-        textAnchor="middle"
-        fill="#ffffff"
-        style={{
-          fontSize: "20px",
-          fontWeight: "bold",
-          fontFamily: "Inter, sans-serif",
-          pointerEvents: "none",
-        }}
-      >
-        {nodeType.toUpperCase()}
-      </text>
-      <text
-        x={width / 2}
-        y={(2 * height) / 3 + 8}
-        textAnchor="middle"
-        fill="rgba(255, 255, 255, 0.9)"
-        style={{
-          fontSize: "16px",
-          fontFamily: "Inter, sans-serif",
-          pointerEvents: "none",
-        }}
-      >
-        {nodeName.length > 18 ?` ${nodeName.substring(0, 16)}...` : nodeName}
-      </text>
-    </g>
-  );
-};
 
 const transformLineageData = (rawJson) => {
   const flatItems = rawJson.flat();
@@ -262,78 +218,33 @@ const getLayoutedElements = (nodes, edges) => {
 };
 
 const CommonLineageComponent = ({ data, lineageType }) => {
-  const proOptions = { hideAttribution: true };
   const isArtifactExecutionLineage = lineageType === "Artifact_Execution_Tree";
 
   const { nodes, edges } = useMemo(() => {
     if (!data || data.length === 0) return { nodes: [], edges: [] };
     const formattedData = Array.isArray(data) && !data.nodes ? transformLineageData(data) : data;
-    const rfNodes = formattedData.nodes.map((node) => ({
-      id: node.id,
-      type: "lineageNode",
-      position: { x: 0, y: 0 },
-      data: { ...node },
-    }));
 
-    const rfEdges = (formattedData?.links ?? formattedData?.edges ?? []).map((link, index) => ({
-      id: `edge-${index}`,
-      source: link.source,
-      target: link.target,
-      type: isArtifactExecutionLineage ? "simplebezier" : "step",
-      markerEnd: EDGE_MARKER_END,
-      style: EDGE_STYLE,
-    }));
+    const rfNodes = buildReactFlowNodes(formattedData.nodes);
+    const rfEdges = buildReactFlowEdges(formattedData?.links ?? formattedData?.edges ?? [], {
+      edgeType: isArtifactExecutionLineage ? "simplebezier" : "step",
+    });
 
     const laidOutNodes = getLayoutedElements(rfNodes, rfEdges);
 
     return { nodes: laidOutNodes, edges: rfEdges };
   }, [data, lineageType]);
 
-  const nodeDataMap = useMemo(() => {
-    const map = new Map();
-    nodes.forEach((n) => map.set(n.id, n.data));
-    return map;
-  }, [nodes]);
-
-  const minimapNodeComponent = useMemo(
-    () => (props) => <CustomMiniMapNode {...props} nodeDataMap={nodeDataMap} />,
-    [nodeDataMap]
-  );
-
   return (
-    <div style={{ width: "100%", height: "85vh", position: "relative" }}>
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        nodeTypes={nodeTypes}
-        fitView
-        fitViewOptions={{ padding: 0.15 }}
-        minZoom={0.2}
-        proOptions={proOptions}
-        onlyRenderVisibleElements
-        nodesDraggable={false}
-        nodesConnectable={false}
-        elementsSelectable={false}
-      >
-        <MiniMap
-          position="bottom-right"
-          nodeComponent={minimapNodeComponent}
-          maskColor="rgba(241, 245, 249, 0.4)"
-          style={{
-            backgroundColor: "#f8fafc",
-            border: "1px solid #cbd5e1",
-            borderRadius: "8px",
-            width: 300,
-            height: 160,
-            position: "fixed",
-          }}
-          zoomable
-          pannable
-        />
-        <Controls />
-        <Background />
-      </ReactFlow>
-    </div>
+    <LineageCanvas
+      nodes={nodes}
+      edges={edges}
+      nodeTypes={nodeTypes}
+      colorFn={getBackgroundColor}
+      onlyRenderVisibleElements
+      nodesDraggable={false}
+      nodesConnectable={false}
+      elementsSelectable={false}
+    />
   );
 };
 
