@@ -85,7 +85,7 @@ async def get_python_env(file_name: str) -> str:
 
 
 @router.get("/executions/{pipeline_name}")
-async def normalized_list_of_executions(
+async def get_executions_list(
     request: Request,
     pipeline_name: str,
 ):
@@ -101,7 +101,7 @@ async def normalized_list_of_executions(
     )
 
 @router.get("/metadata/list-of-executions/{pipeline_name}")
-async def metadata_list_of_executions(
+async def  get_metadata_list_of_executions(
     request: Request,
     pipeline_name: str,
 ):
@@ -117,7 +117,7 @@ async def metadata_list_of_executions(
     )
 
 @router.post("/python-env")
-async def normalized_upload_python_env(request: Request, file: UploadFile = File(...)):
+async def upload_python_environment(request: Request, file: UploadFile = File(...)):
     result = await upload_python_env(request, file)
     return success_response(
         data=result,
@@ -127,7 +127,7 @@ async def normalized_upload_python_env(request: Request, file: UploadFile = File
 
 
 @router.get("/python-env")
-async def normalized_get_python_env(request: Request, file_name: str):
+async def get_python_environment(request: Request, file_name: str):
     result = await get_python_env(file_name)
     return success_response(
         data=result,
@@ -137,20 +137,20 @@ async def normalized_get_python_env(request: Request, file_name: str):
 
 
 @router.post("/metadata/python-env")
-async def metadata_upload_python_env(request: Request, file: UploadFile = File(...)):
+async def upload_metadata_python_environment(request: Request, file: UploadFile = File(...)):
     result = await upload_python_env(request, file)
     return success_response(
         data=result,
-        message="Python environment uploaded successfully",
+        message="Metadata Python environment uploaded successfully",
         code=201,
     )
 
 
 @router.get("/metadata/python-env")
-async def metadata_get_python_env(request: Request, file_name: str):
+async def get_metadata_python_environment(request: Request, file_name: str):
     result = await get_python_env(file_name)
     return success_response(
         data=result,
-        message="Python environment retrieved successfully",
+        message="Metadata Python environment retrieved successfully",
         code=200,
     )

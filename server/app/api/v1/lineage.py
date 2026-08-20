@@ -100,7 +100,7 @@ async def artifact_execution_lineage(
 # ==================== API Endpoints ====================
 
 @router.get("/lineage/execution/{uuid}/{pipeline_name}")
-async def normalized_execution_lineage(
+async def get_execution_lineage(
     request: Request,
     uuid: str,
     pipeline_name: str,
@@ -119,7 +119,7 @@ async def normalized_execution_lineage(
 
 
 @router.get("/metadata/execution-lineage/{uuid}/{pipeline_name}")
-async def metadata_execution_lineage(
+async def get_metadata_execution_lineage(
     request: Request,
     uuid: str,
     pipeline_name: str,
@@ -138,7 +138,7 @@ async def metadata_execution_lineage(
 
 
 @router.get("/lineage/artifact/{pipeline_name}")
-async def normalized_artifact_lineage(
+async def get_artifact_lineage(
     request: Request,
     pipeline_name: str,
 ):
@@ -155,7 +155,7 @@ async def normalized_artifact_lineage(
 
 
 @router.get("/metadata/artifact-lineage/{pipeline_name}")
-async def metadata_artifact_lineage(
+async def get_metadata_artifact_lineage(
     request: Request,
     pipeline_name: str,
 ):
@@ -172,7 +172,7 @@ async def metadata_artifact_lineage(
 
 
 @router.get("/lineage/artifact-execution/{pipeline_name}")
-async def normalized_artifact_execution_lineage(
+async def get_artifact_execution_lineage(
     request: Request,
     pipeline_name: str,
 ):
@@ -189,7 +189,7 @@ async def normalized_artifact_execution_lineage(
 
 
 @router.get("/metadata/artifact-execution-lineage/{pipeline_name}")
-async def metadata_artifact_execution_lineage(
+async def get_metadata_artifact_execution_lineage(
     request: Request,
     pipeline_name: str,
 ):

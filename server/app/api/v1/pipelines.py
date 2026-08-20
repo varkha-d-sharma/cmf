@@ -188,7 +188,7 @@ async def list_pipelines(request: Request):
 
 
 @router.post("/executions")
-async def standardized_executions(
+async def get_executions(
     request: Request,
     query_params: ExecutionByStageRequest,
     db: AsyncSession = Depends(get_db),
@@ -203,7 +203,7 @@ async def standardized_executions(
 
 
 @router.get("/executions/stages")
-async def standardized_execution_stages(
+async def get_execution_stages(
     request: Request,
     pipeline_name: str = Query(..., description="Pipeline name"),
     db: AsyncSession = Depends(get_db),
@@ -217,7 +217,7 @@ async def standardized_execution_stages(
 
 
 @router.post("/artifacts/types")
-async def standardized_artifact_types(
+async def get_artifact_types(
     request: Request,
     query_params: ArtifactTypesByStageRequest,
     db: AsyncSession = Depends(get_db),
@@ -235,7 +235,7 @@ async def standardized_artifact_types(
 
 
 @router.post("/artifacts")
-async def standardized_artifacts(
+async def get_artifacts(
     request: Request,
     query_params: ArtifactByStageRequest,
     db: AsyncSession = Depends(get_db),

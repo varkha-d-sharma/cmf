@@ -122,7 +122,7 @@ async def get_label_data(file_name: str) -> str:
 # ==================== API Endpoints ====================
 
 @router.get("/metadata/artifact-types")
-async def metadata_artifact_types(
+async def get_artifact_types(
     request: Request,
 ):
     result = await artifact_types()
@@ -135,7 +135,7 @@ async def metadata_artifact_types(
 
 
 @router.get("/model-card")
-async def normalized_model_card(request: Request, modelId: int):
+async def get_model_card(request: Request, modelId: int):
     result = await model_card(request, modelId)
     return success_response(
         data=result,
@@ -153,7 +153,7 @@ async def metadata_model_card(request: Request, modelId: int):
     )
 
 @router.post("/label")
-async def normalized_upload_label(request: Request, file: UploadFile = File(...)):
+async def upload_label(request: Request, file: UploadFile = File(...)):
     result = await upload_label(request, file)
     return success_response(
         data=result,
@@ -163,7 +163,7 @@ async def normalized_upload_label(request: Request, file: UploadFile = File(...)
 
 
 @router.get("/label-data")
-async def normalized_get_label_data(request: Request, file_name: str):
+async def get_label_data_endpoint(request: Request, file_name: str):
     result = await get_label_data(file_name)
     return success_response(
         data=result,
@@ -172,22 +172,22 @@ async def normalized_get_label_data(request: Request, file_name: str):
     )
 
 @router.post("/metadata/label")
-async def metadata_upload_label(request: Request, file: UploadFile = File(...)):
+async def upload_metadata_label(request: Request, file: UploadFile = File(...)):
     result = await upload_label(request, file)
     return success_response(
         data=result,
-        message="Label uploaded successfully",
+        message="Metadata label uploaded successfully",
         code=201,
     )
 
 
 @router.get("/metadata/label-data")
-async def metadata_get_label_data(request: Request, file_name: str):
+async def get_metadata_label_data(request: Request, file_name: str):
 
     result = await get_label_data(file_name)
     return success_response(
         data=result,
-        message="Label data retrieved successfully",
+        message="Metadata label data retrieved successfully",
         code=200,
     )
 

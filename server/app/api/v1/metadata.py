@@ -126,7 +126,7 @@ async def mlmd_pull(info: MLMDPullRequest):
     return json_payload
 
 @router.post("/mlmd/push")
-async def normalized_mlmd_push(request: Request, info: MLMDPushRequest):
+async def metadata_push(request: Request, info: MLMDPushRequest):
     result = await mlmd_push(info)
     return success_response(
         data=result,
@@ -136,7 +136,7 @@ async def normalized_mlmd_push(request: Request, info: MLMDPushRequest):
 
 
 @router.post("/mlmd/pull", response_class=HTMLResponse)
-async def normalized_mlmd_pull(request: Request, info: MLMDPullRequest):
+async def metadata_pull(request: Request, info: MLMDPullRequest):
     return await mlmd_pull(info)
 
 
