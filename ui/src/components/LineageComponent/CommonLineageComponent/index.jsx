@@ -25,8 +25,9 @@
 
 import React, { useMemo } from "react";
 import "./index.css";
-import lineagenode from "../HierarchicalLineageFlow/lineagenode";
-import { LineageCanvas, nodeWidth, buildReactFlowNodes, buildReactFlowEdges} from "../../pages/lineage/LineageFlowCommon";
+import lineagenode from "../lineagenode";
+import { transformLineageData } from "../trasformeddata";
+import { LineageCanvas, nodeWidth, buildReactFlowNodes, buildReactFlowEdges} from "../LineageFlowCommon";
 
 // React Flow Configuration Constants
 const nodeTypes = { lineageNode: lineagenode };
@@ -48,111 +49,12 @@ const TYPE_COLORS = {
 const getBackgroundColor = (type) => TYPE_COLORS[type] || "#64748b";
 
 /**
- * Parses and builds nodes and parent-child edges from a flat execution list.
- * Applies a Transitive Reduction algorithm to strip redundant transitive links.
- * 
- * @param {Array} rawJson - Flat structure of pipeline lineage entries.
- * @returns {Object} Extracted unique nodes and reduced list of direct links.
- */
-const transformLineageData = (rawJson) => {
-  const flatItems = rawJson.flat();
-  const originalNodeMap = new Map();
-
-  // Helper to categorize nodes based on ID keyword patterns
-  const determineType = (id) => {
-    if (id.includes("metrics")) return "Metrics";
-    if (id.includes("model")) return "Model";
-    if (id.includes("train") || id.includes("test") || id.includes(".xml")) return "Dataset";
-    return "Execution";
-  };
-
-  // Populate unique node map and ensure virtual parent placeholders are registered
-  flatItems.forEach((item) => {
-    const sortedParents = item.parents ? Array.from(new Set(item.parents)).sort() : [];
-    const type = determineType(item.id);
-
-    if (!originalNodeMap.has(item.id)) {
-      originalNodeMap.set(item.id, {
-        id: item.id,
-        name: item.id,
-        type,
-        parents: sortedParents,
-      });
-    }
-
-    sortedParents.forEach((parentId) => {
-      if (!originalNodeMap.has(parentId)) {
-        originalNodeMap.set(parentId, {
-          id: parentId,
-          name: parentId,
-          type: determineType(parentId),
-          parents: [],
-        });
-      }
-    });
-  });
-
-  const rawLinks = [];
-  const edgeSet = new Set();
-  const adjacency = new Map();
-
-  // Construct raw links and populate adjacent neighbor maps
-  originalNodeMap.forEach((node) => {
-    node.parents.forEach((parentId) => {
-      if (parentId !== node.id) {
-        const edgeKey = `${parentId}->${node.id}`;
-        if (!edgeSet.has(edgeKey)) {
-          edgeSet.add(edgeKey);
-          rawLinks.push({ source: parentId, target: node.id });
-          if (!adjacency.has(parentId)) adjacency.set(parentId, new Set());
-          adjacency.get(parentId).add(node.id);
-        }
-      }
-    });
-  });
-
-  const reachabilityFrom = new Map();
-
-  // Depth-first traversal mapping to track downstream node paths
-  const computeReachable = (start) => {
-    if (reachabilityFrom.has(start)) return reachabilityFrom.get(start);
-    const visited = new Set();
-    const stack = [...(adjacency.get(start) || [])];
-    while (stack.length) {
-      const current = stack.pop();
-      if (visited.has(current)) continue;
-      visited.add(current);
-      (adjacency.get(current) || []).forEach((next) => {
-        if (!visited.has(next)) stack.push(next);
-      });
-    }
-    reachabilityFrom.set(start, visited);
-    return visited;
-  };
-
-  // Transitive Reduction: Drop indirect paths if a direct edge exists
-  const links = rawLinks.filter(({ source, target }) => {
-    const neighbours = adjacency.get(source);
-    if (!neighbours || neighbours.size <= 1) return true;
-    for (const w of neighbours) {
-      if (w === target) continue;
-      if (computeReachable(w).has(target)) {
-        return false; // Skip edge since an alternate multi-step route exists
-      }
-    }
-    return true;
-  });
-
-  return { nodes: Array.from(originalNodeMap.values()), links };
-};
-
-/**
  * Custom fast Dagre-like layout engine.
  * Computes node coordinates using network in-degrees and Barycenter ordering.
  * 
- * @param {Array} nodes - React Flow structured node components.
- * @param {Array} edges - React Flow connection configurations.
- * @returns {Array} Processed node items complete with relative coordinates.
+ * {Array} nodes - React Flow structured node components.
+ * {Array} edges - React Flow connection configurations.
+ * {Array} Processed node items complete with relative coordinates.
  */
 const getLayoutedElements = (nodes, edges) => {
   const nodeIds = nodes.map((n) => n.id);
@@ -256,8 +158,10 @@ const CommonLineageComponent = ({ data, lineageType }) => {
   const { nodes, edges } = useMemo(() => {
     if (!data || data.length === 0) return { nodes: [], edges: [] };
     
-    // Normalize either raw array inputs or pre-transformed structures
-    const formattedData = Array.isArray(data) && !data.nodes ? transformLineageData(data) : data;
+    // Normalize raw lineage arrays and preserve already-transformed graph data.
+    const formattedData = transformLineageData(data, {
+      nodeType: lineageType === "Execution_Tree" ? "Execution" : undefined,
+    });
 
     // Convert datasets into React Flow compliant schema elements
     const rfNodes = buildReactFlowNodes(formattedData.nodes);

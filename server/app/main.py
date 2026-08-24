@@ -13,7 +13,7 @@ from cmflib.cmfquery import CmfQuery
 import asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 from collections import defaultdict
-from server.app.utils import extract_hostname, get_fqdn, convert_to_stage_json
+from server.app.utils import extract_hostname, get_fqdn, convert_mlmd_to_pipeline_lineage_json
 from server.app.get_data import (
     get_mlmd_from_server,
     get_artifact_types,
@@ -656,23 +656,26 @@ async def hierarchical_lineage(request: Request, pipeline_name: str):
             detail=f"Pipeline '{pipeline_name}' not found or contains no MLMD data."
         )
 
-    # 3. Data Transformation & Parsing
-    try:
-        # If the server returned a string representation, safely parse it into a Python dictionary
-        if isinstance(json_payload, str):
+    # 3. Parse the payload returned by the MLMD server.
+    if isinstance(json_payload, str):
+        try:
             json_payload = json.loads(json_payload)
-            
-        # Convert the standard MLMD payload into the hierarchical 'stage.json' UI schema
-        converted = convert_to_stage_json(json_payload, pipeline_name)
-        
-    except Exception as e:
-        # Catch JSON parsing or custom conversion errors and return a 500 Internal Server Error
+        except (json.JSONDecodeError, TypeError) as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to parse the MLMD response as JSON: {str(e)}"
+            )
+
+    # 4. Convert the parsed payload into the hierarchical lineage UI schema.
+    try:
+        converted = convert_mlmd_to_pipeline_lineage_json(json_payload, pipeline_name)
+    except (KeyError, IndexError, TypeError, ValueError) as e:
         raise HTTPException(
-            status_code=500, 
-            detail=f"Failed to convert MLMD to stage JSON schema: {str(e)}"
+            status_code=500,
+            detail=f"Failed to convert the MLMD payload to pipeline lineage JSON: {str(e)}"
         )
 
-    # 4. Response
+    # 5. Response
     # Return the successfully formatted hierarchical data
     return converted
 

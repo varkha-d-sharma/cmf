@@ -113,12 +113,45 @@ def _exec_sort_key(e):
     except (TypeError, ValueError):
         return (2, 0)
 
-def convert_to_stage_json(input_json: dict, pipeline_name: str) -> dict:
+def convert_mlmd_to_pipeline_lineage_json(input_json: dict, pipeline_name: str) -> dict:
     """
-    Converts MLMD JSON for a clean hierarchy map.
-    - Combines Execution Type name and a 4-digit truncated UUID.
-    - Includes rich metadata fields for frontend hover/tooltip parsing.
-    JSON structure is always: { "Pipeline": [ { "stages": [...] } ] }
+    Convert an MLMD pipeline response into the hierarchical lineage schema used by the UI.
+
+    Example input::
+
+        {
+            "Pipeline": [{
+                "stages": [
+                    {"name": "Train", "executions": [
+                        {"id": 2, "properties": {"Execution_uuid": "train-uuid"}}
+                    ]},
+                    {"name": "Prepare", "executions": [
+                        {"id": 1, "properties": {"Execution_uuid": "prepare-uuid"}}
+                    ]}
+                ]
+            }]
+        }
+
+    Example output for ``pipeline_name="Demo"``::
+
+        {
+            "pipeline": "Demo",
+            "stages": [
+                {"stage_id": "stage_01", "stage_name": "Prepare",
+                 "executions": [{"execution_id": "exec_001",
+                                  "execution_type": "Prepare:prep",
+                                  "full_uuid": "prepare-uuid"}]},
+                {"stage_id": "stage_02", "stage_name": "Train",
+                 "executions": [{"execution_id": "exec_002",
+                                  "execution_type": "Train:trai",
+                                  "full_uuid": "train-uuid"}]}
+            ]
+        }
+
+    MLMD supplies stages in reverse pipeline order, so they are reversed for
+    left-to-right display. Executions are sorted by creation time when present,
+    with the MLMD numeric ID as a fallback. Each execution keeps its full UUID
+    for lookup while using a shortened UUID in the display label.
     """
 
     try:

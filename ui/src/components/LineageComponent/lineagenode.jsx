@@ -15,8 +15,8 @@
  ***/
 
 /**
- * @file LineageNode Custom Component for React Flow Canvas
- * @description Renders a standardized custom node layout used for pipeline and graph visualization.
+ * LineageNode Custom Component for React Flow Canvas
+ * Renders a standardized custom node layout used for pipeline and graph visualization.
  * 
  * Key Functions & Features:
  * - Dynamic Styling (`getColor`): Maps specific color schemes to node types (Dataset, Execution, Stage, etc.).
@@ -57,7 +57,7 @@ const getColor = (type) => {
 
 // Return the label to show the node's badge based on its type.
 const getBadgeLabel = (type) => {
-  if (type === "Environment") return "PIPELINE";
+  if (type === "Environment") return "Pipeline";
   return type ? type.toUpperCase() : "NODE";
 };
 

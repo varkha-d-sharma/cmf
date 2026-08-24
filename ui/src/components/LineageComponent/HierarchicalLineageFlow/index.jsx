@@ -24,20 +24,6 @@
  * top-down visualization consisting of Environment, Stage, and Execution
  * nodes connected by directional edges.
  *
- * Key responsibilities:
- * - Transforms raw lineage data into React Flow compatible nodes and edges.
- * - Automatically calculates a clean top-down layout using Dagre for the
- *   main hierarchy (Environment → Stage) while manually positioning
- *   Execution nodes beneath their parent stage.
- * - Groups each Stage and its associated Execution nodes inside a visual
- *   Stage container for improved readability.
- * - Configures graph interactions such as zooming, panning, fit-to-view,
- *   navigation controls, background grid, and a customized MiniMap
- *   (shared canvas/MiniMap plumbing lives in ./LineageFlowCommon).
- * - Optimizes rendering with memoization and simplifies the visual flow by
- *   displaying only the primary Stage-to-Execution connection where multiple
- *   execution nodes exist.
- *
  * This file acts as the main orchestration layer for building, laying out,
  * and rendering the complete lineage visualization.
  * -----------------------------------------------------------------------------
@@ -46,9 +32,9 @@
 import React, { useMemo } from "react";
 import dagre from "dagre";
 import "./index.css";
-import LineageNode from "./lineagenode";
-import { transformLineageData } from "./trasformeddata";
-import { buildReactFlowEdges, buildReactFlowNodes, nodeWidth, LineageCanvas } from "../../pages/lineage/LineageFlowCommon";
+import LineageNode from "../lineagenode";
+import { transformLineageData } from "../trasformeddata";
+import { buildReactFlowEdges, buildReactFlowNodes, nodeWidth, LineageCanvas } from "../LineageFlowCommon";
  ; // adjust the path to wherever you place the shared file
 
 const nodeHeight = 80;
@@ -206,8 +192,7 @@ const HierarchicalLineageFlow = ({ data }) => {
   const { nodes, edges } = useMemo(() => {
     if (!data || data.length === 0) return { nodes: [], edges: [] };
 
-    const formattedData = Array?.isArray(data) && !data?.nodes ? transformLineageData(data) : data;
-
+    const formattedData = transformLineageData(data);
     const rfNodes = buildReactFlowNodes(formattedData?.nodes);
     const rfEdges = buildReactFlowEdges(formattedData?.links ?? formattedData?.edges ?? [], {
       edgeType: "step",

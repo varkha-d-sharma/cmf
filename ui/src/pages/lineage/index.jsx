@@ -26,9 +26,9 @@ import LineageArtifacts from "../../components/LineageArtifacts";
 import ExecutionDropdown from "../../components/ExecutionDropdown";
 import ExecutionTangledDropdown from "../../components/ExecutionTangledDropdown";
 import Loader from "../../components/Loader";
-import CommonLineageComponent from "../../components/CommonLineageComponent";
-import HierarchicalLineageFlow from "../../components/HierarchicalLineageFlow";
-import { transformLineageData } from "../../components/HierarchicalLineageFlow/trasformeddata";
+import CommonLineageComponent from "../../components/LineageComponent/CommonLineageComponent";
+import HierarchicalLineageFlow from "../../components/LineageComponent/HierarchicalLineageFlow";
+import { transformLineageData } from "../../components/LineageComponent/trasformeddata";
 
 const client = new FastAPIClient(config);
 
