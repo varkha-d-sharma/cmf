@@ -118,25 +118,6 @@ async def get_execution_lineage(
     )
 
 
-@router.get("/metadata/execution-lineage/{uuid}/{pipeline_name}")
-async def get_metadata_execution_lineage(
-    request: Request,
-    uuid: str,
-    pipeline_name: str,
-):
-    result = await execution_lineage(
-        request,
-        uuid,
-        pipeline_name,
-    )
-
-    return success_response(
-        data=result,
-        message="Execution lineage retrieved successfully",
-        code=200,
-    )
-
-
 @router.get("/lineage/artifact/{pipeline_name}")
 async def get_artifact_lineage(
     request: Request,
@@ -154,42 +135,8 @@ async def get_artifact_lineage(
     )
 
 
-@router.get("/metadata/artifact-lineage/{pipeline_name}")
-async def get_metadata_artifact_lineage(
-    request: Request,
-    pipeline_name: str,
-):
-    result = await artifact_lineage_tangled(
-        request,
-        pipeline_name,
-    )
-
-    return success_response(
-        data=result,
-        message="Artifact lineage retrieved successfully",
-        code=200,
-    )
-
-
 @router.get("/lineage/artifact-execution/{pipeline_name}")
 async def get_artifact_execution_lineage(
-    request: Request,
-    pipeline_name: str,
-):
-    result = await artifact_execution_lineage(
-        request,
-        pipeline_name,
-    )
-
-    return success_response(
-        data=result,
-        message="Artifact-execution lineage retrieved successfully",
-        code=200,
-    )
-
-
-@router.get("/metadata/artifact-execution-lineage/{pipeline_name}")
-async def get_metadata_artifact_execution_lineage(
     request: Request,
     pipeline_name: str,
 ):

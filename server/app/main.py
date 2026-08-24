@@ -75,11 +75,26 @@ LOCAL_ADDRESSES.add(hostname)
 LOCAL_ADDRESSES.add(get_fqdn(hostname))
 print("Local addresses= ", LOCAL_ADDRESSES)
 
+# ==================== Global Helper Functions ====================
+
+async def update_global_art_dict(pipeline_name):
+    """Update global artifact IDs dictionary for a pipeline."""
+    output_dict = await async_api(get_all_artifact_ids, query, dict_of_exe_ids, pipeline_name)
+    dict_of_art_ids[pipeline_name] = output_dict[pipeline_name]
+    return
+
+
+async def update_global_exe_dict(pipeline_name):
+    """Update global execution IDs dictionary for a pipeline."""
+    output_dict = await async_api(get_all_exe_ids, query, pipeline_name)
+    dict_of_exe_ids[pipeline_name] = output_dict[pipeline_name]
+    return
+
 # ==================== Router Imports ====================
 # Import routers after globals are defined
 from server.app.api.v1.metadata import router as metadata_router
 from server.app.api.v1.pipelines import router as pipelines_router
-from server.app.api.v1.servers import router as servers_router
+from server.app.api.v1.servers import router as servers_router, sync_metadata
 from server.app.api.v1.executions import router as executions_router
 from server.app.api.v1.artifacts import router as artifacts_router
 from server.app.api.v1.lineage import router as lineage_router

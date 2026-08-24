@@ -43,7 +43,7 @@ class cmfClient:
 
         :return: API response containing registered pipelines.
         """
-        return self.connection.get("/pipelines")
+        return self.connection.get("/v1/pipelines")
 
     def get_executions_list(self, pipeline_name):
         """
@@ -52,7 +52,7 @@ class cmfClient:
         :param pipeline_name: Name of the pipeline.
         :return: API response containing execution names.
         """
-        return self.connection.get(f"/list-of-executions/{pipeline_name}")
+        return self.connection.get(f"/v1/executions/{pipeline_name}")
 
     def get_executions(self, pipeline_name):
         """
@@ -61,7 +61,7 @@ class cmfClient:
         :param pipeline_name: Name of the pipeline.
         :return: API response containing executions.
         """
-        return self.connection.get(f"/executions/{pipeline_name}")
+        return self.connection.get(f"/v1/executions/{pipeline_name}")
 
     def get_artifact_types(self):
         """
@@ -69,7 +69,7 @@ class cmfClient:
 
         :return: API response containing artifact types.
         """
-        return self.connection.get("/artifact_types")
+        return self.connection.get("/v1/metadata/artifact-types")
 
     def get_artifacts(self, pipeline_name, artifact_type):
         """
@@ -88,7 +88,7 @@ class cmfClient:
         :param pipeline_name: Name of the pipeline.
         :return: API response containing the artifact lineage tangled tree.
         """
-        return self.connection.get(f"/artifact-lineage/tangled-tree/{pipeline_name}")
+        return self.connection.get(f"/v1/lineage/artifact/{pipeline_name}")
 
     def get_execution_lineage_tangled_tree(self, uuid, pipeline_name):
         """
@@ -98,7 +98,7 @@ class cmfClient:
         :param pipeline_name: Name of the pipeline.
         :return: API response containing the execution lineage tangled tree.
         """
-        return self.connection.get(f"/execution-lineage/tangled-tree/{uuid}/{pipeline_name}")
+        return self.connection.get(f"/v1/lineage/execution/{uuid}/{pipeline_name}")
 
     def get_model_card(self, model_id):
         """
@@ -108,7 +108,7 @@ class cmfClient:
         :return: API response containing the model card details.
         """
         model_id_int = int(model_id)
-        return self.connection.get("/model-card", params={"modelId": model_id_int})
+        return self.connection.get("/v1/artifacts/model-card", params={"modelId": model_id_int})
 
     def get_python_env(self):
         """
@@ -116,7 +116,7 @@ class cmfClient:
 
         :return: API response containing the Python environment details.
         """
-        return self.connection.get("/python-env")
+        return self.connection.get("/v1/executions/python-env")
 
     def mlmd_push(self, payload):
         """

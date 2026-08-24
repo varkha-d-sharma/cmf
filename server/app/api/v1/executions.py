@@ -7,8 +7,18 @@ including execution listing and Python environment management.
 
 import os
 
-from fastapi import APIRouter, Request, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, Query, Request, HTTPException, UploadFile, File
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from server.app.db.dbconfig import get_db
+from server.app.db.dbqueries import (
+    fetch_executions_by_stage,
+    fetch_unique_execution_stages,
+)
+from server.app.schemas.requests import (
+    ExecutionByStageRequest,
+    ExecutionByStagePipelineRequest,
+)
 from server.app.schemas.responses import success_response
 from server.app.main import (
     query,
@@ -49,11 +59,11 @@ async def upload_python_env(request: Request, file: UploadFile):
     """Upload Python environment file."""
     try:
         if file.filename is None:
-            raise HTTPException(status_code=400,detail="No file uploaded",)
+            raise HTTPException(status_code=400, detail="No file uploaded")
 
-        file_path = os.path.join("/cmf-server/data/env/",os.path.basename(file.filename),)
+        file_path = os.path.join("/cmf-server/data/env/", os.path.basename(file.filename))
 
-        os.makedirs(os.path.dirname(file_path),exist_ok=True,)
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
 
         with open(file_path, "wb") as buffer:
             buffer.write(await file.read())
@@ -65,26 +75,19 @@ async def upload_python_env(request: Request, file: UploadFile):
     except HTTPException:
         raise
 
-    except OSError as e:
-        raise HTTPException(
-            status_code=500,detail=f"Failed to upload file: {str(e)}",) from e
-
     except Exception as e:
-        raise HTTPException(status_code=500,detail=f"Failed to upload file: {str(e)}",) from e
+        raise HTTPException(status_code=500, detail=f"Failed to upload file: {str(e)}") from e
 
 
 async def get_python_env(file_name: str) -> str:
     """Retrieve Python environment file content."""
-    if not (
-        file_name.endswith(".txt")
-        or file_name.endswith(".yaml")
-    ):
-        raise HTTPException(status_code=400,detail="Unsupported file extension. Use .txt or .yaml",)
+    if not (file_name.endswith(".txt") or file_name.endswith(".yaml")):
+        raise HTTPException(status_code=400, detail="Unsupported file extension. Use .txt or .yaml")
 
-    file_path = os.path.join( "/cmf-server/data/env/", os.path.basename(file_name),)
+    file_path = os.path.join("/cmf-server/data/env/", os.path.basename(file_name))
 
     if not os.path.exists(file_path):
-        raise HTTPException(status_code=404,detail="File not found")
+        raise HTTPException(status_code=404, detail="File not found")
 
     try:
         with open(file_path, "r") as file:
@@ -92,13 +95,78 @@ async def get_python_env(file_name: str) -> str:
         return content
 
     except OSError as e:
-        raise HTTPException(status_code=500,detail=f"Error reading file: {str(e)}",) from e
+        raise HTTPException(status_code=500, detail=f"Error reading file: {str(e)}") from e
+
+
+async def get_executions_by_stage(
+    pipeline_name: str,
+    query_params: ExecutionByStageRequest = Depends(),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Retrieve executions filtered by pipeline and stage name (Context_Type).
+    
+    Args:
+        pipeline_name: Name of the pipeline
+        stage_name: Stage name (Context_Type value) to filter executions
+        active_page: Page number for pagination
+        record_per_page: Number of records per page
+        
+    Returns:
+        Dictionary with total_items and list of executions with their properties
+        
+    Example response:
+    {
+        "total_items": 10,
+        "items": [
+            {
+                "execution_id": 2,
+                "execution_properties": [...]
+            }
+        ]
+    }
+    """
+    stage_name = query_params.stage_name
+    active_page = query_params.active_page
+    record_per_page = query_params.record_per_page
+    sort_order = query_params.sort_order
+    filter_value = query_params.filter_value
+
+    return await fetch_executions_by_stage(db, pipeline_name, stage_name, active_page, record_per_page, sort_order, filter_value)
+
+
+async def get_pipeline_stages(
+    pipeline_name: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Retrieve unique artifact stages (Context_Type values) for a given pipeline.
+    Since artifacts inherit stages from executions, this uses the same query as execution stages.
+    
+    Args:
+        pipeline_name: Name of the pipeline to get stages from
+        
+    Returns:
+        Dictionary with pipeline_name, list of unique stages, and total count
+        
+    Example response:
+    {
+        "stages": ["Test-env/Prepare", "Test-env/Train", "Test-env/Evaluate"],
+        "total_stages": 3
+    }
+    """
+    print("DEBUG: get_pipeline_stages called with:", pipeline_name)
+    result = await fetch_unique_execution_stages(db, pipeline_name)
+
+    print("DEBUG: result =", result)
+
+    return result
 
 
 # ==================== API Endpoints ====================
 
 @router.post("/executions/python-env")
-async def upload_python_environment(request: Request,file: UploadFile = File(...),):
+async def upload_python_environment(request: Request, file: UploadFile = File(...)):
     result = await upload_python_env(request, file)
 
     return success_response(
@@ -109,7 +177,7 @@ async def upload_python_environment(request: Request,file: UploadFile = File(...
 
 
 @router.get("/executions/python-env")
-async def get_python_environment(request: Request,file_name: str,):
+async def get_python_environment(request: Request, file_name: str):
     result = await get_python_env(file_name)
 
     return success_response(
@@ -120,7 +188,7 @@ async def get_python_environment(request: Request,file_name: str,):
 
 
 @router.get("/executions/{pipeline_name}")
-async def get_executions_endpoint(request: Request,pipeline_name: str,):
+async def get_executions_endpoint(request: Request, pipeline_name: str):
     result = await list_of_executions(
         request,
         pipeline_name,
@@ -133,15 +201,45 @@ async def get_executions_endpoint(request: Request,pipeline_name: str,):
     )
 
 
-@router.get("/metadata/list-of-executions/{pipeline_name}")
-async def get_metadata_list_of_executions(request: Request,pipeline_name: str,):
-    result = await list_of_executions(
-        request,
-        pipeline_name,
-    )
-
+@router.post("/executions")
+async def get_executions(
+    request: Request,
+    query_params: ExecutionByStageRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    pipeline_name = query_params.pipeline_name
+    result = await get_executions_by_stage(pipeline_name, query_params, db)
     return success_response(
         data=result,
         message="Executions retrieved successfully",
+        code=200,
+    )
+
+
+@router.get("/executions/stages")
+async def get_execution_stages(
+    request: Request,
+    pipeline_name: str = Query(..., description="Pipeline name"),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await get_pipeline_stages(pipeline_name, db)
+    return success_response(
+        data=result,
+        message="Pipeline stages retrieved successfully",
+        code=200,
+    )
+
+
+@router.post("/pipelines/{pipeline_name}/executions")
+async def pipeline_executions(
+    request: Request,
+    query_params: ExecutionByStagePipelineRequest,
+    pipeline_name: str,
+    db: AsyncSession = Depends(get_db),
+):
+    result = await get_executions_by_stage(pipeline_name, query_params, db)
+    return success_response(
+        data=result,
+        message="Pipeline executions retrieved successfully",
         code=200,
     )

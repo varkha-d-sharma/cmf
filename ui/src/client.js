@@ -311,7 +311,7 @@ class FastAPIClient {
       });
   }
 
-  async getPipelineStages(pipelineName) {
+  async getExecutionStages(pipelineName) {
     return this.apiClient
       .get(`/v1/executions/stages`, {
         params: {

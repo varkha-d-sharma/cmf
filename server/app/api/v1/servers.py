@@ -27,7 +27,7 @@ from server.app.db.dbqueries import (
     get_registered_server_details,
     update_sync_status,
     create_schedule,
-    list_schedules,
+    list_schedules as list_schedules_db,
     get_registered_server_by_id,
     list_sync_logs,
     get_completed_logs_by_server,
@@ -40,6 +40,8 @@ from server.app.main import (
     LOCAL_ADDRESSES,
     dict_of_art_ids,
     dict_of_exe_ids,
+    update_global_art_dict,
+    update_global_exe_dict,
 )
 from server.app.utils import extract_hostname
 from server.app.get_data import (
@@ -52,24 +54,6 @@ from server.app.get_data import (
 from cmflib.cmf_federation import update_mlmd
 
 router = APIRouter(prefix="/v1", tags=["servers"])
-
-
-# ==================== Helper Functions ====================
-
-async def update_global_art_dict(pipeline_name):
-    """Update global artifact IDs dictionary for a pipeline."""
-    from server.app.get_data import get_all_artifact_ids
-    output_dict = await async_api(get_all_artifact_ids, query, dict_of_exe_ids, pipeline_name)
-    dict_of_art_ids[pipeline_name] = output_dict[pipeline_name]
-    return
-
-
-async def update_global_exe_dict(pipeline_name):
-    """Update global execution IDs dictionary for a pipeline."""
-    from server.app.get_data import get_all_exe_ids
-    output_dict = await async_api(get_all_exe_ids, query, pipeline_name)
-    dict_of_exe_ids[pipeline_name] = output_dict[pipeline_name]
-    return
 
 
 # ==================== Business Logic Functions ====================
@@ -355,7 +339,7 @@ async def get_schedules(server_id: Optional[int] = Query(None), db: AsyncSession
     Returns:
         list: Active schedule rows.
     """
-    rows = await list_schedules(db, server_id)
+    rows = await list_schedules_db(db, server_id)
     return rows
 
 
@@ -523,3 +507,9 @@ async def delete_server_schedule(request: Request, schedule_id: int, db: AsyncSe
         message="Schedule deleted successfully",
         code=200,
     )
+
+
+@router.get("/download-python-env")
+async def download_python_env_endpoint(request: Request, list_of_files: Optional[list[str]] = Query(None)):
+    """Download Python environment files as ZIP."""
+    return download_python_env(request, list_of_files)

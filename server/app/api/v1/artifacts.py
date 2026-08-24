@@ -8,8 +8,20 @@ import os
 import json
 from typing import List, Dict, Any, Optional
 
-from fastapi import APIRouter, Request, HTTPException, UploadFile,File
+from fastapi import APIRouter, Depends, Query, Request, HTTPException, UploadFile, File
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from server.app.db.dbconfig import get_db
+from server.app.db.dbqueries import (
+    fetch_artifact_types_by_stage,
+    fetch_artifacts_by_stage,
+)
+from server.app.schemas.requests import (
+    ArtifactByStagePipelineRequest,
+    ArtifactByStageRequest,
+    ArtifactTypesByStageRequest,
+    ArtifactTypesByStagePipelineRequest,
+)
 from server.app.schemas.responses import success_response
 from server.app.main import (
     query,
@@ -21,11 +33,6 @@ from server.app.get_data import (
     get_artifact_types,
     async_api,
     get_model_data,
-)
-
-from server.app.query_artifact_lineage_d3tree import query_artifact_lineage_d3tree
-from server.app.query_visualization_artifact_execution import (
-    query_visualization_artifact_execution,
 )
 
 from server.app.api.v1.metadata import (
@@ -119,10 +126,86 @@ async def get_label_data(file_name: str) -> str:
         raise HTTPException(status_code=500, detail=f"Error reading file: {str(e)}")
 
 
+async def get_artifact_types_by_stage(
+    pipeline_name: str,
+    stage_name: str = Query(..., description="Stage name (Context_Type value)"),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Retrieve unique artifact types available in a specific stage of a pipeline.
+    
+    Args:
+        pipeline_name: Name of the pipeline
+        stage_name: Stage name (Context_Type value) to filter by
+        
+    Returns:
+        List of unique artifact type names
+        
+    Example response:
+    ["Dataset", "Metrics", "Model"]
+    """
+    return await fetch_artifact_types_by_stage(db, pipeline_name, stage_name)
+
+
+async def get_artifacts_by_stage(
+    pipeline_name: str,
+    query_params: ArtifactByStageRequest = Depends(),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Retrieve artifacts filtered by pipeline, stage, and artifact type.
+    
+    Args:
+        pipeline_name: Name of the pipeline
+        stage_name: Stage name (Context_Type value) to filter artifacts
+        artifact_type: Type of artifacts to retrieve
+        sort_order: Sort order (asc or desc)
+        active_page: Page number for pagination
+        record_per_page: Number of records per page
+        filter_value: Search filter value
+        sort_field: Field to sort by
+        
+    Returns:
+        Dictionary with total_items and list of artifacts with their properties
+        
+    Example response:
+    {
+        "total_items": 10,
+        "items": [
+            {
+                "artifact_id": 5,
+                "name": "dataset.csv",
+                "create_time_since_epoch": 1234567890,
+                "artifact_properties": [...]
+            }
+        ]
+    }
+    """
+    stage_name = query_params.stage_name
+    artifact_type = query_params.artifact_type
+    filter_value = query_params.filter_value
+    active_page = query_params.active_page
+    record_per_page = query_params.record_per_page
+    sort_field = query_params.sort_field
+    sort_order = query_params.sort_order
+
+    return await fetch_artifacts_by_stage(
+        db=db,
+        pipeline_name=pipeline_name,
+        stage_name=stage_name,
+        artifact_type=artifact_type,
+        filter_value=filter_value,
+        active_page=active_page,
+        record_per_page=record_per_page,
+        sort_column=sort_field,
+        sort_order=sort_order
+    )
+
+
 # ==================== API Endpoints ====================
 
 @router.get("/metadata/artifact-types")
-async def get_artifact_types(
+async def get_artifact_types_endpoint(
     request: Request,
 ):
     result = await artifact_types()
@@ -155,11 +238,74 @@ async def upload_label_file(request: Request,file: UploadFile = File(...),):
 
 
 @router.get("/artifacts/label-data")
-async def get_label_data_endpoint(request: Request,file_name: str,):
+async def get_label_data_endpoint(request: Request, file_name: str):
     result = await get_label_data(file_name)
 
     return success_response(
         data=result,
         message="Label data retrieved successfully",
+        code=200,
+    )
+
+
+@router.post("/artifacts/types")
+async def get_artifact_types_by_stage_endpoint(
+    request: Request,
+    query_params: ArtifactTypesByStageRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    result = await get_artifact_types_by_stage(
+        query_params.pipeline_name,
+        query_params.stage_name,
+        db,
+    )
+    return success_response(
+        data=result,
+        message="Artifact types retrieved successfully",
+        code=200,
+    )
+
+
+@router.post("/artifacts")
+async def get_artifacts_endpoint(
+    request: Request,
+    query_params: ArtifactByStageRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    pipeline_name = query_params.pipeline_name
+    result = await get_artifacts_by_stage(pipeline_name, query_params, db)
+    return success_response(
+        data=result,
+        message="Artifacts retrieved successfully",
+        code=200,
+    )
+
+
+@router.post("/pipelines/{pipeline_name}/artifact-types-by-stage")
+async def pipeline_artifact_types_by_stage(
+    request: Request,
+    pipeline_name: str,
+    query_params: ArtifactTypesByStagePipelineRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    result = await get_artifact_types_by_stage(pipeline_name, query_params.stage_name, db)
+    return success_response(
+        data=result,
+        message="Artifact types retrieved successfully",
+        code=200,
+    )
+
+
+@router.post("/pipelines/{pipeline_name}/artifacts-by-stage")
+async def pipeline_artifacts_by_stage(
+    request: Request,
+    pipeline_name: str,
+    query_params: ArtifactByStagePipelineRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    result = await get_artifacts_by_stage(pipeline_name, query_params, db)
+    return success_response(
+        data=result,
+        message="Artifacts retrieved successfully",
         code=200,
     )

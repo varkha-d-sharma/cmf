@@ -20,6 +20,8 @@ from server.app.main import (
     dict_of_exe_ids,
     pipeline_locks,
     lock_counts,
+    update_global_art_dict,
+    update_global_exe_dict,
 )
 from server.app.get_data import (
     get_mlmd_from_server,
@@ -46,20 +48,6 @@ async def check_pipeline_exists(pipeline_name):
     if pipeline_name not in query.get_pipeline_names():
         print(f"Pipeline {pipeline_name} not found.")
         raise HTTPException(status_code=404, detail=f"Pipeline {pipeline_name} not found.")
-
-
-async def update_global_art_dict(pipeline_name):
-    """Update global artifact IDs dictionary for a pipeline."""
-    output_dict = await async_api(get_all_artifact_ids, query, dict_of_exe_ids, pipeline_name)
-    dict_of_art_ids[pipeline_name] = output_dict[pipeline_name]
-    return
-
-
-async def update_global_exe_dict(pipeline_name):
-    """Update global execution IDs dictionary for a pipeline."""
-    output_dict = await async_api(get_all_exe_ids, query, pipeline_name)
-    dict_of_exe_ids[pipeline_name] = output_dict[pipeline_name]
-    return
 
 
 # ==================== Business Logic Functions ====================
@@ -136,21 +124,6 @@ async def metadata_push(request: Request, info: MLMDPushRequest):
 
 
 @router.post("/mlmd/pull", response_class=HTMLResponse)
-async def metadata_pull(request: Request, info: MLMDPullRequest):
-    return await mlmd_pull(info)
-
-
-@router.post("/metadata/push")
-async def metadata_push(request: Request, info: MLMDPushRequest):
-    result = await mlmd_push(info)
-    return success_response(
-        data=result,
-        message="MLMD pushed successfully",
-        code=200,
-    )
-
-
-@router.post("/metadata/pull", response_class=HTMLResponse)
 async def metadata_pull(request: Request, info: MLMDPullRequest):
     return await mlmd_pull(info)
 

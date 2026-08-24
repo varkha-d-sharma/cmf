@@ -274,9 +274,9 @@ async def server_mlmd_pull(server_url, last_sync_time):
                         return json_payload
 
                     list_of_files = list(environment_names)
-                    python_env_zip = await client.get(f"{server_url}/api/download-python-env", params=list_of_files)
+                    python_env_zip = await client.get(f"{server_url}/api/v1/download-python-env", params=list_of_files)
                 else:
-                    python_env_zip = await client.get(f"{server_url}/api/download-python-env", params=None)
+                    python_env_zip = await client.get(f"{server_url}/api/v1/download-python-env", params=None)
 
                 if python_env_zip.status_code == 200:
                     try:
