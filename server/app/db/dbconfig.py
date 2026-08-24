@@ -9,11 +9,11 @@ load_dotenv()
 
 # Database configuration
 DB_CONFIG = {
-    "db_user": os.getenv("POSTGRES_USER", "postgres"),
-    "db_password": os.getenv("POSTGRES_PASSWORD", "postgres"),
-    "db": os.getenv("POSTGRES_DB", "cmf"),
-    "db_host": os.getenv("POSTGRES_HOST", "localhost"),
-    "db_port": int(os.getenv("POSTGRES_PORT", "5432")),
+    "db_user": os.getenv("POSTGRES_USER"),
+    "db_password": os.getenv("POSTGRES_PASSWORD"),
+    "db": os.getenv("POSTGRES_DB"),
+    "db_host": os.getenv("POSTGRES_HOST"),
+    "db_port": os.getenv("POSTGRES_PORT"),
 }
 
 #print(DB_CONFIG)

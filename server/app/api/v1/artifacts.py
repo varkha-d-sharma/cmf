@@ -134,8 +134,8 @@ async def get_artifact_types(
     )
 
 
-@router.get("/model-card")
-async def get_model_card(request: Request, modelId: int):
+@router.get("/artifacts/model-card")
+async def get_model_card_endpoint( request: Request, modelId: int,):
     result = await model_card(request, modelId)
     return success_response(
         data=result,
@@ -143,18 +143,10 @@ async def get_model_card(request: Request, modelId: int):
         code=200,
     )
 
-@router.get("/metadata/model-card")
-async def metadata_model_card(request: Request, modelId: int):
-    result = await model_card(request, modelId)
-    return success_response(
-        data=result,
-        message="Model card retrieved successfully",
-        code=200,
-    )
-
-@router.post("/label")
-async def upload_label(request: Request, file: UploadFile = File(...)):
+@router.post("/artifacts/label")
+async def upload_label_file(request: Request,file: UploadFile = File(...),):
     result = await upload_label(request, file)
+
     return success_response(
         data=result,
         message="Label uploaded successfully",
@@ -162,32 +154,12 @@ async def upload_label(request: Request, file: UploadFile = File(...)):
     )
 
 
-@router.get("/label-data")
-async def get_label_data_endpoint(request: Request, file_name: str):
+@router.get("/artifacts/label-data")
+async def get_label_data_endpoint(request: Request,file_name: str,):
     result = await get_label_data(file_name)
+
     return success_response(
         data=result,
         message="Label data retrieved successfully",
         code=200,
     )
-
-@router.post("/metadata/label")
-async def upload_metadata_label(request: Request, file: UploadFile = File(...)):
-    result = await upload_label(request, file)
-    return success_response(
-        data=result,
-        message="Metadata label uploaded successfully",
-        code=201,
-    )
-
-
-@router.get("/metadata/label-data")
-async def get_metadata_label_data(request: Request, file_name: str):
-
-    result = await get_label_data(file_name)
-    return success_response(
-        data=result,
-        message="Metadata label data retrieved successfully",
-        code=200,
-    )
-

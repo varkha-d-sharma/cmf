@@ -132,7 +132,7 @@ const Lineage = () => {
 
   const fetchArtifactTree = (pipelineName) => {
     setLoading(true);
-    client.getArtiTreeLineage(pipelineName).then((data) => {
+    client.getArtifactLineage(pipelineName).then((data) => {
       if (data === null) {
         setArtiTreeData(null);
       }
@@ -209,7 +209,7 @@ const Lineage = () => {
 
   const fetchExecTree = (pipelineName, exec_type) => {
     setLoading(true);
-    client.getExecTreeLineage(pipelineName, exec_type).then((data) => {
+    client.getExecutionLineage(pipelineName, exec_type).then((data) => {
       setExecutionData(data);
       setLoading(false);
     });
