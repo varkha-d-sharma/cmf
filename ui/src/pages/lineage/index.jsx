@@ -14,7 +14,7 @@
  * limitations under the License.
  ***/
 
-// The CommandLineageComponent is a common component used to display artifact lineage, execution lineage, and artifact execution lineage.
+// The CommonLineageComponent is a common component used to display artifact lineage, execution lineage, and artifact execution lineage.
 
 import React, { useEffect, useState } from "react";
 import FastAPIClient from "../../client";
@@ -23,14 +23,11 @@ import DashboardHeader from "../../components/DashboardHeader";
 import Footer from "../../components/Footer";
 import Sidebar from "../../components/Sidebar";
 import LineageArtifacts from "../../components/LineageArtifacts";
-import TangledTree from "../../components/TangledTree";
 import ExecutionDropdown from "../../components/ExecutionDropdown";
-import ExecutionTree from "../../components/ExecutionTree";
 import ExecutionTangledDropdown from "../../components/ExecutionTangledDropdown";
-import ArtifactExecutionTangledTree from "../../components/ArtifactExecutionTangledTree";
 import Loader from "../../components/Loader";
 import CommonLineageComponent from "../../components/CommonLineageComponent";
-import Hierarchical_Lineage_Flow from "../../components/HierarchicalLineageFlow";
+import HierarchicalLineageFlow from "../../components/HierarchicalLineageFlow";
 import { transformLineageData } from "../../components/HierarchicalLineageFlow/trasformeddata";
 
 const client = new FastAPIClient(config);
@@ -42,7 +39,7 @@ const Lineage = () => {
     "Artifact_Tree",
     "Execution_Tree",
     "Artifact_Execution_Tree",
-    "Heirarchical_Lineage"
+    "Hierarchical_Lineage"
   ];
   const [selectedLineageType, setSelectedLineageType] = useState("Artifact_Tree");
   const [selectedExecutionType, setSelectedExecutionType] = useState(null);
@@ -60,6 +57,7 @@ const Lineage = () => {
     fetchPipelines();
   }, []);
 
+  // Fetch available pipelines and load the artifact tree for the first pipeline.
   const fetchPipelines = async () => {
     setLoading(true);
     try {
@@ -102,8 +100,8 @@ const Lineage = () => {
         fetchExecutionTypes(pipeline, selectedLineageType);
       } else if (selectedLineageType === "Artifact_Execution_Tree") {
         fetchArtiExeTree(pipeline);
-      } else if (selectedLineageType === "Heirarchical_Lineage") {
-        fetchHierarchicalLineageImp(pipeline);
+      } else if (selectedLineageType === "Hierarchical_Lineage") {
+        fetchHierarchicalLineage(pipeline);
       } else {
         fetchArtifactTree(pipeline);
       }
@@ -126,8 +124,8 @@ const Lineage = () => {
         fetchExecutionTypes(selectedPipeline, lineageType);
       } else if (lineageType === "Artifact_Execution_Tree") {
         fetchArtiExeTree(selectedPipeline);
-      } else if (lineageType === "Heirarchical_Lineage") {
-        fetchHierarchicalLineageImp(selectedPipeline, "");
+      } else if (lineageType === "Hierarchical_Lineage") {
+        fetchHierarchicalLineage(selectedPipeline);
       } else {
         fetchArtifactTree(selectedPipeline);
       }
@@ -189,7 +187,7 @@ const Lineage = () => {
     setLineageArtifactsKey((prevKey) => prevKey + 1);
   };
 
-  const fetchHierarchicalLineageImp = (pipelineName) => {
+  const fetchHierarchicalLineage = (pipelineName) => {
     setLoading(true);
     client.getHierarchicalLineage(pipelineName).then((data) => {
       if (data === null) {
@@ -329,7 +327,6 @@ const Lineage = () => {
               <div>
               {/* Renders the common lineage component for execution lineage data */}
               <CommonLineageComponent
-                LineageTypes={LineageTypes} 
                 lineageType={selectedLineageType} 
                 key={lineageArtifactsKey} 
                 data={executionData}/>
@@ -342,7 +339,6 @@ const Lineage = () => {
               <div>
               {/* Renders the common lineage component for artifact lineage data */}
               <CommonLineageComponent 
-                LineageTypes={LineageTypes} 
                 lineageType={selectedLineageType} 
                 key={lineageArtifactsKey} 
                 data={artitreeData}/>
@@ -355,7 +351,6 @@ const Lineage = () => {
                 <div>
               {/* Renders the common lineage component for artifact execution lineage data */}
               <CommonLineageComponent 
-                LineageTypes={LineageTypes} 
                 lineageType={selectedLineageType} 
                 key={lineageArtifactsKey} 
                 data={artiexetreeData}/>
@@ -364,10 +359,10 @@ const Lineage = () => {
               {/* Renders the hierarchical lineage component for artifact lineage data */}
               {!loading && 
                 selectedPipeline !== null &&
-                selectedLineageType === "Heirarchical_Lineage" &&
+                selectedLineageType === "Hierarchical_Lineage" &&
                 hierarchicalData && 
                 (
-                <Hierarchical_Lineage_Flow
+                <HierarchicalLineageFlow
                   key={lineageArtifactsKey} 
                   data={hierarchicalData} />)
               }

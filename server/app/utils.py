@@ -133,7 +133,7 @@ def convert_to_stage_json(input_json: dict, pipeline_name: str) -> dict:
     stages_candidate = list(reversed(stages_candidate))
 
     out = {
-        "environment": pipeline_name,
+        "pipeline": pipeline_name,
         "metadata": { "version": "4.0.0", "description": "Executions Lineage Map" },
         "stages": []
     }
@@ -161,9 +161,6 @@ def convert_to_stage_json(input_json: dict, pipeline_name: str) -> dict:
                 "execution_id": f"exec_{exec_idx:03d}",
                 "execution_type": f"{stage_name}:{full_uuid[:4]}",
                 "children": [],
-                "tooltip": full_uuid,
-                "title": full_uuid,
-                "description": f"Full UUID: {full_uuid}",
                 "full_uuid": full_uuid
             }
             exec_idx += 1

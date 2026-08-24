@@ -102,8 +102,8 @@ const transformNestedStageData = (rawJson) => {
     return { nodes, links };
   }
 
-  const envId = `${rawJson.environment || "env"}`;
-  nodes.push({ id: envId, name: rawJson.environment || "Environment", type: "Environment" });
+  const pipelineId = `${rawJson.pipeline || "pipeline"}`;
+  nodes.push({ id: pipelineId, name: rawJson.pipeline || "Pipeline", type: "Pipeline" });
 
   const addExecutionChildren = (execution, executionId) => {
     if (!Array.isArray(execution.children)) return;
@@ -124,7 +124,7 @@ const transformNestedStageData = (rawJson) => {
     const stageId = `stage-${stage.stage_id}`;
 
     nodes.push({ id: stageId, name: stage.stage_name, type: "Stage" });
-    links.push({ source: envId, target: stageId });
+    links.push({ source: pipelineId, target: stageId });
 
     if (Array.isArray(stage.executions)) {
       stage.executions.forEach((exec) => {

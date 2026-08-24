@@ -17,7 +17,7 @@
 
 /**
  * Shared building blocks used by both lineage graph renderers
- * (CommonLineageComponent and Hierarchical_Lineage_Flow):
+ * (CommonLineageComponent and HierarchicalLineageFlow):
  *  - a generic MiniMap node renderer with a pluggable color mapping
  *  - a generic ReactFlow canvas wrapper (MiniMap + Controls + Background)
  *  - helpers to convert transformed lineage data into React Flow nodes/edges

@@ -70,7 +70,9 @@ import dotenv
 from jsonpath_ng.ext import parse
 from cmflib.cmf_federation import update_mlmd
 from datetime import datetime
-from zoneinfo import ZoneInfo
+# from zoneinfo import ZoneInfo
+# import json
+# from fastapi import Request, HTTPException
 
 dotenv.load_dotenv()
 
@@ -614,26 +616,64 @@ async def artifact_execution_lineage(request: Request, pipeline_name: str):
 @app.get("/hierarchical-lineage/react-flow-dagre/{pipeline_name}")
 async def hierarchical_lineage(request: Request, pipeline_name: str):
     """
-    Return MLMD data for the given pipeline converted into the UI `stage.json` schema.
+    Fetches Machine Learning Metadata (MLMD) for a specific pipeline 
+    and converts it into the React-Flow Dagre UI compatible 'stage.json' schema.
+
+    Args:
+        request (Request): The incoming FastAPI request object.
+        pipeline_name (str): The unique name of the pipeline to query.
+
+    Returns:
+        dict: The converted lineage data structured for the React-Flow UI.
+
+    Raises:
+        HTTPException (404): If the pipeline or its MLMD data cannot be found.
+        HTTPException (500): If conversion or parsing of the MLMD data fails.
     """
-    # checks if mlmd file exists on server
+    # 1. Pre-flight Validation Checks
+    # Verify that the core MLMD storage file/database exists on the server
     await check_mlmd_file_exists()
-    # checks if pipeline exists
+    
+    # Verify that the requested pipeline name exists within the system
     await check_pipeline_exists(pipeline_name)
 
-    # Pull MLMD JSON for the pipeline
-    json_payload = await async_api(get_mlmd_from_server, query, pipeline_name, None, None, dict_of_exe_ids)
+    # 2. Data Retrieval
+    # Asynchronously fetch the raw MLMD JSON data payload from the server
+    # Note: Ensure 'query' and 'dict_of_exe_ids' are defined in the outer scope
+    json_payload = await async_api(
+        get_mlmd_from_server, 
+        query, 
+        pipeline_name, 
+        None, 
+        None, 
+        dict_of_exe_ids
+    )
 
+    # Raise a 404 error if no data was returned for the specified pipeline
     if json_payload is None:
-        raise HTTPException(status_code=404, detail=f"Pipeline {pipeline_name} not found or has no MLMD data.")
+        raise HTTPException(
+            status_code=404, 
+            detail=f"Pipeline '{pipeline_name}' not found or contains no MLMD data."
+        )
 
+    # 3. Data Transformation & Parsing
     try:
+        # If the server returned a string representation, safely parse it into a Python dictionary
         if isinstance(json_payload, str):
             json_payload = json.loads(json_payload)
+            
+        # Convert the standard MLMD payload into the hierarchical 'stage.json' UI schema
         converted = convert_to_stage_json(json_payload, pipeline_name)
+        
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to convert MLMD to stage JSON: {e}")
+        # Catch JSON parsing or custom conversion errors and return a 500 Internal Server Error
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Failed to convert MLMD to stage JSON schema: {str(e)}"
+        )
 
+    # 4. Response
+    # Return the successfully formatted hierarchical data
     return converted
 
 

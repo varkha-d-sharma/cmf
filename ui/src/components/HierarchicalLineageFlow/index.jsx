@@ -202,7 +202,7 @@ const getStageGroupNodes = (layoutedNodes, edges) => {
   });
 };
 
-const Hierarchical_Lineage_Flow = ({ data }) => {
+const HierarchicalLineageFlow = ({ data }) => {
   const { nodes, edges } = useMemo(() => {
     if (!data || data.length === 0) return { nodes: [], edges: [] };
 
@@ -254,4 +254,4 @@ const Hierarchical_Lineage_Flow = ({ data }) => {
   );
 };
 
-export default Hierarchical_Lineage_Flow;
+export default HierarchicalLineageFlow;
