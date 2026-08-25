@@ -1,4 +1,20 @@
 """
+Copyright (2023) Hewlett Packard Enterprise Development LP
+
+Licensed under the Apache License, Version 2.0 (the "License");
+You may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+"""
+
+"""
 Metadata API endpoints and business logic.
 
 This module contains all metadata-related API endpoints and their business logic,
@@ -7,7 +23,6 @@ including MLMD push/pull,
 
 
 import asyncio
-from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, Request,HTTPException
 from fastapi.responses import HTMLResponse
 
@@ -16,7 +31,6 @@ from server.app.schemas.requests import MLMDPullRequest, MLMDPushRequest
 from server.app.schemas.responses import success_response
 from server.app.main import (
     query,
-    dict_of_art_ids,
     dict_of_exe_ids,
     pipeline_locks,
     lock_counts,
@@ -25,8 +39,6 @@ from server.app.main import (
 )
 from server.app.get_data import (
     get_mlmd_from_server,
-    get_all_artifact_ids,
-    get_all_exe_ids,
     async_api, 
 )
 from cmflib.cmf_federation import update_mlmd

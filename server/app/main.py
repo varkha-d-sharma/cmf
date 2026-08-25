@@ -1,16 +1,12 @@
 # cmf-server api's
-import io
 import time
-from fastapi import FastAPI, Request, HTTPException, Query, UploadFile, File, Depends
-from fastapi.responses import HTMLResponse, PlainTextResponse, StreamingResponse
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import pandas as pd
-from typing import List, Dict, Any, Optional
 from cmflib.cmfquery import CmfQuery
 import asyncio
-from sqlalchemy.ext.asyncio import AsyncSession
 from collections import defaultdict
 from server.app.utils import extract_hostname, get_fqdn
 from server.app.get_data import (
@@ -20,9 +16,6 @@ from server.app.get_data import (
     async_api,
     compute_next_run_from_recurrence,
 )
-from server.app.query_execution_lineage_d3tree import query_execution_lineage_d3tree
-from server.app.query_artifact_lineage_d3tree import query_artifact_lineage_d3tree
-from server.app.query_visualization_artifact_execution import query_visualization_artifact_execution
 from server.app.db.dbconfig import get_db, init_db, async_session
 from server.app.db.dbqueries import (
     due_schedules,
@@ -33,7 +26,6 @@ from server.app.db.dbqueries import (
 )
 from pathlib import Path
 import os
-import json
 import typing as t
 from server.app.schemas.requests import (
     ServerRegistrationRequest,  
@@ -42,8 +34,6 @@ import httpx
 import dotenv
 from jsonpath_ng.ext import parse
 from cmflib.cmf_federation import update_mlmd
-from datetime import datetime
-from zoneinfo import ZoneInfo
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from server.app.core.exceptions import APIException
@@ -333,49 +323,3 @@ async def read_root(request: Request):
 # - Execution functions: server/app/api/v1/executions.py
 # - Artifact functions: server/app/api/v1/artifacts.py
 # - Lineage functions: server/app/api/v1/lineage.py
-
-"""
-following APIs are no longer in use within the project but is retained for reference or potential future use.
-
-@app.get("/execution-lineage/force-directed-graph/{pipeline_name}/{uuid}")
-async def execution_lineage(request: Request, pipeline_name: str, uuid: str):
-    '''
-      returns dictionary of nodes and links for given execution_type.
-      response = {
-                   nodes: [{id:"",name:"",execution_uuid:""}],
-                   links: [{source:1,target:4},{}],
-                 } 
-    '''
-    # checks if mlmd file exists on server
-    if os.path.exists(server_store_path):
-        query = cmfquery.CmfQuery(server_store_path)
-        if (pipeline_name in query.get_pipeline_names()):
-            response = await async_api(query_execution_lineage_d3force, server_store_path, pipeline_name, dict_of_exe_ids, uuid)
-    else:
-        response = None
-    return response
-
-
-@app.get("/artifact-lineage/force-directed-graph/{pipeline_name}")
-async def artifact_lineage(request: Request, pipeline_name: str):
-    '''
-      This api returns dictionary of nodes and links for given pipeline.
-      response = {
-                   nodes: [{id:"",name:""}],
-                   links: [{source:1,target:4},{}],
-                 }
-
-    '''
-    # checks if mlmd file exists on server
-    if os.path.exists(server_store_path):
-        query = cmfquery.CmfQuery(server_store_path)
-        if (pipeline_name in query.get_pipeline_names()):
-            response=await async_api(get_lineage_data, server_store_path, pipeline_name, "Artifacts", dict_of_art_ids, dict_of_exe_ids)
-            return response
-        else:
-            return f"Pipeline name {pipeline_name} doesn't exist."
-
-    else:
-        return None
-
-"""

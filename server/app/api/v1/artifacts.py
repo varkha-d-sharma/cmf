@@ -1,4 +1,20 @@
 """
+Copyright (2023) Hewlett Packard Enterprise Development LP
+
+Licensed under the Apache License, Version 2.0 (the "License");
+You may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+"""
+
+"""
 Artifact API endpoints and business logic.
 
 This module contains artifact-related API endpoints and their business logic,
@@ -6,7 +22,7 @@ including artifact types.
 """
 import os
 import json
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 
 from fastapi import APIRouter, Depends, Query, Request, HTTPException, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,8 +41,6 @@ from server.app.schemas.requests import (
 from server.app.schemas.responses import success_response
 from server.app.main import (
     query,
-    dict_of_art_ids,
-    dict_of_exe_ids,
 )
 
 from server.app.get_data import (
@@ -87,7 +101,6 @@ async def model_card(request: Request, modelId: int, response_model=List[Dict[st
     return [json_payload_1, json_payload_2, json_payload_3, json_payload_4]
 
 
-
 async def upload_label(request: Request, file: UploadFile):
     """Upload label file."""
     try:
@@ -111,6 +124,7 @@ async def upload_label(request: Request, file: UploadFile):
 
     except Exception as e:
         return {"error": f"Failed to up load file: {e}"}
+
 
 async def get_label_data(file_name: str) -> str:
     """Retrieve label data file content."""

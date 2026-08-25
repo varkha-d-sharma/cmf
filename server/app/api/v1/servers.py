@@ -1,4 +1,20 @@
 """
+Copyright (2023) Hewlett Packard Enterprise Development LP
+
+Licensed under the Apache License, Version 2.0 (the "License");
+You may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+"""
+
+"""
 Server API endpoints and business logic.
 
 This module contains all server-related API endpoints and their business logic,
@@ -10,7 +26,6 @@ import json
 import os
 import time
 import zipfile
-import asyncio
 from typing import Optional
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -38,8 +53,6 @@ from server.app.schemas.responses import success_response
 from server.app.main import (
     query,
     LOCAL_ADDRESSES,
-    dict_of_art_ids,
-    dict_of_exe_ids,
     update_global_art_dict,
     update_global_exe_dict,
 )
@@ -48,7 +61,6 @@ from server.app.get_data import (
     server_mlmd_pull,
     log_sync_attempt,
     async_api,
-    compute_next_run_from_recurrence,
     compute_initial_next_run_utc,
 )
 from cmflib.cmf_federation import update_mlmd
