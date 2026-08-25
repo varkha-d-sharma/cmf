@@ -155,6 +155,8 @@ class ScheduleUpdateRequest(BaseModel):
     timezone: str = Field("UTC", description="IANA timezone")
     start_time_local_iso: Optional[str] = Field(None, description="Local ISO datetime")
     one_time: Optional[bool] = Field(None, description="Toggle one-time behavior")
+
+
 class ExecutionByStagePipelineRequest(BaseRequest):
     stage_name: str = Field(..., description="Stage name (Context_Type value)")
     sort_order: str = Field("DESC", description="Sort order: ASC or DESC")

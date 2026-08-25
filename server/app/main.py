@@ -36,7 +36,6 @@ from jsonpath_ng.ext import parse
 from cmflib.cmf_federation import update_mlmd
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
-from server.app.core.exceptions import APIException
 from server.app.schemas.responses import error_response
 
 dotenv.load_dotenv()
@@ -141,18 +140,6 @@ app.add_middleware(
 )
 
 # Exception handlers
-@app.exception_handler(APIException)
-async def api_exception_handler(request: Request, exc: APIException):
-    """Handle custom API exceptions"""
-    response = error_response(
-        message=exc.message,
-        code=exc.code,
-        errors=exc.errors,
-        data=exc.data,
-    )
-    return JSONResponse(status_code=exc.code, content=response.dict())
-
-
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     """Handle Pydantic validation errors"""

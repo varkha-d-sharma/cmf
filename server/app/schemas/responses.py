@@ -16,11 +16,9 @@ limitations under the License.
 
 """Unified API response wrapper for all endpoints"""
 
-from typing import Any, Dict, Optional, List
-from datetime import datetime
-from pydantic import BaseModel
-import json
-
+from datetime import datetime, timezone
+from typing import Any, Literal, Optional
+from pydantic import BaseModel, Field
 
 class PaginationMeta(BaseModel):
     """Pagination metadata"""
@@ -31,20 +29,29 @@ class PaginationMeta(BaseModel):
     has_prev: bool = False
 
 
+class ErrorDetail(BaseModel):
+    """Field-level or request-level error details"""
+    field: Optional[str] = None
+    message: str
+    code: Optional[str] = None
+
+
 class ResponseMeta(BaseModel):
     """Response metadata"""
-    timestamp: str = ""
+    timestamp: str = Field(
+        default_factory=lambda: datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    )
     pagination: Optional[PaginationMeta] = None
 
 
 class APIResponse(BaseModel):
     """Standard response wrapper for all API endpoints"""
-    status: str  # "success", "error", "partial"
+    status: Literal["success", "error", "partial"]
     code: int
     data: Any = None
     message: str = ""
-    errors: List[Dict[str, Any]] = []
-    meta: ResponseMeta = ResponseMeta()
+    errors: list[ErrorDetail] = Field(default_factory=list)
+    meta: ResponseMeta = Field(default_factory=ResponseMeta)
 
     class Config:
         json_encoders = {
@@ -64,9 +71,7 @@ def success_response(
         code=code,
         data=data,
         message=message,
-        errors=[],
         meta=ResponseMeta(
-            timestamp=datetime.utcnow().isoformat() + "Z",
             pagination=pagination,
         ),
     )
@@ -75,7 +80,7 @@ def success_response(
 def error_response(
     message: str = "Error",
     code: int = 400,
-    errors: Optional[List[Dict[str, Any]]] = None,
+    errors: Optional[list[ErrorDetail | dict[str, Any]]] = None,
     data: Any = None,
 ) -> APIResponse:
     """Create an error response"""
@@ -85,9 +90,6 @@ def error_response(
         data=data,
         message=message,
         errors=errors or [],
-        meta=ResponseMeta(
-            timestamp=datetime.utcnow().isoformat() + "Z",
-        ),
     )
 
 
@@ -95,7 +97,7 @@ def partial_response(
     data: Any = None,
     message: str = "Partial success",
     code: int = 206,
-    errors: Optional[List[Dict[str, Any]]] = None,
+    errors: Optional[list[ErrorDetail | dict[str, Any]]] = None,
     pagination: Optional[PaginationMeta] = None,
 ) -> APIResponse:
     """Create a partial success response"""
@@ -106,7 +108,6 @@ def partial_response(
         message=message,
         errors=errors or [],
         meta=ResponseMeta(
-            timestamp=datetime.utcnow().isoformat() + "Z",
             pagination=pagination,
         ),
     )

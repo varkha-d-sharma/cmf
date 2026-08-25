@@ -21,7 +21,6 @@ including pipeline listing and stage queries.
 
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
-
 from server.app.db.dbconfig import get_db
 from server.app.db.dbqueries import (
     fetch_unique_execution_stages,
