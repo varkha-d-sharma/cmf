@@ -151,7 +151,7 @@ async def get_artifact_lineage(
     )
 
 
-@router.get("/pipelines/{pipeline_name}/artifact-execution/lineage")
+@router.get("/pipelines/{pipeline_name}/artifact-executions/lineage")
 async def get_artifact_execution_lineage(
     request: Request,
     pipeline_name: str,

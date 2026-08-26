@@ -118,7 +118,7 @@ class FastAPIClient {
 
   async getArtiExeTreeLineage(pipeline) {
     return this.apiClient
-      .get(`/v1/pipelines/${encodeURIComponent(pipeline)}/artifact-execution/lineage`)
+      .get(`/v1/pipelines/${encodeURIComponent(pipeline)}/artifact-executions/lineage`)
       .then(({ data }) => {
         return data;
       });
