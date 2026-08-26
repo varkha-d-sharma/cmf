@@ -199,10 +199,10 @@ async def get_python_environment(request: Request, file_name: str):
     )
 
 
-@router.get("/executions/stages")
+@router.get("/pipelines/{pipeline_name}/stages")
 async def get_execution_stages(
     request: Request,
-    pipeline_name: str = Query(..., description="Pipeline name"),
+    pipeline_name: str,
     db: AsyncSession = Depends(get_db),
 ):
     result = await get_pipeline_stages(pipeline_name, db)
@@ -213,13 +213,12 @@ async def get_execution_stages(
     )
 
 
-@router.get("/executions/{pipeline_name}")
+@router.get("/pipelines/{pipeline_name}/executions")
 async def get_executions_endpoint(request: Request, pipeline_name: str):
     result = await list_of_executions(
-        request,
-        pipeline_name,
+        request= request,
+        pipeline_name=pipeline_name,
     )
-
     return success_response(
         data=result,
         message="Executions retrieved successfully",
@@ -233,8 +232,7 @@ async def get_executions(
     query_params: ExecutionByStageRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    pipeline_name = query_params.pipeline_name
-    result = await get_executions_by_stage(pipeline_name, query_params, db)
+    result = await get_executions_by_stage(query_params.pipeline_name, query_params, db)
     return success_response(
         data=result,
         message="Executions retrieved successfully",

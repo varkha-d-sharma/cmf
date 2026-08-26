@@ -115,7 +115,7 @@ async def artifact_execution_lineage(
 
 # ==================== API Endpoints ====================
 
-@router.get("/lineage/execution/{uuid}/{pipeline_name}")
+@router.get("/pipelines/{pipeline_name}/executions/{uuid}/lineage")
 async def get_execution_lineage(
     request: Request,
     uuid: str,
@@ -134,7 +134,7 @@ async def get_execution_lineage(
     )
 
 
-@router.get("/lineage/artifact/{pipeline_name}")
+@router.get("/pipelines/{pipeline_name}/artifacts/lineage")
 async def get_artifact_lineage(
     request: Request,
     pipeline_name: str,
@@ -151,7 +151,7 @@ async def get_artifact_lineage(
     )
 
 
-@router.get("/lineage/artifact-execution/{pipeline_name}")
+@router.get("/pipelines/{pipeline_name}/artifact-execution/lineage")
 async def get_artifact_execution_lineage(
     request: Request,
     pipeline_name: str,

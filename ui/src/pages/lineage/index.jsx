@@ -132,6 +132,7 @@ const Lineage = () => {
 
   const fetchArtifactTree = (pipelineName) => {
     setLoading(true);
+    // Using getArtifactLineage function to fetch artifact tree data based on the selected pipeline.
     client.getArtifactLineage(pipelineName).then((data) => {
       if (data === null) {
         setArtiTreeData(null);
@@ -209,6 +210,7 @@ const Lineage = () => {
 
   const fetchExecTree = (pipelineName, exec_type) => {
     setLoading(true);
+    // Using getExecutionLineage function to fetch execution tree data based on the selected pipeline and execution type.
     client.getExecutionLineage(pipelineName, exec_type).then((data) => {
       setExecutionData(data);
       setLoading(false);

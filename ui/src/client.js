@@ -92,40 +92,17 @@ class FastAPIClient {
     return client;
   }
 
-  // Deprecated legacy methods (unused by current stage-based grid pages).
-  // Replaced by: getArtifactsByStage / getArtifactTypesByStage
-  // async getArtifacts(pipeline_name, artifact_type, sort_order, active_page, filter_value, sort_field) {
-  //   return this.apiClient
-  //     .get(`/artifacts/${pipeline_name}/${artifact_type}`, {
-  //       params: {
-  //         filter_value: filter_value,
-  //         sort_order: sort_order,
-  //         active_page: active_page,
-  //         sort_field: sort_field,
-  //       },
-  //     })
-  //     .then(({ data }) => {
-  //       return data;
-  //     });
-  // }
-
-  // async getArtifactTypes() {
-  //   return this.apiClient.get(`/artifact_types`).then(({ data }) => {
-  //     return data;
-  //   });
-  // }
-
   async getArtifactLineage(pipeline) {
-    return this.apiClient
-      .get(`/v1/lineage/artifact/${pipeline}`)
-      .then(({ data }) => {
-        return data;
-      });
-  }
+  return this.apiClient
+    .get(`/v1/pipelines/${encodeURIComponent(pipeline)}/artifacts/lineage`)
+    .then(({ data }) => {
+      return data;
+    });
+}
 
   async getExecutionTypes(pipeline) {
     return this.apiClient
-      .get(`/v1/executions/${pipeline}`)
+      .get(`/v1/pipelines/${encodeURIComponent(pipeline)}/executions`)
       .then(({ data }) => {
         return data;
       });
@@ -133,7 +110,7 @@ class FastAPIClient {
 
   async getExecutionLineage(pipeline, uuid) {
     return this.apiClient
-      .get(`/v1/lineage/execution/${uuid}/${pipeline}`)
+      .get(`/v1/pipelines/${encodeURIComponent(pipeline)}/executions/${uuid}/lineage`)
       .then(({ data }) => {
         return data;
       });
@@ -141,7 +118,7 @@ class FastAPIClient {
 
   async getArtiExeTreeLineage(pipeline) {
     return this.apiClient
-      .get(`/v1/lineage/artifact-execution/${pipeline}`)
+      .get(`/v1/pipelines/${encodeURIComponent(pipeline)}/artifact-execution/lineage`)
       .then(({ data }) => {
         return data;
       });
@@ -298,7 +275,7 @@ class FastAPIClient {
   
   async getExecutionsByStage(pipelineName, stageName, activePage = 1, recordPerPage = 5, sortOrder = "desc", filterValue = "") {
     return this.apiClient
-      .post(`/v1/executions`, {
+      .post(`/v1/pipelines/${encodeURIComponent(pipelineName)}/executions`, {
         pipeline_name: pipelineName,
         stage_name: stageName,
         active_page: activePage,
@@ -312,20 +289,16 @@ class FastAPIClient {
   }
 
   async getExecutionStages(pipelineName) {
-    return this.apiClient
-      .get(`/v1/executions/stages`, {
-        params: {
-          pipeline_name: pipelineName,
-        },
-      })
-      .then(({ data }) => {
-        return data;
-      });
-  }
+  return this.apiClient
+    .get(`/v1/pipelines/${encodeURIComponent(pipelineName)}/stages`)
+    .then(({ data }) => {
+      return data;
+    });
+}
 
   async getArtifactTypesByStage(pipelineName, stageName) {
     return this.apiClient
-      .post(`/v1/artifacts/types`, {
+      .post(`/v1/pipelines/${encodeURIComponent(pipelineName)}/artifacts/types`, {
         pipeline_name: pipelineName,
         stage_name: stageName,
       })
@@ -336,7 +309,7 @@ class FastAPIClient {
 
   async getArtifactsByStage(pipelineName, stageName, artifactType, sortOrder, activePage = 1, recordPerPage = 5, filter = "", sortField = "name") {
     return this.apiClient
-      .post(`/v1/artifacts`, {
+      .post(`/v1/pipelines/${encodeURIComponent(pipelineName)}/artifacts`, {
         pipeline_name: pipelineName,
         stage_name: stageName,
         artifact_type: artifactType,

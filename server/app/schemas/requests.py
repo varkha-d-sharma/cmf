@@ -66,11 +66,6 @@ class ServerRegistrationRequest(BaseModel):
     last_sync_time: Optional[int] = Field(None, description="Epoch time in seconds")
 
 
-class AcknowledgeRequest(BaseModel):
-    server_name: str
-    server_url: str
-
-
 # Don't forget description
 class MLMDPullRequest(BaseModel):
     pipeline_name:Optional[str] = Field(None, description="Name of the pipeline")
@@ -149,12 +144,6 @@ class ScheduleCreateRequest(BaseModel):
             self.daily_time = None
         return self
 
-
-class ScheduleUpdateRequest(BaseModel):
-    schedule_id: int = Field(..., description="Schedule id to update")
-    timezone: str = Field("UTC", description="IANA timezone")
-    start_time_local_iso: Optional[str] = Field(None, description="Local ISO datetime")
-    one_time: Optional[bool] = Field(None, description="Toggle one-time behavior")
 
 
 class ExecutionByStagePipelineRequest(BaseRequest):

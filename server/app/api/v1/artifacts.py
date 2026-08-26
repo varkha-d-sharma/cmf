@@ -58,20 +58,6 @@ import pandas as pd
 
 # ==================== Business Logic Functions ====================
 
-async def artifact_types():
-    """Get list of artifact types."""
-    await check_mlmd_file_exists()
-
-    artifact_types_list = await async_api(
-        get_artifact_types,
-        query,
-    )
-
-    if "Environment" in artifact_types_list:
-        artifact_types_list.remove("Environment")
-
-    return artifact_types_list
-
 async def model_card(request: Request, modelId: int, response_model=List[Dict[str, Any]]):
     """Get model card information."""
     json_payload_1 = ""
@@ -262,7 +248,7 @@ async def get_label_data_endpoint(request: Request, file_name: str):
     )
 
 
-@router.post("/artifacts/types")
+@router.post("/pipelines/{pipeline_name}/artifacts/types")
 async def get_artifact_types_by_stage_endpoint(
     request: Request,
     query_params: ArtifactTypesByStageRequest,
@@ -280,7 +266,7 @@ async def get_artifact_types_by_stage_endpoint(
     )
 
 
-@router.post("/artifacts")
+@router.post("/pipelines/{pipeline_name}/artifacts")
 async def get_artifacts_endpoint(
     request: Request,
     query_params: ArtifactByStageRequest,
