@@ -33,7 +33,6 @@ import httpx
 from fastapi import APIRouter, Depends, Request, Query, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-
 from server.app.db.dbconfig import get_db
 from server.app.db.dbqueries import (
     register_server_details,
@@ -49,7 +48,7 @@ from server.app.db.dbqueries import (
 )
 from server.app.schemas.requests import ScheduleCreateRequest, ServerRegistrationRequest
 from server.app.schemas.responses import success_response
-from server.app.main import (
+from server.app.services.mlmd_state import(
     query,
     LOCAL_ADDRESSES,
     update_global_art_dict,

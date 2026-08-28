@@ -26,10 +26,9 @@ from server.app.db.dbqueries import (
     fetch_unique_execution_stages,
 )
 from server.app.schemas.responses import success_response
-from server.app.main import query
+from server.app.services.mlmd_state import query
 
 router = APIRouter(prefix="/v1", tags=["pipelines"])
-
 
 # ==================== Business Logic Functions ====================
 

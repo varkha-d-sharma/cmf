@@ -23,10 +23,8 @@ including artifact types.
 import os
 import json
 from typing import List, Dict, Any
-
 from fastapi import APIRouter, Depends, Query, Request, HTTPException, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
-
 from server.app.db.dbconfig import get_db
 from server.app.db.dbqueries import (
     fetch_artifact_types_by_stage,
@@ -37,22 +35,15 @@ from server.app.schemas.requests import (
     ArtifactTypesByStageRequest,
 )
 from server.app.schemas.responses import success_response
-from server.app.main import (
-    query,
-)
-
+from server.app.services.mlmd_state import query
 from server.app.get_data import (
     get_artifact_types,
     async_api,
     get_model_data,
 )
-
-from server.app.api.v1.metadata import (
-    check_mlmd_file_exists,
-)
-
-router = APIRouter(prefix="/v1", tags=["artifacts"])
+from server.app.api.v1.metadata import (check_mlmd_file_exists,)
 import pandas as pd
+router = APIRouter(prefix="/v1", tags=["artifacts"])
 
 # ==================== Business Logic Functions ====================
 

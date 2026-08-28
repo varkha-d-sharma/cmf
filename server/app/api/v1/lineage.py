@@ -22,30 +22,17 @@ including execution lineage, artifact lineage, and artifact-execution lineage.
 """
 
 from typing import List, Dict, Any, Optional
-
 from fastapi import APIRouter, Request
-
 from server.app.schemas.responses import success_response
-from server.app.main import (
+from server.app.services.mlmd_state import  (
     query,
     dict_of_art_ids,
     dict_of_exe_ids,
 )
-
 from server.app.get_data import async_api
-
-from server.app.query_execution_lineage_d3tree import (
-    query_execution_lineage_d3tree,
-)
-
-from server.app.query_artifact_lineage_d3tree import (
-    query_artifact_lineage_d3tree,
-)
-
-from server.app.query_visualization_artifact_execution import (
-    query_visualization_artifact_execution,
-)
-
+from server.app.query_execution_lineage_d3tree import (query_execution_lineage_d3tree,)
+from server.app.query_artifact_lineage_d3tree import (query_artifact_lineage_d3tree,)
+from server.app.query_visualization_artifact_execution import (query_visualization_artifact_execution,)
 from server.app.api.v1.metadata import (
     check_mlmd_file_exists,
     check_pipeline_exists,

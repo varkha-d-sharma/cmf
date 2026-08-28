@@ -33,7 +33,7 @@ from server.app.schemas.requests import (
     ExecutionByStagePipelineRequest,
 )
 from server.app.schemas.responses import success_response
-from server.app.main import (
+from server.app.services.mlmd_state import (
     query,
     dict_of_exe_ids,
 )
