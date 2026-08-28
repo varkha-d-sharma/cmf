@@ -13,10 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
-Pipeline API endpoints and business logic.
-
-This module contains all pipeline-related API endpoints and their business logic,
-including pipeline listing and stage queries.
+This Module contains scheduler logic for executing due schedules in the background. It performs server registration and liveness checks before executing scheduled syncs, and handles logging and rescheduling based on the outcome of each sync attempt.
 """
 
 import asyncio

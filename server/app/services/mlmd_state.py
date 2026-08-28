@@ -13,10 +13,10 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
-Pipeline API endpoints and business logic.
+MLMD state management for pipelines.
 
-This module contains all pipeline-related API endpoints and their business logic,
-including pipeline listing and stage queries.
+This module contains functions to manage and cache MLMD state for pipelines,
+including artifact and execution IDs.
 """
 
 from collections import defaultdict
