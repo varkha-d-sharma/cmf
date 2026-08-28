@@ -56,11 +56,12 @@ const ExecutionsPostgresGrid = () => {
     });
   }, []);
 
-  // Fetch execution stages when pipeline changes
+ // Fetch stages for the selected pipeline.
+ // Stages are pipeline-level metadata shared by execution and artifact views.
   useEffect(() => {
     if (selectedPipeline) {
       client
-        .getExecutionStages(selectedPipeline)
+        .getPipelineStages(selectedPipeline)
         .then((data) => {
           const allStages = data.stages || [];
           setStages(allStages);
@@ -101,29 +102,7 @@ const ExecutionsPostgresGrid = () => {
           setTotalItems(0);
         });
     }
-  }, [selectedStage, activePage, sortOrder, filter]);
-
-  const fetchExecutionTypesByStage = (pipelineName, stageName) => {
-    client
-      .getExecutionsByStage(
-        pipelineName,
-        stageName,
-        activePage,
-        ITEMS_PER_PAGE,
-        sortOrder,
-        filter,
-      )
-      .then((data) => {
-        console.log("Executions for Stage:", data);
-        setExecutions(data.items || []);
-        setTotalItems(data.total_items || 0);
-      })
-      .catch((error) => {
-        console.error("Error fetching executions by stage:", error);
-        setExecutions([]);
-        setTotalItems(0);
-      });
-  };
+  }, [selectedPipeline, selectedStage, activePage, sortOrder, filter]);
 
   // Handlers
   const handlePipelineClick = (pipeline) => {
@@ -141,7 +120,6 @@ const ExecutionsPostgresGrid = () => {
     setActivePage(1);
     setSelectedExecution(null);
     setSelectedExecutions([]);
-    fetchExecutionTypesByStage(selectedPipeline, stage);
   };
 
   const handlePageClick = (page) => {

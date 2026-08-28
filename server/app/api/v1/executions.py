@@ -30,7 +30,6 @@ from server.app.db.dbqueries import (
     fetch_unique_execution_stages,
 )
 from server.app.schemas.requests import (
-    ExecutionByStageRequest,
     ExecutionByStagePipelineRequest,
 )
 from server.app.schemas.responses import success_response
@@ -112,7 +111,7 @@ async def get_python_env(file_name: str) -> str:
 
 async def get_executions_by_stage(
     pipeline_name: str,
-    query_params: ExecutionByStageRequest = Depends(),
+    query_params: ExecutionByStagePipelineRequest = Depends(),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -200,7 +199,7 @@ async def get_python_environment(request: Request, file_name: str):
 
 
 @router.get("/pipelines/{pipeline_name}/stages")
-async def get_execution_stages(
+async def pipeline_stages(
     request: Request,
     pipeline_name: str,
     db: AsyncSession = Depends(get_db),
@@ -215,24 +214,11 @@ async def get_execution_stages(
 
 @router.get("/pipelines/{pipeline_name}/executions")
 async def get_executions_endpoint(request: Request, pipeline_name: str):
+    """Retrieve the execution list for a pipeline."""
     result = await list_of_executions(
         request= request,
         pipeline_name=pipeline_name,
     )
-    return success_response(
-        data=result,
-        message="Executions retrieved successfully",
-        code=200,
-    )
-
-
-@router.post("/executions")
-async def get_executions(
-    request: Request,
-    query_params: ExecutionByStageRequest,
-    db: AsyncSession = Depends(get_db),
-):
-    result = await get_executions_by_stage(query_params.pipeline_name, query_params, db)
     return success_response(
         data=result,
         message="Executions retrieved successfully",
@@ -247,6 +233,7 @@ async def pipeline_executions(
     pipeline_name: str,
     db: AsyncSession = Depends(get_db),
 ):
+    """Retrieve executions filtered/stage-based search by pipeline and stage name."""
     result = await get_executions_by_stage(pipeline_name, query_params, db)
     return success_response(
         data=result,

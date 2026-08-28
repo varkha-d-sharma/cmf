@@ -30,6 +30,7 @@ import CompareModal from "../../components/CompareModal";
 import Papa from "papaparse";
 
 const client = new FastAPIClient(config);
+const ITEMS_PER_PAGE = 6;
 
 const ArtifactsPostgres = () => {
   const [searchParams] = useSearchParams();
@@ -86,9 +87,8 @@ const ArtifactsPostgres = () => {
   }, [selectedPipeline]);
 
   // Fetch stages from the backend for the selected pipeline name.
-  const fetchStagesByPipelineName = (pipeline_name) => {
-    client.getExecutionStages(pipeline_name).then((data) => {
-      console.log("Artifact Stages Data:", data);
+  const fetchStagesByPipelineName = (pipelineName) => {
+    client.getPipelineStages(pipelineName).then((data) => {
       const allStages = data.stages || [];
       setStages(allStages);
       setTotalStages(data.total_stages || 0);
@@ -108,13 +108,12 @@ const ArtifactsPostgres = () => {
     if (selectedPipeline && selectedStage) {
       fetchArtifactTypesByStage(selectedPipeline, selectedStage);
     }
-  }, [selectedStage]);
+  }, [selectedPipeline, selectedStage]);
 
   const fetchArtifactTypesByStage = (pipelineName, stageName) => {
     client
       .getArtifactTypesByStage(pipelineName, stageName)
       .then((types) => {
-        console.log("Artifact Types for Stage:", types);
         setArtifactTypes(types);
         if (types.length > 0) {
           setSelectedArtifactType(types[0]);
@@ -144,7 +143,7 @@ const ArtifactsPostgres = () => {
         selectedCol,
       );
     }
-  }, [selectedArtifactType, sortOrder, activePage, selectedCol, filter]);
+  }, [selectedPipeline, selectedStage, selectedArtifactType, sortOrder, activePage, selectedCol, filter]);
 
   // Fetch artifacts from the backend based on selected pipeline, stage, and artifact type, along with pagination, sorting, and filtering parameters.
   const fetchArtifactsByStage = (
@@ -163,7 +162,7 @@ const ArtifactsPostgres = () => {
         artifactType,
         sortOrder,
         activePage,
-        6,
+        ITEMS_PER_PAGE,
         filter,
         selectedCol,
       )
@@ -194,7 +193,6 @@ const ArtifactsPostgres = () => {
     setArtifacts([]);
     setActivePage(1);
     setSelectedArtifacts([]);
-    fetchArtifactTypesByStage(selectedPipeline, stage);
   };
 
   const handleArtifactTypeClick = (artifactType) => {
@@ -241,7 +239,7 @@ const ArtifactsPostgres = () => {
   };
 
   const handleNextClick = () => {
-    if (activePage < Math.ceil(totalItems / 6)) setActivePage(activePage + 1);
+    if (activePage < Math.ceil(totalItems / ITEMS_PER_PAGE)) setActivePage(activePage + 1);
   };
 
   const handleLabelClick = (labelName, artifact) => {
@@ -257,23 +255,18 @@ const ArtifactsPostgres = () => {
       .getLabelData(labelId)
       .then((csvData) => {
         setLabelData(csvData);
-        console.log("label CSV data = ", csvData);
-
         if (
           csvData &&
           typeof csvData === "string" &&
           csvData.trim().length > 0
         ) {
           const parsed = Papa.parse(csvData, { header: true });
-          console.log("parsed data = ", parsed.data);
-
           if (parsed.data && parsed.data.length > 0) {
             setParsedLabelData(parsed.data);
             if (parsed.meta.fields) {
               const columns = parsed.meta.fields.map((field) => ({
                 name: field,
               }));
-              console.log("columns = ", columns);
               setLabelColumns(columns);
             }
           } else {
@@ -556,7 +549,7 @@ const ArtifactsPostgres = () => {
                                 onPageClick={handlePageClick}
                                 onPrevClick={handlePrevClick}
                                 onNextClick={handleNextClick}
-                                itemsPerPage={6}
+                                itemsPerPage={ITEMS_PER_PAGE}
                               />
                             </>
                           ) : (
@@ -616,7 +609,7 @@ const ArtifactsPostgres = () => {
                             onPageClick={handlePageClick}
                             onPrevClick={handlePrevClick}
                             onNextClick={handleNextClick}
-                            itemsPerPage={6}
+                            itemsPerPage={ITEMS_PER_PAGE}
                           />
                         </>
                       ) : (

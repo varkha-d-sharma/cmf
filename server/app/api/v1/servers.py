@@ -69,37 +69,39 @@ router = APIRouter(prefix="/v1", tags=["servers"])
 
 # ==================== Business Logic Functions ====================
 
-async def register_server(request: ServerRegistrationRequest, db: AsyncSession = Depends(get_db)):
+async def register_server(request: ServerRegistrationRequest,db: AsyncSession,):
     """Register a new server."""
     try:
         server_name = request.server_name
         server_url = request.server_url
         server = extract_hostname(server_url)
 
-        # Check user is registering with own details
+        # A server must not register itself.
         if server in LOCAL_ADDRESSES:
-            return {"message": "Registration failed: Cannot register the server with its own details."}
+            raise HTTPException(status_code=400,detail="Cannot register the server with its own details.",)
 
-        # Step 1: Send a request to the target server for acknowledgement
+        # Send an acknowledgement request to the target server
+        # before saving its details locally.
         async with httpx.AsyncClient() as client:
             try:
                 response = await client.post(
                     f"{server_url}/api/acknowledge",
-                    json={"server_name": server_name, "server_url": server_url}
+                    json={
+                        "server_name": server_name,
+                        "server_url": server_url,
+                    },
                 )
-                if response.status_code != 200:
-                    raise HTTPException(status_code=500, detail="Target server did not respond successfully")
-                target_server_data = response.json()
-            except httpx.RequestError:
-                raise HTTPException(status_code=500, detail="Target server is not reachable")
+            except httpx.RequestError as exc:
+                raise HTTPException(status_code=500, detail="Target server is not reachable",) from exc
 
-        # Save server details in the database
-        return await register_server_details(db, server_name, server_url)
+            if response.status_code != 200:
+                raise HTTPException(status_code=500,detail="Target server did not respond successfully",)
 
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to register server: {e}")
+        return await register_server_details(db,server_name,server_url,)
+
+    except HTTPException: raise
+    except Exception as exc:
+        raise HTTPException(status_code=500,detail=f"Failed to register server: {exc}",) from exc
 
 
 async def sync_metadata(request: ServerRegistrationRequest, db: AsyncSession = Depends(get_db), skip_logging: bool = False):
@@ -137,16 +139,11 @@ async def sync_metadata(request: ServerRegistrationRequest, db: AsyncSession = D
         # Pull MLMD data from the target server using the /mlmd_pull endpoint
         json_payload = await server_mlmd_pull(server_url, last_sync_time)
 
-        json_data = {
-            "exec_uuid": None,
-            "json_payload": json.dumps(json_payload),
-            "pipeline_name": None
-        }
+        json_payload_str = json.dumps(json_payload)
 
         # Ensure the pipeline name in req_info matches the one in the JSON payload
         # to maintain data integrity
         pipelines = json_payload.get("Pipeline", [])
-        len_pipelines = len(pipelines)
         pipeline_names = []
 
         if not pipelines:
@@ -161,7 +158,7 @@ async def sync_metadata(request: ServerRegistrationRequest, db: AsyncSession = D
         pipeline_names = [pipeline.get("name") for pipeline in pipelines]
 
         # Push the JSON payload to the host server
-        status = await async_api(update_mlmd, query, json_data["json_payload"], None, "push", None)
+        status = await async_api(update_mlmd, query, json_payload_str, None, "push", None)
         if status == "invalid_json_payload":
             # Invalid JSON payload, return 400 Bad Request
             await log_sync_attempt("failed", "Invalid JSON payload. The pipeline name is missing.", db, server_name, server_url, current_utc_epoch_time, skip_logging)
@@ -209,51 +206,63 @@ async def server_list(db: AsyncSession = Depends(get_db)):
     return rows
 
 
-def download_python_env(request: Request, list_of_files: Optional[list[str]] = Query(None)):
-    """Download Python environment files as ZIP."""
-    try:
-        DIRECTORY = "/cmf-server/data/env/"  # Directory to be compressed
-        # Check if the directory exists
-        if not os.path.exists(DIRECTORY):
-            return {"error": "Directory does not exist"}
+def download_python_env(request: Request,list_of_files: Optional[list[str]] = Query(None),):
+    """Download Python environment files as a ZIP."""
+    directory = "/cmf-server/data/env/"
 
-        # Determine files to include in the ZIP
+    try:
+        if not os.path.isdir(directory):
+            raise HTTPException(status_code=404,detail="Python environment directory does not exist",)
+
         files_to_zip = []
-        # if list_of_files is provided, include only those files
-        # else include all files in the directory
+
         if list_of_files:
             for file_name in list_of_files:
-                file_path = os.path.join(DIRECTORY, file_name)
-                if os.path.exists(file_path):
-                    files_to_zip.append((file_path, file_name))
-                else:
-                    return {"error": f"File {file_name} does not exist"}
+                safe_file_name = os.path.basename(file_name)
+                file_path = os.path.join(directory, safe_file_name)
+
+                if not os.path.isfile(file_path):
+                    raise HTTPException(status_code=404,detail=f"File {file_name} does not exist",)
+
+                files_to_zip.append((file_path, safe_file_name))
+
         else:
-            if not os.listdir(DIRECTORY):
-                return {"error": "Directory is empty"}
-            for root, _, files in os.walk(DIRECTORY):
-                for file in files:
-                    file_path = os.path.join(root, file)
-                    arcname = os.path.relpath(file_path, DIRECTORY)
+            if not os.listdir(directory):
+                raise HTTPException(status_code=404,detail="Python environment directory is empty",)
+
+            for root, _, files in os.walk(directory):
+                for file_name in files:
+                    file_path = os.path.join(root, file_name)
+                    arcname = os.path.relpath(file_path,directory,)
                     files_to_zip.append((file_path, arcname))
 
-        # Create and send the ZIP file 
         zip_buffer = io.BytesIO()
-        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+
+        with zipfile.ZipFile(zip_buffer,"w",zipfile.ZIP_DEFLATED,) as zip_file:
             for file_path, arcname in files_to_zip:
                 zip_file.write(file_path, arcname)
-        
+
         zip_buffer.seek(0)
+
+        filename = ("python_env_files.zip"
+            if list_of_files
+            else "python_env_folder.zip"
+        )
 
         return StreamingResponse(
             zip_buffer,
             media_type="application/zip",
             headers={
-                "Content-Disposition": f"attachment; filename={'python_env_files.zip' if list_of_files else 'python_env_folder.zip'}"
-            }
+                "Content-Disposition": (
+                    f"attachment; filename={filename}"
+                )
+            },
         )
-    except Exception as e:
-        return {"error": f"Failed to download files: {e}"}
+
+    except HTTPException:
+        raise
+    except OSError as exc:
+        raise HTTPException(status_code=500,detail=f"Failed to download files: {exc}",) from exc
 
 
 async def schedule_sync(request: ScheduleCreateRequest, db: AsyncSession = Depends(get_db)):
@@ -411,8 +420,8 @@ async def register_server_route(request: Request, info: ServerRegistrationReques
 
 
 @router.post("/servers/sync")
-async def sync_server(request: Request, info: ServerRegistrationRequest, db: AsyncSession = Depends(get_db), skip_logging: bool = False):
-    result = await sync_metadata(info, db, skip_logging)
+async def sync_server(request: Request, info: ServerRegistrationRequest, db: AsyncSession = Depends(get_db)):
+    result = await sync_metadata(info, db, skip_logging = False)
     return success_response(
         data=result,
         message="Server synced successfully",
@@ -440,16 +449,6 @@ async def create_schedule(request: Request, schedule_info: ScheduleCreateRequest
     )
 
 
-@router.post("/servers/schedules")
-async def create_schedule_legacy(request: Request, schedule_info: ScheduleCreateRequest, db: AsyncSession = Depends(get_db)):
-    result = await schedule_sync(schedule_info, db)
-    return success_response(
-        data=result,
-        message="Schedule created successfully",
-        code=201,
-    )
-
-
 @router.get("/schedules")
 async def list_schedules_standard(request: Request, server_id: Optional[int] = None, db: AsyncSession = Depends(get_db)):
     result = await get_schedules(server_id, db)
@@ -460,28 +459,8 @@ async def list_schedules_standard(request: Request, server_id: Optional[int] = N
     )
 
 
-@router.get("/servers/schedules")
-async def list_schedules(request: Request, server_id: Optional[int] = None, db: AsyncSession = Depends(get_db)):
-    result = await get_schedules(server_id, db)
-    return success_response(
-        data=result,
-        message="Schedules retrieved successfully",
-        code=200,
-    )
-
-
 @router.get("/schedules/{schedule_id}/logs")
 async def schedule_logs_standard(request: Request, schedule_id: int, db: AsyncSession = Depends(get_db)):
-    result = await get_schedule_logs(schedule_id, db)
-    return success_response(
-        data=result,
-        message="Schedule logs retrieved successfully",
-        code=200,
-    )
-
-
-@router.get("/servers/schedules/{schedule_id}/logs")
-async def schedule_logs(request: Request, schedule_id: int, db: AsyncSession = Depends(get_db)):
     result = await get_schedule_logs(schedule_id, db)
     return success_response(
         data=result,
@@ -510,17 +489,7 @@ async def delete_schedule_standard(request: Request, schedule_id: int, db: Async
     )
 
 
-@router.delete("/servers/schedules/{schedule_id}")
-async def delete_server_schedule(request: Request, schedule_id: int, db: AsyncSession = Depends(get_db)):
-    result = await delete_schedule_route(schedule_id, db)
-    return success_response(
-        data=result,
-        message="Schedule deleted successfully",
-        code=200,
-    )
-
-
-@router.get("/download-python-env")
-async def download_python_env_endpoint(request: Request, list_of_files: Optional[list[str]] = Query(None)):
+@router.get("/python-envs/download")
+async def download_python_env_route(request: Request, list_of_files: Optional[list[str]] = Query(None)):
     """Download Python environment files as ZIP."""
     return download_python_env(request, list_of_files)

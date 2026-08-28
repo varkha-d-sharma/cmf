@@ -70,18 +70,6 @@ async def get_registered_server_by_name_url(db: AsyncSession, server_name: str, 
     return result.mappings().first()
     
 
-async def get_sync_status(db: AsyncSession, server_name: str, server_url: str):
-    """
-    Get the sync status from the database.
-    """
-    query = select(registered_servers.c.last_sync_time).where(
-        (registered_servers.c.server_name == server_name) & 
-        (registered_servers.c.host_info == server_url)
-    )
-    result = await db.execute(query)
-    return result.mappings().all()
-
-
 async def update_sync_status(db: AsyncSession, current_utc_time: int, server_name: str, server_url: str):
     """Update last sync timestamp for a server identified by name and URL."""
     query = update(registered_servers).where(
@@ -931,10 +919,15 @@ async def get_completed_logs_by_server(db: AsyncSession, server_id: int, limit: 
             sync_logs.c.status,
             sync_logs.c.message,
             sync_logs.c.sync_type,
-            scheduled_syncs.c.server_id
+            scheduled_syncs.c.server_id,
         )
-        .select_from(sync_logs.join(scheduled_syncs, sync_logs.c.schedule_id == scheduled_syncs.c.id))
-        .where(scheduled_syncs.c.server_id == server_id)
+        .select_from(
+            sync_logs.join(scheduled_syncs,sync_logs.c.schedule_id == scheduled_syncs.c.id)
+        )
+        .where(
+            scheduled_syncs.c.server_id == server_id,
+            sync_logs.c.status == "completed",
+        )
         .order_by(sync_logs.c.run_time_utc.desc())
         .limit(limit)
     )

@@ -33,10 +33,8 @@ from server.app.db.dbqueries import (
     fetch_artifacts_by_stage,
 )
 from server.app.schemas.requests import (
-    ArtifactByStagePipelineRequest,
     ArtifactByStageRequest,
     ArtifactTypesByStageRequest,
-    ArtifactTypesByStagePipelineRequest,
 )
 from server.app.schemas.responses import success_response
 from server.app.main import (
@@ -57,6 +55,20 @@ router = APIRouter(prefix="/v1", tags=["artifacts"])
 import pandas as pd
 
 # ==================== Business Logic Functions ====================
+
+async def artifact_types():
+    """Get list of artifact types."""
+    await check_mlmd_file_exists()
+
+    artifact_types_list = await async_api(
+        get_artifact_types,
+        query,
+    )
+
+    if "Environment" in artifact_types_list:
+        artifact_types_list.remove("Environment")
+
+    return artifact_types_list
 
 async def model_card(request: Request, modelId: int, response_model=List[Dict[str, Any]]):
     """Get model card information."""
@@ -109,7 +121,7 @@ async def upload_label(request: Request, file: UploadFile):
         return {"message": f"File '{file.filename}' uploaded successfully to {labels_dir}."}
 
     except Exception as e:
-        return {"error": f"Failed to up load file: {e}"}
+        return {"error": f"Failed to upload file: {e}"}
 
 
 async def get_label_data(file_name: str) -> str:
@@ -205,9 +217,14 @@ async def get_artifacts_by_stage(
 # ==================== API Endpoints ====================
 
 @router.get("/metadata/artifact-types")
-async def get_artifact_types_endpoint(
+async def get_artifacts(
     request: Request,
 ):
+    """
+    Retrieve available artifact types.
+
+    This API is used by the MCP server.
+    """
     result = await artifact_types()
 
     return success_response(
@@ -218,7 +235,7 @@ async def get_artifact_types_endpoint(
 
 
 @router.get("/artifacts/model-card")
-async def get_model_card_endpoint( request: Request, modelId: int,):
+async def get_model_card( request: Request, modelId: int,):
     result = await model_card(request, modelId)
     return success_response(
         data=result,
@@ -238,7 +255,7 @@ async def upload_label_file(request: Request,file: UploadFile = File(...),):
 
 
 @router.get("/artifacts/label-data")
-async def get_label_data_endpoint(request: Request, file_name: str):
+async def get_label_data_route(request: Request, file_name: str):
     result = await get_label_data(file_name)
 
     return success_response(
@@ -249,7 +266,7 @@ async def get_label_data_endpoint(request: Request, file_name: str):
 
 
 @router.post("/pipelines/{pipeline_name}/artifacts/types")
-async def get_artifact_types_by_stage_endpoint(
+async def get_artifact_types_by_stage_route(
     request: Request,
     query_params: ArtifactTypesByStageRequest,
     db: AsyncSession = Depends(get_db),
@@ -267,42 +284,12 @@ async def get_artifact_types_by_stage_endpoint(
 
 
 @router.post("/pipelines/{pipeline_name}/artifacts")
-async def get_artifacts_endpoint(
+async def get_artifacts_types(
     request: Request,
     query_params: ArtifactByStageRequest,
     db: AsyncSession = Depends(get_db),
 ):
     pipeline_name = query_params.pipeline_name
-    result = await get_artifacts_by_stage(pipeline_name, query_params, db)
-    return success_response(
-        data=result,
-        message="Artifacts retrieved successfully",
-        code=200,
-    )
-
-
-@router.post("/pipelines/{pipeline_name}/artifact-types-by-stage")
-async def pipeline_artifact_types_by_stage(
-    request: Request,
-    pipeline_name: str,
-    query_params: ArtifactTypesByStagePipelineRequest,
-    db: AsyncSession = Depends(get_db),
-):
-    result = await get_artifact_types_by_stage(pipeline_name, query_params.stage_name, db)
-    return success_response(
-        data=result,
-        message="Artifact types retrieved successfully",
-        code=200,
-    )
-
-
-@router.post("/pipelines/{pipeline_name}/artifacts-by-stage")
-async def pipeline_artifacts_by_stage(
-    request: Request,
-    pipeline_name: str,
-    query_params: ArtifactByStagePipelineRequest,
-    db: AsyncSession = Depends(get_db),
-):
     result = await get_artifacts_by_stage(pipeline_name, query_params, db)
     return success_response(
         data=result,

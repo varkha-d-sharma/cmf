@@ -288,7 +288,7 @@ class FastAPIClient {
       });
   }
 
-  async getExecutionStages(pipelineName) {
+  async getPipelineStages(pipelineName) {
   return this.apiClient
     .get(`/v1/pipelines/${encodeURIComponent(pipelineName)}/stages`)
     .then(({ data }) => {
