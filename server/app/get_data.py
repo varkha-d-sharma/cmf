@@ -254,7 +254,7 @@ async def server_mlmd_pull(server_url, last_sync_time):
         # Step 1: Send a request to the target server to fetch mlmd data
         async with httpx.AsyncClient(timeout=300.0) as client:
             try:
-                response = await client.post(f"{server_url}/api/mlmd_pull", json={'last_sync_time': last_sync_time})
+                response = await client.post(f"{server_url}/api/v1/mlmd/pull", json={'last_sync_time': last_sync_time})
 
                 if response.status_code != 200:
                     raise HTTPException(status_code=500, detail="Target server did not respond successfully")

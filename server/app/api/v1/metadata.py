@@ -127,8 +127,10 @@ async def upload_tensorboard_logs(
         with open(file_path, "wb") as buffer:
             buffer.write(await file.read())
         return {"message": f"File '{file.filename}' uploaded successfully"}
+    except HTTPException:
+        raise
     except Exception as e:
-        return {"error": f"Failed to up load file: {e}"}
+        raise HTTPException(status_code=500, detail=f"Failed to upload file: {str(e)}") from e
 
 
 @router.post("/mlmd/push")
