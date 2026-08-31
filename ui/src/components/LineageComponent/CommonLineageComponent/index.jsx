@@ -25,8 +25,8 @@
 
 import React, { useMemo } from "react";
 import "./index.css";
-import lineagenode from "../lineagenode";
-import { transformLineageData } from "../trasformeddata";
+import lineagenode from "../LineageNode";
+import { TransformLineageData } from "../TransformLineageData";
 import { LineageCanvas, nodeWidth, buildReactFlowNodes, buildReactFlowEdges} from "../LineageFlowCommon";
 
 // React Flow Configuration Constants
@@ -159,7 +159,7 @@ const CommonLineageComponent = ({ data, lineageType }) => {
     if (!data || data.length === 0) return { nodes: [], edges: [] };
     
     // Normalize raw lineage arrays and preserve already-transformed graph data.
-    const formattedData = transformLineageData(data, {
+    const formattedData = TransformLineageData(data, {
       nodeType: lineageType === "Execution_Tree" ? "Execution" : undefined,
     });
 

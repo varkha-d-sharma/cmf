@@ -13,7 +13,7 @@ from cmflib.cmfquery import CmfQuery
 import asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 from collections import defaultdict
-from server.app.utils import extract_hostname, get_fqdn, convert_mlmd_to_pipeline_lineage_json
+from server.app.utils import extract_hostname, get_fqdn
 from server.app.get_data import (
     get_mlmd_from_server,
     get_artifact_types,
@@ -21,6 +21,7 @@ from server.app.get_data import (
     get_all_exe_ids,
     async_api,
     get_model_data,
+    convert_mlmd_to_hierarchical_lineage_json,
     executions_list,
     server_mlmd_pull,
     log_sync_attempt,
@@ -70,9 +71,6 @@ import dotenv
 from jsonpath_ng.ext import parse
 from cmflib.cmf_federation import update_mlmd
 from datetime import datetime
-# from zoneinfo import ZoneInfo
-# import json
-# from fastapi import Request, HTTPException
 
 dotenv.load_dotenv()
 
@@ -668,11 +666,11 @@ async def hierarchical_lineage(request: Request, pipeline_name: str):
 
     # 4. Convert the parsed payload into the hierarchical lineage UI schema.
     try:
-        converted = convert_mlmd_to_pipeline_lineage_json(json_payload, pipeline_name)
+        converted = convert_mlmd_to_hierarchical_lineage_json(json_payload, pipeline_name)
     except (KeyError, IndexError, TypeError, ValueError) as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to convert the MLMD payload to pipeline lineage JSON: {str(e)}"
+            detail=f"Failed to convert the MLMD payload to hierarchical lineage JSON: {str(e)}"
         )
 
     # 5. Response

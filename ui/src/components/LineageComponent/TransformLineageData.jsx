@@ -52,6 +52,9 @@ const determineType = (id) => {
   return "Execution";
 };
 
+const getDisplayName = (id) =>
+  String(id).replace(/^(artifact_name_|execution_name_)/, "");
+
 /**
  * Transforms a raw flat array of related artifacts into a deduplicated graph.
  * Parent identifiers that are referenced but not present as items are added as
@@ -75,7 +78,7 @@ const transformFlatLineageData = (rawJson, nodeType) => {
     if (!originalNodeMap.has(item.id)) {
       originalNodeMap.set(item.id, {
         id: item.id,
-        name: item.id,
+        name: getDisplayName(item.id),
         type: nodeType || determineType(item.id),
         parents,
       });
@@ -85,7 +88,7 @@ const transformFlatLineageData = (rawJson, nodeType) => {
       if (!originalNodeMap.has(parentId)) {
         originalNodeMap.set(parentId, {
           id: parentId,
-          name: parentId,
+          name: getDisplayName(parentId),
           type: nodeType || determineType(parentId),
           parents: [],
         });
@@ -230,7 +233,7 @@ const transformNestedStageData = (rawJson) => {
  * @returns {{nodes: Array<Object>, links: Array<{source: string, target: string}>}} Graph data.
  */
 
-export const transformLineageData = (rawJson, options = {}) => {
+export const TransformLineageData = (rawJson, options = {}) => {
   if (!rawJson) return { nodes: [], links: [] };
   if (rawJson?.nodes && rawJson?.links) return rawJson;
   if (Array.isArray(rawJson)) return transformFlatLineageData(rawJson, options.nodeType);

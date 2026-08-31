@@ -32,9 +32,9 @@
 import React, { useMemo } from "react";
 import dagre from "dagre";
 import "./index.css";
-import LineageNode from "../lineagenode";
-import { transformLineageData } from "../trasformeddata";
+import { TransformLineageData } from "../TransformLineageData";
 import { buildReactFlowEdges, buildReactFlowNodes, nodeWidth, LineageCanvas } from "../LineageFlowCommon";
+import LineageNode from "../LineageNode";
  ; // adjust the path to wherever you place the shared file
 
 const nodeHeight = 80;
@@ -192,7 +192,7 @@ const HierarchicalLineageFlow = ({ data }) => {
   const { nodes, edges } = useMemo(() => {
     if (!data || data.length === 0) return { nodes: [], edges: [] };
 
-    const formattedData = transformLineageData(data);
+    const formattedData = TransformLineageData(data);
     const rfNodes = buildReactFlowNodes(formattedData?.nodes);
     const rfEdges = buildReactFlowEdges(formattedData?.links ?? formattedData?.edges ?? [], {
       edgeType: "step",
