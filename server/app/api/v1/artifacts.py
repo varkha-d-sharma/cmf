@@ -41,7 +41,6 @@ from server.app.get_data import (
     async_api,
     get_model_data,
 )
-from server.app.api.v1.metadata import (check_mlmd_file_exists,)
 import pandas as pd
 router = APIRouter(prefix="/v1", tags=["artifacts"])
 
@@ -50,7 +49,7 @@ router = APIRouter(prefix="/v1", tags=["artifacts"])
 async def artifact_types(request: Request):
     """Get list of artifact types."""
     state = request.app.state.mlmd
-    await check_mlmd_file_exists()
+    await state.check_mlmd_file_exists()
 
     artifact_types_list = await async_api(
         get_artifact_types,
@@ -72,8 +71,8 @@ async def model_card(request: Request, modelId: int, response_model=List[Dict[st
     model_exe_df = pd.DataFrame()
     model_input_art_df = pd.DataFrame()
     model_output_art_df = pd.DataFrame()
-    await check_mlmd_file_exists()
     state = request.app.state.mlmd
+    await state.check_mlmd_file_exists()
     model_data_df, model_exe_df, model_input_art_df, model_output_art_df = await async_api(
         get_model_data, state.query, modelId
     )

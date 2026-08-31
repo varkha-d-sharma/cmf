@@ -29,10 +29,7 @@ from server.app.get_data import async_api
 from server.app.query_execution_lineage_d3tree import (query_execution_lineage_d3tree,)
 from server.app.query_artifact_lineage_d3tree import (query_artifact_lineage_d3tree,)
 from server.app.query_visualization_artifact_execution import (query_visualization_artifact_execution,)
-from server.app.api.v1.metadata import (
-    check_mlmd_file_exists,
-    check_pipeline_exists,
-)
+from server.app.services.mlmd_state import mlmd_state
 
 router = APIRouter(prefix="/v1", tags=["lineage"])
 
@@ -46,8 +43,8 @@ async def execution_lineage(
 ):
     """Get execution lineage for D3 tree visualization."""
     state = request.app.state.mlmd
-    await check_mlmd_file_exists(request)
-    await check_pipeline_exists(pipeline_name, request)
+    await state.check_mlmd_file_exists()
+    await state.check_pipeline_exists(pipeline_name)
 
     response = await async_api(
         query_execution_lineage_d3tree,
@@ -66,8 +63,8 @@ async def artifact_lineage_tangled(
 ) -> Optional[List[List[Dict[str, Any]]]]:
     """Get artifact lineage for tangled tree visualization."""
     state = request.app.state.mlmd
-    await check_mlmd_file_exists(request)
-    await check_pipeline_exists(pipeline_name, request)
+    await state.check_mlmd_file_exists()
+    await state.check_pipeline_exists(pipeline_name)
 
     response = await async_api(
         query_artifact_lineage_d3tree,
@@ -85,8 +82,8 @@ async def artifact_execution_lineage(
 ):
     """Get artifact-execution lineage visualization."""
     state = request.app.state.mlmd
-    await check_mlmd_file_exists(request)
-    await check_pipeline_exists(pipeline_name, request)
+    await state.check_mlmd_file_exists()
+    await state.check_pipeline_exists(pipeline_name)
 
     response = await async_api(
         query_visualization_artifact_execution,

@@ -38,10 +38,6 @@ from server.app.get_data import (
     async_api,
     executions_list,
 )
-from server.app.api.v1.metadata import (
-    check_mlmd_file_exists,
-    check_pipeline_exists,
-)
 
 router = APIRouter(prefix="/v1", tags=["executions"])
 
@@ -51,8 +47,8 @@ router = APIRouter(prefix="/v1", tags=["executions"])
 async def list_of_executions(request: Request, pipeline_name: str):
     """Get list of executions for a pipeline."""
     state = request.app.state.mlmd
-    await check_mlmd_file_exists()
-    await check_pipeline_exists(pipeline_name)
+    await state.check_mlmd_file_exists()
+    await state.check_pipeline_exists(pipeline_name)
 
     response = await async_api(
         executions_list,

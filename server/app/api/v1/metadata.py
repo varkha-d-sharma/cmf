@@ -37,25 +37,6 @@ from cmflib.cmf_federation import update_mlmd
 
 router = APIRouter(prefix="/v1", tags=["metadata"])
 
-
-# ==================== Helper Functions ====================
-
-async def check_mlmd_file_exists(request: Request | None = None):
-    """Check if MLMD file exists on server."""
-    state = (request.app.state.mlmd if request is not None else mlmd_state)
-    if not state.query:
-        print(f"DB doesn't exist.")
-        raise HTTPException(status_code=404, detail="Database doesn't exist.")
-
-
-async def check_pipeline_exists(pipeline_name, request: Request | None = None):
-    """Check if the pipeline exists."""
-    state = (request.app.state.mlmd if request is not None else mlmd_state)
-    if pipeline_name not in state.query.get_pipeline_names():
-        print(f"Pipeline {pipeline_name} not found.")
-        raise HTTPException(status_code=404, detail=f"Pipeline {pipeline_name} not found.")
-
-
 # ==================== Business Logic Functions ====================
 
 async def mlmd_push(info: MLMDPushRequest, request: Request | None = None):
@@ -103,9 +84,9 @@ async def mlmd_pull(info: MLMDPullRequest, request: Request | None = None):
     last_sync_time = info.last_sync_time
     print("mlmd pull started")
     print("......................")
-    await check_mlmd_file_exists(request)
+    await state.check_mlmd_file_exists()
     if pipeline_name:
-        await check_pipeline_exists(pipeline_name, request)
+        await state.check_pipeline_exists(pipeline_name)
         json_payload = await async_api(
             get_mlmd_from_server,
             state.query,
