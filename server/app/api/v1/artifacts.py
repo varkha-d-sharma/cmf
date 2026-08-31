@@ -35,7 +35,7 @@ from server.app.schemas.requests import (
     ArtifactTypesByStageRequest,
 )
 from server.app.schemas.responses import success_response
-from server.app.services.mlmd_state import query
+from server.app.services.mlmd_state import mlmd_state
 from server.app.get_data import (
     get_artifact_types,
     async_api,
@@ -47,13 +47,14 @@ router = APIRouter(prefix="/v1", tags=["artifacts"])
 
 # ==================== Business Logic Functions ====================
 
-async def artifact_types():
+async def artifact_types(request: Request):
     """Get list of artifact types."""
+    state = request.app.state.mlmd
     await check_mlmd_file_exists()
 
     artifact_types_list = await async_api(
         get_artifact_types,
-        query,
+        state.query,
     )
 
     if "Environment" in artifact_types_list:
@@ -72,8 +73,9 @@ async def model_card(request: Request, modelId: int, response_model=List[Dict[st
     model_input_art_df = pd.DataFrame()
     model_output_art_df = pd.DataFrame()
     await check_mlmd_file_exists()
+    state = request.app.state.mlmd
     model_data_df, model_exe_df, model_input_art_df, model_output_art_df = await async_api(
-        get_model_data, query, modelId
+        get_model_data, state.query, modelId
     )
     if not model_data_df.empty:
         result_1 = model_data_df.to_json(orient="records")
@@ -216,7 +218,7 @@ async def get_artifacts(
 
     This API is used by the MCP server.
     """
-    result = await artifact_types()
+    result = await artifact_types(request)
 
     return success_response(
         data=result,

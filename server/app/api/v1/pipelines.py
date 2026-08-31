@@ -26,7 +26,6 @@ from server.app.db.dbqueries import (
     fetch_unique_execution_stages,
 )
 from server.app.schemas.responses import success_response
-from server.app.services.mlmd_state import query
 
 router = APIRouter(prefix="/v1", tags=["pipelines"])
 
@@ -34,8 +33,9 @@ router = APIRouter(prefix="/v1", tags=["pipelines"])
 
 async def pipelines(request: Request):
     """Get list of all pipelines."""
-    if query:
-        pipeline_names = query.get_pipeline_names()
+    state = request.app.state.mlmd
+    if state.query:
+        pipeline_names = state.query.get_pipeline_names()
         return pipeline_names
     else:
         print("No mlmd file submitted.")

@@ -11,9 +11,7 @@ from server.app.get_data import (
     async_api,
 )
 from server.app.services.mlmd_state import (
-    query,
-    dict_of_art_ids,
-    dict_of_exe_ids,
+    mlmd_state,
 )
 
 from server.app.services.scheduler import schedule_runner
@@ -39,19 +37,18 @@ from server.app.api.v1.lineage import router as lineage_router
 #lifespan used to prevent multiple loading and save time for visualization.
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global dict_of_art_ids
-    global dict_of_exe_ids
+    app.state.mlmd = mlmd_state
 
     # Initialize the database schema
     await init_db()
 
-    if query:
+    if app.state.mlmd.query:
         # loaded execution ids with names into memory
-        exe_ids = await async_api(get_all_exe_ids, query)
-        dict_of_exe_ids.update(exe_ids)
+        exe_ids = await async_api(get_all_exe_ids, app.state.mlmd.query)
+        app.state.mlmd.dict_of_exe_ids.update(exe_ids)
         # loaded artifact ids into memory
-        art_ids = await async_api(get_all_artifact_ids, query, dict_of_exe_ids)
-        dict_of_art_ids.update(art_ids)
+        art_ids = await async_api(get_all_artifact_ids, app.state.mlmd.query, app.state.mlmd.dict_of_exe_ids)
+        app.state.mlmd.dict_of_art_ids.update(art_ids)
     # Start background scheduler task
     app.state.scheduler_task = asyncio.create_task(schedule_runner())
     yield
@@ -65,10 +62,11 @@ async def lifespan(app: FastAPI):
     task = getattr(app.state, "scheduler_task", None)
     if task:
         task.cancel()
-    dict_of_art_ids.clear()
-    dict_of_exe_ids.clear()
+    app.state.mlmd.dict_of_art_ids.clear()
+    app.state.mlmd.dict_of_exe_ids.clear()
 
 app = FastAPI(title="cmf-server", lifespan=lifespan, root_path="/api")
+app.state.mlmd = mlmd_state
 
 app.include_router(pipelines_router)
 app.include_router(metadata_router)

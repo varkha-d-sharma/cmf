@@ -24,11 +24,7 @@ including execution lineage, artifact lineage, and artifact-execution lineage.
 from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, Request
 from server.app.schemas.responses import success_response
-from server.app.services.mlmd_state import  (
-    query,
-    dict_of_art_ids,
-    dict_of_exe_ids,
-)
+from server.app.services.mlmd_state import mlmd_state
 from server.app.get_data import async_api
 from server.app.query_execution_lineage_d3tree import (query_execution_lineage_d3tree,)
 from server.app.query_artifact_lineage_d3tree import (query_artifact_lineage_d3tree,)
@@ -49,14 +45,15 @@ async def execution_lineage(
     pipeline_name: str,
 ):
     """Get execution lineage for D3 tree visualization."""
-    await check_mlmd_file_exists()
-    await check_pipeline_exists(pipeline_name)
+    state = request.app.state.mlmd
+    await check_mlmd_file_exists(request)
+    await check_pipeline_exists(pipeline_name, request)
 
     response = await async_api(
         query_execution_lineage_d3tree,
-        query,
+        state.query,
         pipeline_name,
-        dict_of_exe_ids,
+        state.dict_of_exe_ids,
         uuid,
     )
 
@@ -68,14 +65,15 @@ async def artifact_lineage_tangled(
     pipeline_name: str,
 ) -> Optional[List[List[Dict[str, Any]]]]:
     """Get artifact lineage for tangled tree visualization."""
-    await check_mlmd_file_exists()
-    await check_pipeline_exists(pipeline_name)
+    state = request.app.state.mlmd
+    await check_mlmd_file_exists(request)
+    await check_pipeline_exists(pipeline_name, request)
 
     response = await async_api(
         query_artifact_lineage_d3tree,
-        query,
+        state.query,
         pipeline_name,
-        dict_of_art_ids,
+        state.dict_of_art_ids,
     )
 
     return response
@@ -86,15 +84,16 @@ async def artifact_execution_lineage(
     pipeline_name: str,
 ):
     """Get artifact-execution lineage visualization."""
-    await check_mlmd_file_exists()
-    await check_pipeline_exists(pipeline_name)
+    state = request.app.state.mlmd
+    await check_mlmd_file_exists(request)
+    await check_pipeline_exists(pipeline_name, request)
 
     response = await async_api(
         query_visualization_artifact_execution,
-        query,
+        state.query,
         pipeline_name,
-        dict_of_art_ids,
-        dict_of_exe_ids,
+        state.dict_of_art_ids,
+        state.dict_of_exe_ids,
     )
 
     return response

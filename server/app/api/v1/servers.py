@@ -48,12 +48,7 @@ from server.app.db.dbqueries import (
 )
 from server.app.schemas.requests import ScheduleCreateRequest, ServerRegistrationRequest
 from server.app.schemas.responses import success_response
-from server.app.services.mlmd_state import(
-    query,
-    LOCAL_ADDRESSES,
-    update_global_art_dict,
-    update_global_exe_dict,
-)
+from server.app.services.mlmd_state import mlmd_state
 from server.app.utils import extract_hostname
 from server.app.get_data import (
     server_mlmd_pull,
@@ -68,15 +63,16 @@ router = APIRouter(prefix="/v1", tags=["servers"])
 
 # ==================== Business Logic Functions ====================
 
-async def register_server(request: ServerRegistrationRequest,db: AsyncSession,):
+async def register_server(request: Request, info: ServerRegistrationRequest, db: AsyncSession):
     """Register a new server."""
+    state = request.app.state.mlmd
     try:
-        server_name = request.server_name
-        server_url = request.server_url
+        server_name = info.server_name
+        server_url = info.server_url
         server = extract_hostname(server_url)
 
         # A server must not register itself.
-        if server in LOCAL_ADDRESSES:
+        if server in state.LOCAL_ADDRESSES:
             raise HTTPException(status_code=400,detail="Cannot register the server with its own details.",)
 
         # Send an acknowledgement request to the target server
@@ -103,7 +99,7 @@ async def register_server(request: ServerRegistrationRequest,db: AsyncSession,):
         raise HTTPException(status_code=500,detail=f"Failed to register server: {exc}",) from exc
 
 
-async def sync_metadata(request: ServerRegistrationRequest, db: AsyncSession = Depends(get_db), skip_logging: bool = False):
+async def sync_metadata(request: Request, info: ServerRegistrationRequest, db: AsyncSession = Depends(get_db), skip_logging: bool = False):
     """
     Synchronize metadata for a registered server.
 
@@ -120,8 +116,9 @@ async def sync_metadata(request: ServerRegistrationRequest, db: AsyncSession = D
     Raises:
         HTTPException: If the server is not found or an error occurs during synchronization.
     """
-    server_name = request.server_name
-    server_url = request.server_url
+    state = request.app.state.mlmd
+    server_name = info.server_name
+    server_url = info.server_url
     current_utc_epoch_time = int(time.time() * 1000)
     
     try:
@@ -157,7 +154,7 @@ async def sync_metadata(request: ServerRegistrationRequest, db: AsyncSession = D
         pipeline_names = [pipeline.get("name") for pipeline in pipelines]
 
         # Push the JSON payload to the host server
-        status = await async_api(update_mlmd, query, json_payload_str, None, "push", None)
+        status = await async_api(update_mlmd, state.query, json_payload_str, None, "push", None)
         if status == "invalid_json_payload":
             # Invalid JSON payload, return 400 Bad Request
             await log_sync_attempt("failed", "Invalid JSON payload. The pipeline name is missing.", db, server_name, server_url, current_utc_epoch_time, skip_logging)
@@ -173,8 +170,8 @@ async def sync_metadata(request: ServerRegistrationRequest, db: AsyncSession = D
             else:
                 message = f"Host server is being synced with the selected server '{server_name}' at address '{server_url}'."
             for pipeline_name in pipeline_names:
-                await update_global_exe_dict(pipeline_name)
-                await update_global_art_dict(pipeline_name)
+                await state.update_global_exe_dict(pipeline_name)
+                await state.update_global_art_dict(pipeline_name)
 
         # Update the last_sync_time in the database only if sync status is successful
         if status == "success":
@@ -410,7 +407,7 @@ async def delete_schedule_route(schedule_id: int, db: AsyncSession = Depends(get
 
 @router.post("/servers/register")
 async def register_server_route(request: Request, info: ServerRegistrationRequest, db: AsyncSession = Depends(get_db)):
-    result = await register_server(info, db)
+    result = await register_server(request, info, db)
     return success_response(
         data=result,
         message="Server registered successfully",
@@ -420,7 +417,7 @@ async def register_server_route(request: Request, info: ServerRegistrationReques
 
 @router.post("/servers/sync")
 async def sync_server(request: Request, info: ServerRegistrationRequest, db: AsyncSession = Depends(get_db)):
-    result = await sync_metadata(info, db, skip_logging = False)
+    result = await sync_metadata(request, info, db, skip_logging=False)
     return success_response(
         data=result,
         message="Server synced successfully",

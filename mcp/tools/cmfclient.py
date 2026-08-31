@@ -18,7 +18,8 @@
 CMF API Client module.
 
 High-level client wrapper for communicating with CMF Server REST API.
-Provides domain-specific methods for pipelines, executions, artifacts, etc.
+Provides domain-specific methods for pipelines, executions, artifacts, metadata,
+servers, schedules, and Python environment management.
 
 Originally from the cmfAPI package (https://github.com/atripathy86/cmfapi).
 Inlined here to remove the external dependency.
@@ -37,107 +38,207 @@ class cmfClient:
         """
         self.connection = cmfConnection(base_url, tls_verify=tls_verify)
 
+    # Pipelines
     def get_pipelines(self):
-        """
-        Retrieve currently registered pipelines.
-
-        :return: API response containing registered pipelines.
-        """
+        """Retrieve all registered pipelines."""
         return self.connection.get("/v1/pipelines")
 
-    def get_executions_list(self, pipeline_name):
-        """
-        Retrieve a brief list of execution names for a pipeline.
+    def get_pipeline_stages(self, pipeline_name):
+        """Retrieve unique execution stages for a pipeline."""
+        return self.connection.get(f"/v1/pipelines/{pipeline_name}/stages")
 
-        :param pipeline_name: Name of the pipeline.
-        :return: API response containing execution names.
-        """
-        return self.connection.get(f"/v1/executions/{pipeline_name}")
-
+    # Executions
     def get_executions(self, pipeline_name):
-        """
-        Retrieve detailed executions for a pipeline.
+        """Retrieve execution list for a pipeline."""
+        return self.connection.get(f"/v1/pipelines/{pipeline_name}/executions")
 
-        :param pipeline_name: Name of the pipeline.
-        :return: API response containing executions.
-        """
-        return self.connection.get(f"/v1/executions/{pipeline_name}")
+    def get_executions_by_stage(
+        self,
+        pipeline_name,
+        stage_name,
+        active_page=1,
+        record_per_page=5,
+        sort_order="DESC",
+        filter_value="",
+    ):
+        """Retrieve executions filtered by pipeline and stage."""
+        payload = {
+            "pipeline_name": pipeline_name,
+            "stage_name": stage_name,
+            "active_page": active_page,
+            "record_per_page": record_per_page,
+            "sort_order": sort_order,
+            "filter_value": filter_value,
+        }
+        return self.connection.post(f"/v1/pipelines/{pipeline_name}/executions", data=payload)
 
+    def get_execution_lineage(self, pipeline_name, uuid):
+        """Retrieve execution lineage for a given execution UUID."""
+        return self.connection.get(f"/v1/pipelines/{pipeline_name}/executions/{uuid}/lineage")
+
+    # Artifacts
     def get_artifact_types(self):
-        """
-        Retrieve a list of artifact types.
-
-        :return: API response containing artifact types.
-        """
+        """Retrieve all available artifact types."""
         return self.connection.get("/v1/metadata/artifact-types")
 
+    def get_artifact_types_by_stage(self, pipeline_name, stage_name):
+        """Retrieve artifact types for a given pipeline and stage."""
+        payload = {"pipeline_name": pipeline_name, "stage_name": stage_name}
+        return self.connection.post(f"/v1/pipelines/{pipeline_name}/artifacts/types", data=payload)
+
+    def get_artifacts_by_stage(
+        self,
+        pipeline_name,
+        stage_name,
+        artifact_type,
+        active_page=1,
+        record_per_page=5,
+        sort_field="name",
+        sort_order="asc",
+        filter_value="",
+    ):
+        """Retrieve artifacts filtered by pipeline, stage, and artifact type."""
+        payload = {
+            "pipeline_name": pipeline_name,
+            "stage_name": stage_name,
+            "artifact_type": artifact_type,
+            "active_page": active_page,
+            "record_per_page": record_per_page,
+            "sort_field": sort_field,
+            "sort_order": sort_order,
+            "filter_value": filter_value,
+        }
+        return self.connection.post(f"/v1/pipelines/{pipeline_name}/artifacts", data=payload)
+
     def get_artifacts(self, pipeline_name, artifact_type):
-        """
-        Retrieve artifacts of a specific type for a given pipeline.
+        """Backward-compatible alias for artifact fetch by type."""
+        return self.get_artifacts_by_stage(
+            pipeline_name=pipeline_name,
+            stage_name="",
+            artifact_type=artifact_type,
+        )
 
-        :param pipeline_name: Name of the pipeline.
-        :param artifact_type: Type of the artifact.
-        :return: API response containing artifacts of the specified type.
-        """
-        return self.connection.get(f"/artifacts/{pipeline_name}/{artifact_type}")
+    def get_artifact_lineage(self, pipeline_name):
+        """Retrieve artifact lineage for a pipeline."""
+        return self.connection.get(f"/v1/pipelines/{pipeline_name}/artifacts/lineage")
 
-    def get_artifact_lineage_tangled_tree(self, pipeline_name):
-        """
-        Retrieve the artifact lineage for a given pipeline.
-
-        :param pipeline_name: Name of the pipeline.
-        :return: API response containing the artifact lineage tangled tree.
-        """
-        return self.connection.get(f"/v1/lineage/artifact/{pipeline_name}")
-
-    def get_execution_lineage_tangled_tree(self, uuid, pipeline_name):
-        """
-        Retrieve the execution lineage tangled tree for a given UUID and pipeline.
-
-        :param uuid: Unique identifier for the execution.
-        :param pipeline_name: Name of the pipeline.
-        :return: API response containing the execution lineage tangled tree.
-        """
-        return self.connection.get(f"/v1/lineage/execution/{uuid}/{pipeline_name}")
+    def get_artifact_execution_lineage(self, pipeline_name):
+        """Retrieve artifact-to-execution lineage for a pipeline."""
+        return self.connection.get(f"/v1/pipelines/{pipeline_name}/artifact-executions/lineage")
 
     def get_model_card(self, model_id):
-        """
-        Retrieve the model card information.
-
-        :param model_id: Unique identifier for the model (as int).
-        :return: API response containing the model card details.
-        """
+        """Retrieve model card information for a given model id."""
         model_id_int = int(model_id)
         return self.connection.get("/v1/artifacts/model-card", params={"modelId": model_id_int})
 
-    def get_python_env(self):
-        """
-        Retrieve the Python environment details.
+    # Python environment
+    def upload_python_env(self, file_path, filename=None):
+        """Upload a Python environment file to the server."""
+        import os
 
-        :return: API response containing the Python environment details.
-        """
-        return self.connection.get("/v1/executions/python-env")
+        file_name = filename or os.path.basename(file_path)
+        with open(file_path, "rb") as file_handle:
+            files = {"file": (file_name, file_handle, "application/octet-stream")}
+            return self.connection.post("/v1/executions/python-env", files=files)
 
-    def mlmd_push(self, payload):
-        """
-        Push metadata to the MLMD server.
+    def get_python_env(self, file_name):
+        """Retrieve the content of a stored Python environment file."""
+        return self.connection.get("/v1/executions/python-env", params={"file_name": file_name})
 
-        :param payload: The data to be pushed (as a dictionary).
-        :return: API response after pushing the metadata.
-        """
-        return self.connection.post("/mlmd_push", data=payload)
+    def download_python_env(self, list_of_files=None):
+        """Download a zip of Python environment files or the entire environment folder."""
+        params = None if list_of_files is None else {"list_of_files": list_of_files}
+        return self.connection.get("/v1/python-envs/download", params=params, is_binary=True)
 
-    def mlmd_pull(self, pipeline_name):
-        """
-        Retrieve metadata for a specific pipeline.
+    # MLMD metadata sync
+    def mlmd_push(self, pipeline_name, json_payload, exec_uuid=None):
+        """Push MLMD payload to the server for a pipeline."""
+        payload = {
+            "pipeline_name": pipeline_name,
+            "json_payload": json_payload,
+            "exec_uuid": exec_uuid,
+        }
+        return self.connection.post("/v1/mlmd/push", data=payload)
 
-        :param pipeline_name: Name of the pipeline.
-        :return: API response containing the metadata.
-        """
-        return self.connection.get(f"/mlmd_pull/{pipeline_name}")
+    def mlmd_pull(self, pipeline_name=None, exec_uuid=None, last_sync_time=None):
+        """Pull MLMD data from the server, optionally filtered by pipeline and UUID."""
+        payload = {
+            "pipeline_name": pipeline_name,
+            "exec_uuid": exec_uuid,
+            "last_sync_time": last_sync_time,
+        }
+        return self.connection.post("/v1/mlmd/pull", data=payload)
+
+
+    # Server registration and sync
+    def register_server(self, server_name, server_url, last_sync_time=None):
+        """Register a remote server."""
+        payload = {
+            "server_name": server_name,
+            "server_url": server_url,
+            "last_sync_time": last_sync_time,
+        }
+        return self.connection.post("/v1/servers/register", data=payload)
+
+    def sync_server(self, server_name, server_url, last_sync_time=None):
+        """Trigger metadata sync with a registered server."""
+        payload = {
+            "server_name": server_name,
+            "server_url": server_url,
+            "last_sync_time": last_sync_time,
+        }
+        return self.connection.post("/v1/servers/sync", data=payload)
+
+    def list_servers(self):
+        """List registered servers."""
+        return self.connection.get("/v1/servers")
+
+    # Schedule management
+    def create_schedule(
+        self,
+        server_id,
+        timezone="UTC",
+        start_time_local_iso=None,
+        one_time=False,
+        recurrence_mode=None,
+        interval_unit=None,
+        interval_value=None,
+        daily_time=None,
+        weekly_day=None,
+        weekly_time=None,
+    ):
+        """Create a sync schedule."""
+        payload = {
+            "server_id": server_id,
+            "timezone": timezone,
+            "start_time_local_iso": start_time_local_iso,
+            "one_time": one_time,
+            "recurrence_mode": recurrence_mode,
+            "interval_unit": interval_unit,
+            "interval_value": interval_value,
+            "daily_time": daily_time,
+            "weekly_day": weekly_day,
+            "weekly_time": weekly_time,
+        }
+        return self.connection.post("/v1/schedules", data=payload)
+
+    def list_schedules(self, server_id=None):
+        """List schedules, optionally filtered by server_id."""
+        params = None if server_id is None else {"server_id": server_id}
+        return self.connection.get("/v1/schedules", params=params)
+
+    def get_schedule_logs(self, schedule_id):
+        """Get run logs for a schedule."""
+        return self.connection.get(f"/v1/schedules/{schedule_id}/logs")
+
+    def get_server_completed_logs(self, server_id):
+        """Get completed logs for a server."""
+        return self.connection.get(f"/v1/servers/{server_id}/completed-logs")
+
+    def delete_schedule(self, schedule_id):
+        """Delete or deactivate a schedule."""
+        return self.connection.delete(f"/v1/schedules/{schedule_id}")
 
     def close_session(self):
-        """
-        Close the session with the CMF server.
-        """
+        """Close the session with the CMF server."""
         self.connection.exit()

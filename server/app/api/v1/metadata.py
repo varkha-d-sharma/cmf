@@ -28,14 +28,7 @@ from fastapi.responses import HTMLResponse
 from server.app.db.dbconfig import get_db
 from server.app.schemas.requests import MLMDPullRequest, MLMDPushRequest
 from server.app.schemas.responses import success_response
-from server.app.services.mlmd_state import (
-    query,
-    dict_of_exe_ids,
-    pipeline_locks,
-    lock_counts,
-    update_global_art_dict,
-    update_global_exe_dict,
-)
+from server.app.services.mlmd_state import mlmd_state
 from server.app.get_data import (
     get_mlmd_from_server,
     async_api, 
@@ -47,38 +40,41 @@ router = APIRouter(prefix="/v1", tags=["metadata"])
 
 # ==================== Helper Functions ====================
 
-async def check_mlmd_file_exists():
+async def check_mlmd_file_exists(request: Request | None = None):
     """Check if MLMD file exists on server."""
-    if not query:
+    state = (request.app.state.mlmd if request is not None else mlmd_state)
+    if not state.query:
         print(f"DB doesn't exist.")
         raise HTTPException(status_code=404, detail="Database doesn't exist.")
 
 
-async def check_pipeline_exists(pipeline_name):
+async def check_pipeline_exists(pipeline_name, request: Request | None = None):
     """Check if the pipeline exists."""
-    if pipeline_name not in query.get_pipeline_names():
+    state = (request.app.state.mlmd if request is not None else mlmd_state)
+    if pipeline_name not in state.query.get_pipeline_names():
         print(f"Pipeline {pipeline_name} not found.")
         raise HTTPException(status_code=404, detail=f"Pipeline {pipeline_name} not found.")
 
 
 # ==================== Business Logic Functions ====================
 
-async def mlmd_push(info: MLMDPushRequest):
+async def mlmd_push(info: MLMDPushRequest, request: Request | None = None):
     """Push MLMD metadata to the server."""
+    state = (request.app.state.mlmd if request is not None else mlmd_state)
     print("mlmd push started")
     print("......................")
     status = "unknown_error"
     req_info = info.model_dump()
     pipeline_name = req_info.get("pipeline_name", "")
-    if pipeline_name not in pipeline_locks:
-        pipeline_locks[pipeline_name] = asyncio.Lock()
-    pipeline_lock = pipeline_locks[pipeline_name]
-    lock_counts[pipeline_name] += 1
+    if pipeline_name not in state.pipeline_locks:
+        state.pipeline_locks[pipeline_name] = asyncio.Lock()
+    pipeline_lock = state.pipeline_locks[pipeline_name]
+    state.lock_counts[pipeline_name] += 1
     async with pipeline_lock:
         try:
             status = await async_api(
                 update_mlmd,
-                query,
+                state.query,
                 req_info["json_payload"],
                 pipeline_name,
                 "push",
@@ -89,36 +85,37 @@ async def mlmd_push(info: MLMDPushRequest):
             if status == "version_update":
                 raise HTTPException(status_code=422, detail="version_update")
             if status != "exists":
-                await update_global_exe_dict(pipeline_name)
-                await update_global_art_dict(pipeline_name)
+                await state.update_global_exe_dict(pipeline_name)
+                await state.update_global_art_dict(pipeline_name)
         finally:
-            lock_counts[pipeline_name] -= 1
-            if lock_counts[pipeline_name] == 0:
-                del pipeline_locks[pipeline_name]
-                del lock_counts[pipeline_name]
+            state.lock_counts[pipeline_name] -= 1
+            if state.lock_counts[pipeline_name] == 0:
+                del state.pipeline_locks[pipeline_name]
+                del state.lock_counts[pipeline_name]
     return {"status": status}
 
 
-async def mlmd_pull(info: MLMDPullRequest):
+async def mlmd_pull(info: MLMDPullRequest, request: Request | None = None):
     """Pull MLMD metadata from the server."""
+    state = (request.app.state.mlmd if request is not None else mlmd_state)
     pipeline_name = info.pipeline_name
     exec_uuid = info.exec_uuid
     last_sync_time = info.last_sync_time
     print("mlmd pull started")
     print("......................")
-    await check_mlmd_file_exists()
+    await check_mlmd_file_exists(request)
     if pipeline_name:
-        await check_pipeline_exists(pipeline_name)
+        await check_pipeline_exists(pipeline_name, request)
         json_payload = await async_api(
             get_mlmd_from_server,
-            query,
+            state.query,
             pipeline_name,
             exec_uuid,
             last_sync_time,
-            dict_of_exe_ids,
+            state.dict_of_exe_ids,
         )
     else:
-        json_payload = await async_api(get_mlmd_from_server, query, None, None, last_sync_time)
+        json_payload = await async_api(get_mlmd_from_server, state.query, None, None, last_sync_time)
 
     if json_payload is None:
         raise HTTPException(status_code=406, detail=f"Pipeline {pipeline_name} not found.")
@@ -126,7 +123,7 @@ async def mlmd_pull(info: MLMDPullRequest):
 
 @router.post("/mlmd/push")
 async def metadata_push(request: Request, info: MLMDPushRequest):
-    result = await mlmd_push(info)
+    result = await mlmd_push(info, request)
     return success_response(
         data=result,
         message="MLMD pushed successfully",
@@ -136,5 +133,5 @@ async def metadata_push(request: Request, info: MLMDPushRequest):
 
 @router.post("/mlmd/pull", response_class=HTMLResponse)
 async def metadata_pull(request: Request, info: MLMDPullRequest):
-    return await mlmd_pull(info)
+    return await mlmd_pull(info, request)
 

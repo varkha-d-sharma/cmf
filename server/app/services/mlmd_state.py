@@ -25,41 +25,53 @@ from build.lib.cmflib.cmfquery import CmfQuery
 from server.app.get_data import (async_api, get_all_artifact_ids, get_all_exe_ids)
 from server.app.utils import extract_hostname, get_fqdn
 
-# ==================== Global Variables ====================
-# Initialize CMF Query instance for server
-query = CmfQuery(is_server=True)
-
-# Cache for artifact and execution IDs
-dict_of_art_ids = {}
-dict_of_exe_ids = {}
-
-# Lock management for concurrent pipeline operations
-pipeline_locks = {}
-lock_counts: defaultdict[str, int] = defaultdict(int)
-
 # API Configuration
 REACT_APP_CMF_API_URL = os.getenv("REACT_APP_CMF_API_URL", "http://localhost:8080")
 
-# Local address detection for server registration validation
-LOCAL_ADDRESSES = set()
-LOCAL_ADDRESSES.update(["127.0.0.1", "localhost"])
-hostname = extract_hostname(REACT_APP_CMF_API_URL)
-LOCAL_ADDRESSES.add(hostname)
-# Adding hostname if IP is given
-LOCAL_ADDRESSES.add(get_fqdn(hostname))
-print("Local addresses= ", LOCAL_ADDRESSES)
+class MlmdState:
+    """Container for server-level MLMD state stored on the FastAPI app."""
 
-# ==================== Global Helper Functions ====================
+    def __init__(self):
+        self.query = CmfQuery(is_server=True)
+        self.dict_of_art_ids = {}
+        self.dict_of_exe_ids = {}
+        self.pipeline_locks = {}
+        self.lock_counts: defaultdict[str, int] = defaultdict(int)
+
+        self.LOCAL_ADDRESSES = {"127.0.0.1", "localhost"}
+        hostname = extract_hostname(REACT_APP_CMF_API_URL)
+        self.LOCAL_ADDRESSES.add(hostname)
+        self.LOCAL_ADDRESSES.add(get_fqdn(hostname))
+
+    async def update_global_art_dict(self, pipeline_name):
+        """Update artifact IDs dictionary for a pipeline."""
+        output_dict = await async_api(get_all_artifact_ids, self.query, self.dict_of_art_ids, pipeline_name)
+        self.dict_of_art_ids[pipeline_name] = output_dict[pipeline_name]
+        return
+
+    async def update_global_exe_dict(self, pipeline_name):
+        """Update execution IDs dictionary for a pipeline."""
+        output_dict = await async_api(get_all_exe_ids, self.query, pipeline_name)
+        self.dict_of_exe_ids[pipeline_name] = output_dict[pipeline_name]
+        return
+
+
+mlmd_state = MlmdState()
+
+# Backward-compatible module-level aliases for legacy imports.
+query = mlmd_state.query
+dict_of_art_ids = mlmd_state.dict_of_art_ids
+dict_of_exe_ids = mlmd_state.dict_of_exe_ids
+pipeline_locks = mlmd_state.pipeline_locks
+lock_counts = mlmd_state.lock_counts
+LOCAL_ADDRESSES = mlmd_state.LOCAL_ADDRESSES
+
 
 async def update_global_art_dict(pipeline_name):
     """Update global artifact IDs dictionary for a pipeline."""
-    output_dict = await async_api(get_all_artifact_ids, query, dict_of_art_ids, pipeline_name)
-    dict_of_art_ids[pipeline_name] = output_dict[pipeline_name]
-    return
+    return await mlmd_state.update_global_art_dict(pipeline_name)
 
 
 async def update_global_exe_dict(pipeline_name):
     """Update global execution IDs dictionary for a pipeline."""
-    output_dict = await async_api(get_all_exe_ids, query, pipeline_name)
-    dict_of_exe_ids[pipeline_name] = output_dict[pipeline_name]
-    return
+    return await mlmd_state.update_global_exe_dict(pipeline_name)

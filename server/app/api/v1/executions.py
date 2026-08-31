@@ -33,10 +33,7 @@ from server.app.schemas.requests import (
     ExecutionByStagePipelineRequest,
 )
 from server.app.schemas.responses import success_response
-from server.app.services.mlmd_state import (
-    query,
-    dict_of_exe_ids,
-)
+from server.app.services.mlmd_state import mlmd_state
 from server.app.get_data import (
     async_api,
     executions_list,
@@ -53,14 +50,15 @@ router = APIRouter(prefix="/v1", tags=["executions"])
 
 async def list_of_executions(request: Request, pipeline_name: str):
     """Get list of executions for a pipeline."""
+    state = request.app.state.mlmd
     await check_mlmd_file_exists()
     await check_pipeline_exists(pipeline_name)
 
     response = await async_api(
         executions_list,
-        query,
+        state.query,
         pipeline_name,
-        dict_of_exe_ids,
+        state.dict_of_exe_ids,
     )
 
     return response
@@ -213,7 +211,7 @@ async def pipeline_stages(
 
 
 @router.get("/pipelines/{pipeline_name}/executions")
-async def get_executions_endpoint(request: Request, pipeline_name: str):
+async def get_executions(request: Request, pipeline_name: str):
     """Retrieve the execution list for a pipeline."""
     result = await list_of_executions(
         request= request,
