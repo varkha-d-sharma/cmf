@@ -34,9 +34,19 @@
  * @returns {string} One of the lineage node types used by the graph renderer.
  */
 
-const determineType = (id) => {
+const determineType = (id, explicitType) => {
+  if (explicitType) return explicitType;
   if (!id) return "Execution";
-  const normalized = id.toLowerCase();
+
+  const normalized = String(id).toLowerCase();
+
+  if (normalized.startsWith("execution_name_") || normalized.startsWith("execution_")) {
+    return "Execution";
+  }
+  if (normalized.startsWith("artifact_name_") || normalized.startsWith("artifact_")) {
+    return "Dataset";
+  }
+  
   if (normalized.includes("metrics")) return "Metrics";
   if (normalized.includes("model")) return "Model";
   if (
@@ -79,7 +89,7 @@ const transformFlatLineageData = (rawJson, nodeType) => {
       originalNodeMap.set(item.id, {
         id: item.id,
         name: getDisplayName(item.id),
-        type: nodeType || determineType(item.id),
+        type: determineType(item.id, nodeType),
         parents,
       });
     }
@@ -89,7 +99,7 @@ const transformFlatLineageData = (rawJson, nodeType) => {
         originalNodeMap.set(parentId, {
           id: parentId,
           name: getDisplayName(parentId),
-          type: nodeType || determineType(parentId),
+          type: determineType(parentId, nodeType),
           parents: [],
         });
       }

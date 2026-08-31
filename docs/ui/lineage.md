@@ -71,7 +71,7 @@ The Lineage page offers three different visualization modes:
 
 ### 4. Hierarchical Lineage
 
-**Purpose**: Shows all stages of a pipeline and their executions in their resp. execution order.
+**Purpose**: Shows all stages of a pipeline and their executions in their respective execution order.
 
 **How it works**:
 

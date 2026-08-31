@@ -614,8 +614,8 @@ async def artifact_execution_lineage(request: Request, pipeline_name: str):
 @app.get("/hierarchical-lineage/react-flow-dagre/{pipeline_name}")
 async def hierarchical_lineage(request: Request, pipeline_name: str):
     """
-    Fetches Machine Learning Metadata (MLMD) for a specific pipeline 
-    and converts it into the React-Flow Dagre UI compatible 'stage.json' schema.
+    Fetches MLMD for a specific pipeline 
+    and converts it into the React-Flow Dagre UI compatible json schema.
 
     Args:
         request (Request): The incoming FastAPI request object.

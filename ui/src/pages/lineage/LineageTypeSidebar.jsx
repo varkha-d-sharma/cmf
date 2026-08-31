@@ -1,3 +1,5 @@
+// We are not using this component currently, but we may use it in the future. So, we are keeping it for now.
+
 // import React, { useState } from "react";
 // import "./index.css";
 
