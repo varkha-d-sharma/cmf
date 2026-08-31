@@ -17,11 +17,12 @@ This Module contains scheduler logic for executing due schedules in the backgrou
 """
 
 import asyncio
-from http.client import HTTPException
-from time import time
+import time
+from fastapi import HTTPException
 from server.app.api.v1.servers import sync_metadata
 from server.app.get_data import compute_next_run_from_recurrence
 from server.app.schemas.requests import ServerRegistrationRequest
+from server.app.services.mlmd_state import mlmd_state
 import httpx
 from server.app.db.dbconfig import async_session
 from server.app.db.dbqueries import (
@@ -76,7 +77,7 @@ async def schedule_runner():
                     try:
                         async with httpx.AsyncClient(timeout=5.0) as client:
                             response = await client.post(
-                                f"{server['host_info']}/api/acknowledge",
+                                f"{server['host_info']}/api/v1/acknowledge",
                                 json={"server_name": server["server_name"], "server_url": server["host_info"]}
                             )
                         server_alive = response.status_code == 200
@@ -120,7 +121,7 @@ async def schedule_runner():
                     status = "failed"
                     await update_schedule_fields(db, schedule_id=sch["id"], status="running")
                     try:
-                        result = await sync_metadata(request=req, db=db, skip_logging=True)
+                        result = await sync_metadata(info=req, db=db, skip_logging=True, state=mlmd_state)
                         status = result.get("status", "unknown")
                         status_msg = result.get("message", "")
                     except HTTPException as he:

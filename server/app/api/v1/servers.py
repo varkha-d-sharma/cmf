@@ -80,7 +80,7 @@ async def register_server(request: Request, info: ServerRegistrationRequest, db:
         async with httpx.AsyncClient() as client:
             try:
                 response = await client.post(
-                    f"{server_url}/api/acknowledge",
+                    f"{server_url}/api/v1/acknowledge",
                     json={
                         "server_name": server_name,
                         "server_url": server_url,
@@ -99,7 +99,7 @@ async def register_server(request: Request, info: ServerRegistrationRequest, db:
         raise HTTPException(status_code=500,detail=f"Failed to register server: {exc}",) from exc
 
 
-async def sync_metadata(request: Request, info: ServerRegistrationRequest, db: AsyncSession = Depends(get_db), skip_logging: bool = False):
+async def sync_metadata(info: ServerRegistrationRequest, db: AsyncSession, skip_logging: bool = False, state=None):
     """
     Synchronize metadata for a registered server.
 
@@ -116,7 +116,7 @@ async def sync_metadata(request: Request, info: ServerRegistrationRequest, db: A
     Raises:
         HTTPException: If the server is not found or an error occurs during synchronization.
     """
-    state = request.app.state.mlmd
+    state = state or mlmd_state
     server_name = info.server_name
     server_url = info.server_url
     current_utc_epoch_time = int(time.time() * 1000)
@@ -403,6 +403,20 @@ async def delete_schedule_route(schedule_id: int, db: AsyncSession = Depends(get
         dict: Deactivation status message.
     """
     return await delete_schedule(db, schedule_id)
+
+
+@router.post("/acknowledge")
+async def acknowledge_server(request: Request, info: ServerRegistrationRequest):
+    """Compatibility endpoint used by peer servers during registration and liveness checks."""
+    return success_response(
+        data={
+            "server_name": info.server_name,
+            "server_url": info.server_url,
+            "status": "ok",
+        },
+        message="Server acknowledged successfully",
+        code=200,
+    )
 
 
 @router.post("/servers/register")

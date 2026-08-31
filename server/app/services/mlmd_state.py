@@ -21,12 +21,10 @@ including artifact and execution IDs.
 
 from collections import defaultdict
 import os
-from build.lib.cmflib.cmfquery import CmfQuery
+from cmflib.cmfquery import CmfQuery
+from fastapi import HTTPException
 from server.app.get_data import (async_api, get_all_artifact_ids, get_all_exe_ids)
 from server.app.utils import extract_hostname, get_fqdn
-
-# API Configuration
-REACT_APP_CMF_API_URL = os.getenv("REACT_APP_CMF_API_URL", "http://localhost:8080")
 
 class MlmdState:
     """Container for server-level MLMD state stored on the FastAPI app."""
@@ -39,13 +37,14 @@ class MlmdState:
         self.lock_counts: defaultdict[str, int] = defaultdict(int)
 
         self.LOCAL_ADDRESSES = {"127.0.0.1", "localhost"}
-        hostname = extract_hostname(REACT_APP_CMF_API_URL)
+        react_app_cmf_api_url = os.getenv("REACT_APP_CMF_API_URL", "http://localhost:8080")
+        hostname = extract_hostname(react_app_cmf_api_url)
         self.LOCAL_ADDRESSES.add(hostname)
         self.LOCAL_ADDRESSES.add(get_fqdn(hostname))
 
     async def update_global_art_dict(self, pipeline_name):
         """Update artifact IDs dictionary for a pipeline."""
-        output_dict = await async_api(get_all_artifact_ids, self.query, self.dict_of_art_ids, pipeline_name)
+        output_dict = await async_api(get_all_artifact_ids, self.query, self.dict_of_exe_ids, pipeline_name)
         self.dict_of_art_ids[pipeline_name] = output_dict[pipeline_name]
         return
 
@@ -55,23 +54,17 @@ class MlmdState:
         self.dict_of_exe_ids[pipeline_name] = output_dict[pipeline_name]
         return
 
+    async def check_mlmd_file_exists(self):
+        """Raise 404 when the server MLMD database is unavailable."""
+        if not self.query:
+            print("DB doesn't exist.")
+            raise HTTPException(status_code=404, detail="Database doesn't exist.")
+
+    async def check_pipeline_exists(self, pipeline_name):
+        """Raise 404 when the requested pipeline is unavailable."""
+        if pipeline_name not in self.query.get_pipeline_names():
+            print(f"Pipeline {pipeline_name} not found.")
+            raise HTTPException(status_code=404, detail=f"Pipeline {pipeline_name} not found.")
+
 
 mlmd_state = MlmdState()
-
-# Backward-compatible module-level aliases for legacy imports.
-query = mlmd_state.query
-dict_of_art_ids = mlmd_state.dict_of_art_ids
-dict_of_exe_ids = mlmd_state.dict_of_exe_ids
-pipeline_locks = mlmd_state.pipeline_locks
-lock_counts = mlmd_state.lock_counts
-LOCAL_ADDRESSES = mlmd_state.LOCAL_ADDRESSES
-
-
-async def update_global_art_dict(pipeline_name):
-    """Update global artifact IDs dictionary for a pipeline."""
-    return await mlmd_state.update_global_art_dict(pipeline_name)
-
-
-async def update_global_exe_dict(pipeline_name):
-    """Update global execution IDs dictionary for a pipeline."""
-    return await mlmd_state.update_global_exe_dict(pipeline_name)
