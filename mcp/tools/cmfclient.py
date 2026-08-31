@@ -43,12 +43,8 @@ class cmfClient:
         """Retrieve all registered pipelines."""
         return self.connection.get("/v1/pipelines")
 
-    def get_pipeline_stages(self, pipeline_name):
-        """Retrieve unique execution stages for a pipeline."""
-        return self.connection.get(f"/v1/pipelines/{pipeline_name}/stages")
-
     # Executions
-    def get_executions(self, pipeline_name):
+    def get_executions_list(self, pipeline_name):
         """Retrieve execution list for a pipeline."""
         return self.connection.get(f"/v1/pipelines/{pipeline_name}/executions")
 
@@ -72,7 +68,7 @@ class cmfClient:
         }
         return self.connection.post(f"/v1/pipelines/{pipeline_name}/executions", data=payload)
 
-    def get_execution_lineage(self, pipeline_name, uuid):
+    def get_execution_lineage_tangled_tree(self, pipeline_name, uuid):
         """Retrieve execution lineage for a given execution UUID."""
         return self.connection.get(f"/v1/pipelines/{pipeline_name}/executions/{uuid}/lineage")
 
@@ -118,37 +114,19 @@ class cmfClient:
             artifact_type=artifact_type,
         )
 
-    def get_artifact_lineage(self, pipeline_name):
+    def get_artifact_lineage_tangled_tree(self, pipeline_name):
         """Retrieve artifact lineage for a pipeline."""
         return self.connection.get(f"/v1/pipelines/{pipeline_name}/artifacts/lineage")
-
-    def get_artifact_execution_lineage(self, pipeline_name):
-        """Retrieve artifact-to-execution lineage for a pipeline."""
-        return self.connection.get(f"/v1/pipelines/{pipeline_name}/artifact-executions/lineage")
 
     def get_model_card(self, model_id):
         """Retrieve model card information for a given model id."""
         model_id_int = int(model_id)
         return self.connection.get("/v1/artifacts/model-card", params={"modelId": model_id_int})
 
-    # Python environment
-    def upload_python_env(self, file_path, filename=None):
-        """Upload a Python environment file to the server."""
-        import os
-
-        file_name = filename or os.path.basename(file_path)
-        with open(file_path, "rb") as file_handle:
-            files = {"file": (file_name, file_handle, "application/octet-stream")}
-            return self.connection.post("/v1/executions/python-env", files=files)
-
     def get_python_env(self, file_name):
         """Retrieve the content of a stored Python environment file."""
         return self.connection.get("/v1/executions/python-env", params={"file_name": file_name})
 
-    def download_python_env(self, list_of_files=None):
-        """Download a zip of Python environment files or the entire environment folder."""
-        params = None if list_of_files is None else {"list_of_files": list_of_files}
-        return self.connection.get("/v1/python-envs/download", params=params, is_binary=True)
 
     # MLMD metadata sync
     def mlmd_push(self, pipeline_name, json_payload, exec_uuid=None):
@@ -168,76 +146,6 @@ class cmfClient:
             "last_sync_time": last_sync_time,
         }
         return self.connection.post("/v1/mlmd/pull", data=payload)
-
-
-    # Server registration and sync
-    def register_server(self, server_name, server_url, last_sync_time=None):
-        """Register a remote server."""
-        payload = {
-            "server_name": server_name,
-            "server_url": server_url,
-            "last_sync_time": last_sync_time,
-        }
-        return self.connection.post("/v1/servers/register", data=payload)
-
-    def sync_server(self, server_name, server_url, last_sync_time=None):
-        """Trigger metadata sync with a registered server."""
-        payload = {
-            "server_name": server_name,
-            "server_url": server_url,
-            "last_sync_time": last_sync_time,
-        }
-        return self.connection.post("/v1/servers/sync", data=payload)
-
-    def list_servers(self):
-        """List registered servers."""
-        return self.connection.get("/v1/servers")
-
-    # Schedule management
-    def create_schedule(
-        self,
-        server_id,
-        timezone="UTC",
-        start_time_local_iso=None,
-        one_time=False,
-        recurrence_mode=None,
-        interval_unit=None,
-        interval_value=None,
-        daily_time=None,
-        weekly_day=None,
-        weekly_time=None,
-    ):
-        """Create a sync schedule."""
-        payload = {
-            "server_id": server_id,
-            "timezone": timezone,
-            "start_time_local_iso": start_time_local_iso,
-            "one_time": one_time,
-            "recurrence_mode": recurrence_mode,
-            "interval_unit": interval_unit,
-            "interval_value": interval_value,
-            "daily_time": daily_time,
-            "weekly_day": weekly_day,
-            "weekly_time": weekly_time,
-        }
-        return self.connection.post("/v1/schedules", data=payload)
-
-    def list_schedules(self, server_id=None):
-        """List schedules, optionally filtered by server_id."""
-        params = None if server_id is None else {"server_id": server_id}
-        return self.connection.get("/v1/schedules", params=params)
-
-    def get_schedule_logs(self, schedule_id):
-        """Get run logs for a schedule."""
-        return self.connection.get(f"/v1/schedules/{schedule_id}/logs")
-
-    def get_server_completed_logs(self, server_id):
-        """Get completed logs for a server."""
-        return self.connection.get(f"/v1/servers/{server_id}/completed-logs")
-
-    def delete_schedule(self, schedule_id):
-        """Delete or deactivate a schedule."""
-        return self.connection.delete(f"/v1/schedules/{schedule_id}")
 
     def close_session(self):
         """Close the session with the CMF server."""

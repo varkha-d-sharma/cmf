@@ -77,9 +77,6 @@ async def upload_python_env(request: Request, file: UploadFile):
             "message": f"File '{file.filename}' uploaded successfully"
         }
 
-    except HTTPException:
-        raise
-
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to upload file: {str(e)}") from e
 

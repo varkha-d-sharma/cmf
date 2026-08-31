@@ -207,15 +207,13 @@ async def get_artifacts_by_stage(
 
 
 # ==================== API Endpoints ====================
-
+# only This API is used by the MCP server.
 @router.get("/metadata/artifact-types")
 async def get_artifacts(
     request: Request,
 ):
     """
     Retrieve available artifact types.
-
-    This API is used by the MCP server.
     """
     result = await artifact_types(request)
 
