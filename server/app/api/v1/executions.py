@@ -44,10 +44,12 @@ router = APIRouter(prefix="/v1", tags=["executions"])
 
 # ==================== Business Logic Functions ====================
 
+# This API returns the list of execution types for a given pipeline.
 async def list_of_executions(request: Request, pipeline_name: str):
-    """Get list of executions for a pipeline."""
     state = request.app.state.mlmd
+    # checks if mlmd file exists on server
     await state.check_mlmd_file_exists()
+    # checks if pipeline exists
     await state.check_pipeline_exists(pipeline_name)
 
     response = await async_api(
@@ -60,6 +62,7 @@ async def list_of_executions(request: Request, pipeline_name: str):
     return response
 
 
+# API endpoint for uploading Python environment files.
 async def upload_python_env(request: Request, file: UploadFile):
     """Upload Python environment file."""
     try:
@@ -81,16 +84,29 @@ async def upload_python_env(request: Request, file: UploadFile):
         raise HTTPException(status_code=500, detail=f"Failed to upload file: {str(e)}") from e
 
 
+# Rest api to fetch the env data from the /cmf-server/data/env folder
 async def get_python_env(file_name: str) -> str:
-    """Retrieve Python environment file content."""
+    """
+    API endpoint to fetch the content of a requirements file.
+
+    Args:
+        file_name (str): The name of the file to be fetched. Must end with .txt or .yaml.
+
+    Returns:
+        str: The content of the file as plain text.
+
+    Raises:
+        HTTPException: If the file does not exist or the extension is unsupported.
+    """
+    # Validate file extension
     if not (file_name.endswith(".txt") or file_name.endswith(".yaml")):
         raise HTTPException(status_code=400, detail="Unsupported file extension. Use .txt or .yaml")
-
+    # Check if the file exists
     file_path = os.path.join("/cmf-server/data/env/", os.path.basename(file_name))
 
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="File not found")
-
+     # Read and return the file content as plain text
     try:
         with open(file_path, "r") as file:
             content = file.read()

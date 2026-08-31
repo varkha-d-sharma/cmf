@@ -46,6 +46,7 @@ router = APIRouter(prefix="/v1", tags=["artifacts"])
 
 # ==================== Business Logic Functions ====================
 
+# This API returns a list of artifact types in the current MLMD store.
 async def artifact_types(request: Request):
     """Get list of artifact types."""
     state = request.app.state.mlmd
@@ -61,6 +62,7 @@ async def artifact_types(request: Request):
 
     return artifact_types_list
 
+# This API returns the model card payload including model, execution, and artifact data.
 async def model_card(request: Request, modelId: int, response_model=List[Dict[str, Any]]):
     """Get model card information."""
     json_payload_1 = ""
@@ -72,6 +74,7 @@ async def model_card(request: Request, modelId: int, response_model=List[Dict[st
     model_input_art_df = pd.DataFrame()
     model_output_art_df = pd.DataFrame()
     state = request.app.state.mlmd
+    # checks if mlmd file exists on server
     await state.check_mlmd_file_exists()
     model_data_df, model_exe_df, model_input_art_df, model_output_art_df = await async_api(
         get_model_data, state.query, modelId
@@ -115,13 +118,26 @@ async def upload_label(request: Request, file: UploadFile):
     except Exception as e:
         return {"error": f"Failed to upload file: {e}"}
 
-
+"""Retrieve label data from from the /cmf-server/data/labels folder."""
 async def get_label_data(file_name: str) -> str:
-    """Retrieve label data file content."""
+   
+    """
+    API endpoint to fetch the content of a requirements file.
+
+    Args:
+        file_name (str): The name of the file to be fetched. Must end with .csv.
+
+    Returns:
+        str: The content of the file as plain text.
+
+    Raises:
+        HTTPException: If the file does not exist or the extension is unsupported.
+    """
+    # Check if the file exists
     file_path = os.path.join("/cmf-server/data/labels/", os.path.basename(file_name))
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="File not found")
-
+    # Read and return the file content as plain text
     try:
         with open(file_path, "r") as file:
             content = file.read()

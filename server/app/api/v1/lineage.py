@@ -36,14 +36,21 @@ router = APIRouter(prefix="/v1", tags=["lineage"])
 
 # ==================== Business Logic Functions ====================
 
+# This API returns the execution lineage graph for a selected execution UUID.
 async def execution_lineage(
     request: Request,
     uuid: str,
     pipeline_name: str,
 ):
-    """Get execution lineage for D3 tree visualization."""
+    """returns dictionary of nodes and links for given execution_type.
+      response = {
+                   nodes: [{id:"",name:"",execution_uuid:""}],
+                   links: [{source:1,target:4},{}],
+                 } """
     state = request.app.state.mlmd
+    # checks if mlmd file exists on server
     await state.check_mlmd_file_exists()
+    # checks if pipeline exists
     await state.check_pipeline_exists(pipeline_name)
 
     response = await async_api(
@@ -57,13 +64,21 @@ async def execution_lineage(
     return response
 
 
+# This API returns artifact lineage in a nested structure used by the tangled-tree visualization.
 async def artifact_lineage_tangled(
     request: Request,
     pipeline_name: str,
 ) -> Optional[List[List[Dict[str, Any]]]]:
-    """Get artifact lineage for tangled tree visualization."""
+    """ Returns:
+      A nested list of dictionaries with 'id' and 'parents' keys.
+      response = [
+        [{'id': 'data.xml.gz:236d', 'parents': []}],
+        [{'id': 'parsed/train.tsv:32b7', 'parents': ['data.xml.gz:236d']}, 
+        ]"""
     state = request.app.state.mlmd
+    # checks if mlmd file exists on server
     await state.check_mlmd_file_exists()
+    # checks if pipeline exists
     await state.check_pipeline_exists(pipeline_name)
 
     response = await async_api(
@@ -76,13 +91,16 @@ async def artifact_lineage_tangled(
     return response
 
 
+# This API returns the artifact-execution lineage graph for visualizing how artifacts and
 async def artifact_execution_lineage(
     request: Request,
     pipeline_name: str,
 ):
     """Get artifact-execution lineage visualization."""
     state = request.app.state.mlmd
+    # checks if mlmd file exists on server
     await state.check_mlmd_file_exists()
+    # checks if pipeline exists
     await state.check_pipeline_exists(pipeline_name)
 
     response = await async_api(

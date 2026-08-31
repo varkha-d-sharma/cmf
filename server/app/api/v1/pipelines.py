@@ -31,6 +31,7 @@ router = APIRouter(prefix="/v1", tags=["pipelines"])
 
 # ==================== Business Logic Functions ====================
 
+# This API returns the list of pipeline names present in the current MLMD store.
 async def pipelines(request: Request):
     """Get list of all pipelines."""
     state = request.app.state.mlmd
