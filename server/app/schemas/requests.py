@@ -41,11 +41,9 @@ class BaseRequest(BaseModel):
 
 
 class ExecutionByStageRequest(BaseRequest):
-    pipeline_name: str = Field(..., description="Pipeline name")
     stage_name: str = Field(..., description="Stage name (Context_Type value)")
     sort_order: str = Field("DESC", description="Sort order: ASC or DESC")
-
-
+      
 # Query parameters for artifact (legacy, non-stage).
 # Deprecated: kept for reference during rollback.
 # class ArtifactRequest(BaseRequest):
@@ -147,22 +145,6 @@ class ScheduleCreateRequest(BaseModel):
             self.daily_time = None
         return self
 
-
-
-class ExecutionByStagePipelineRequest(BaseRequest):
-    stage_name: str = Field(..., description="Stage name (Context_Type value)")
-    sort_order: str = Field("DESC", description="Sort order: ASC or DESC")
-
-
-class ArtifactByStagePipelineRequest(BaseRequest):
-    sort_field: str = Field("name", description="Column to sort by (default: name)")
-    stage_name: str = Field(..., description="Stage name (Context_Type value)")
-    artifact_type: str = Field(..., description="Artifact type to filter")
-
-
 class ArtifactTypesByStageRequest(BaseModel):
     pipeline_name: str = Field(..., description="Pipeline name")
-    stage_name: str = Field(..., description="Stage name (Context_Type value)")
-
-class ArtifactTypesByStagePipelineRequest(BaseModel):
     stage_name: str = Field(..., description="Stage name (Context_Type value)")

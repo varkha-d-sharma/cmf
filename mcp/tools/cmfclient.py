@@ -40,12 +40,20 @@ class cmfClient:
 
     # Pipelines
     def get_pipelines(self):
-        """Retrieve all registered pipelines."""
-        return self.connection.get("/v1/pipelines")
+         """
+        Retrieve currently registered pipelines.
+
+        :return: API response containing registered pipelines."""
+         return self.connection.get("/v1/pipelines")
 
     # Executions
     def get_executions_list(self, pipeline_name):
-        """Retrieve execution list for a pipeline."""
+        """
+        Retrieve a brief list of execution names for a pipeline.
+
+        :param pipeline_name: Name of the pipeline.
+        :return: API response containing execution names.
+        """
         return self.connection.get(f"/v1/pipelines/{pipeline_name}/executions")
 
     def get_executions_by_stage(
@@ -74,7 +82,11 @@ class cmfClient:
 
     # Artifacts
     def get_artifact_types(self):
-        """Retrieve all available artifact types."""
+        """
+        Retrieve a list of artifact types.
+
+        :return: API response containing artifact types.
+        """
         return self.connection.get("/v1/metadata/artifact-types")
 
     def get_artifact_types_by_stage(self, pipeline_name, stage_name):
@@ -107,7 +119,13 @@ class cmfClient:
         return self.connection.post(f"/v1/pipelines/{pipeline_name}/artifacts", data=payload)
 
     def get_artifacts(self, pipeline_name, artifact_type):
-        """Backward-compatible alias for artifact fetch by type."""
+        """
+        Retrieve artifacts of a specific type for a given pipeline.
+
+        :param pipeline_name: Name of the pipeline.
+        :param artifact_type: Type of the artifact.
+        :return: API response containing artifacts of the specified type.
+        """
         return self.get_artifacts_by_stage(
             pipeline_name=pipeline_name,
             stage_name="",
@@ -115,22 +133,41 @@ class cmfClient:
         )
 
     def get_artifact_lineage_tangled_tree(self, pipeline_name):
-        """Retrieve artifact lineage for a pipeline."""
+        """
+        Retrieve the artifact lineage for a given pipeline.
+
+        :param pipeline_name: Name of the pipeline.
+        :return: API response containing the artifact lineage tangled tree.
+        """
         return self.connection.get(f"/v1/pipelines/{pipeline_name}/artifacts/lineage")
 
     def get_model_card(self, model_id):
-        """Retrieve model card information for a given model id."""
+        """
+        Retrieve the model card information.
+
+        :param model_id: Unique identifier for the model (as int).
+        :return: API response containing the model card details.
+        """
         model_id_int = int(model_id)
         return self.connection.get("/v1/artifacts/model-card", params={"modelId": model_id_int})
 
     def get_python_env(self, file_name):
-        """Retrieve the content of a stored Python environment file."""
+        """
+        Retrieve the Python environment details.
+
+        :return: API response containing the Python environment details.
+        """
         return self.connection.get("/v1/executions/python-env", params={"file_name": file_name})
 
 
     # MLMD metadata sync
     def mlmd_push(self, pipeline_name, json_payload, exec_uuid=None):
-        """Push MLMD payload to the server for a pipeline."""
+        """
+        Push metadata to the MLMD server.
+
+        :param payload: The data to be pushed (as a dictionary).
+        :return: API response after pushing the metadata.
+        """
         payload = {
             "pipeline_name": pipeline_name,
             "json_payload": json_payload,
@@ -139,7 +176,12 @@ class cmfClient:
         return self.connection.post("/v1/mlmd/push", data=payload)
 
     def mlmd_pull(self, pipeline_name=None, exec_uuid=None, last_sync_time=None):
-        """Pull MLMD data from the server, optionally filtered by pipeline and UUID."""
+        """
+        Retrieve metadata for a specific pipeline.
+
+        :param pipeline_name: Name of the pipeline.
+        :return: API response containing the metadata.
+        """
         payload = {
             "pipeline_name": pipeline_name,
             "exec_uuid": exec_uuid,

@@ -36,7 +36,7 @@ router = APIRouter(prefix="/v1", tags=["lineage"])
 # ==================== Business Logic Functions ====================
 
 # This API returns the execution lineage graph for a selected execution UUID.
-async def execution_lineage(
+async def execution_lineage_tangled(
     request: Request,
     uuid: str,
     pipeline_name: str,
@@ -121,7 +121,7 @@ async def get_execution_lineage(
     uuid: str,
     pipeline_name: str,
 ):
-    result = await execution_lineage(
+    result = await execution_lineage_tangled(
         request,
         uuid,
         pipeline_name,

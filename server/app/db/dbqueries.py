@@ -921,9 +921,7 @@ async def get_completed_logs_by_server(db: AsyncSession, server_id: int, limit: 
             sync_logs.c.sync_type,
             scheduled_syncs.c.server_id,
         )
-        .select_from(
-            sync_logs.join(scheduled_syncs,sync_logs.c.schedule_id == scheduled_syncs.c.id)
-        )
+        .select_from(sync_logs.join(scheduled_syncs,sync_logs.c.schedule_id == scheduled_syncs.c.id))
         .where(scheduled_syncs.c.server_id == server_id)
         .order_by(sync_logs.c.run_time_utc.desc())
         .limit(limit)

@@ -30,7 +30,7 @@ from server.app.db.dbqueries import (
     fetch_unique_execution_stages,
 )
 from server.app.schemas.requests import (
-    ExecutionByStagePipelineRequest,
+    ExecutionByStageRequest,
 )
 from server.app.schemas.responses import success_response
 from server.app.services.mlmd_state import mlmd_state
@@ -118,7 +118,7 @@ async def get_python_env(file_name: str) -> str:
 
 async def get_executions_by_stage(
     pipeline_name: str,
-    query_params: ExecutionByStagePipelineRequest = Depends(),
+    query_params: ExecutionByStageRequest = Depends(),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -236,7 +236,7 @@ async def get_executions(request: Request, pipeline_name: str):
 @router.post("/pipelines/{pipeline_name}/executions")
 async def pipeline_executions(
     request: Request,
-    query_params: ExecutionByStagePipelineRequest,
+    query_params: ExecutionByStageRequest,
     pipeline_name: str,
     db: AsyncSession = Depends(get_db),
 ):
