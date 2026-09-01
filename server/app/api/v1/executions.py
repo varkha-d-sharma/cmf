@@ -22,7 +22,7 @@ including execution listing and Python environment management.
 """
 
 import os
-from fastapi import APIRouter, Depends, Query, Request, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, Request, HTTPException, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from server.app.db.dbconfig import get_db
 from server.app.db.dbqueries import (
@@ -46,7 +46,7 @@ router = APIRouter(prefix="/v1", tags=["executions"])
 
 # This API returns the list of execution types for a given pipeline.
 async def list_of_executions(request: Request, pipeline_name: str):
-    state = request.app.state.mlmd
+    state = request.app.state.mlmd if request is not None else mlmd_state
     # checks if mlmd file exists on server
     await state.check_mlmd_file_exists()
     # checks if pipeline exists

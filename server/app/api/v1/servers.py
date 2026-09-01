@@ -46,7 +46,7 @@ from server.app.db.dbqueries import (
     get_completed_logs_by_server,
     delete_schedule,
 )
-from server.app.schemas.requests import ScheduleCreateRequest, ServerRegistrationRequest
+from server.app.schemas.requests import ScheduleCreateRequest, ServerRegistrationRequest, AcknowledgeRequest
 from server.app.schemas.responses import success_response
 from server.app.services.mlmd_state import mlmd_state
 from server.app.utils import extract_hostname
@@ -66,7 +66,7 @@ router = APIRouter(prefix="/v1", tags=["servers"])
 # Server registration API.
 async def register_server(request: Request, info: ServerRegistrationRequest, db: AsyncSession):
     """Register a new server."""
-    state = request.app.state.mlmd
+    state = request.app.state.mlmd if request is not None else mlmd_state
     try:
         # Access the data from the Pydantic model
         server_name = info.server_name
@@ -412,7 +412,7 @@ async def delete_schedule_route(schedule_id: int, db: AsyncSession = Depends(get
 
 
 @router.post("/acknowledge")
-async def acknowledge_server(request: Request, info: ServerRegistrationRequest):
+async def acknowledge_server(request: Request, info: AcknowledgeRequest):
     """Compatibility endpoint used by peer servers during registration and liveness checks."""
     return success_response(
         data={

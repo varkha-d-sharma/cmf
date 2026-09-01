@@ -29,7 +29,6 @@ from server.app.get_data import async_api
 from server.app.query_execution_lineage_d3tree import (query_execution_lineage_d3tree,)
 from server.app.query_artifact_lineage_d3tree import (query_artifact_lineage_d3tree,)
 from server.app.query_visualization_artifact_execution import (query_visualization_artifact_execution,)
-from server.app.services.mlmd_state import mlmd_state
 
 router = APIRouter(prefix="/v1", tags=["lineage"])
 
@@ -47,7 +46,7 @@ async def execution_lineage(
                    nodes: [{id:"",name:"",execution_uuid:""}],
                    links: [{source:1,target:4},{}],
                  } """
-    state = request.app.state.mlmd
+    state = request.app.state.mlmd if request is not None else mlmd_state
     # checks if mlmd file exists on server
     await state.check_mlmd_file_exists()
     # checks if pipeline exists
@@ -75,7 +74,7 @@ async def artifact_lineage_tangled(
         [{'id': 'data.xml.gz:236d', 'parents': []}],
         [{'id': 'parsed/train.tsv:32b7', 'parents': ['data.xml.gz:236d']}, 
         ]"""
-    state = request.app.state.mlmd
+    state = request.app.state.mlmd if request is not None else mlmd_state
     # checks if mlmd file exists on server
     await state.check_mlmd_file_exists()
     # checks if pipeline exists
@@ -97,7 +96,7 @@ async def artifact_execution_lineage(
     pipeline_name: str,
 ):
     """Get artifact-execution lineage visualization."""
-    state = request.app.state.mlmd
+    state = request.app.state.mlmd if request is not None else mlmd_state
     # checks if mlmd file exists on server
     await state.check_mlmd_file_exists()
     # checks if pipeline exists

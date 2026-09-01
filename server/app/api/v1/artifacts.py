@@ -49,7 +49,7 @@ router = APIRouter(prefix="/v1", tags=["artifacts"])
 # This API returns a list of artifact types in the current MLMD store.
 async def artifact_types(request: Request):
     """Get list of artifact types."""
-    state = request.app.state.mlmd
+    state = request.app.state.mlmd if request is not None else mlmd_state
     await state.check_mlmd_file_exists()
 
     artifact_types_list = await async_api(
@@ -73,7 +73,7 @@ async def model_card(request: Request, modelId: int, response_model=List[Dict[st
     model_exe_df = pd.DataFrame()
     model_input_art_df = pd.DataFrame()
     model_output_art_df = pd.DataFrame()
-    state = request.app.state.mlmd
+    state = request.app.state.mlmd if request is not None else mlmd_state
     # checks if mlmd file exists on server
     await state.check_mlmd_file_exists()
     model_data_df, model_exe_df, model_input_art_df, model_output_art_df = await async_api(

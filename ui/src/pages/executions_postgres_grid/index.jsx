@@ -91,6 +91,7 @@ const ExecutionsPostgresGrid = () => {
                     setTotalItems(0);
                 });
         }
+        // Added selectedPipeline,selectedStage fetches re-run correctly when the selected pipeline or stage changes,this prevents stale data when switching contexts
     }, [selectedPipeline, selectedStage, activePage, sortOrder, filter]);
 
     const fetchExecutionTypesByStage = (pipelineName, stageName) => {

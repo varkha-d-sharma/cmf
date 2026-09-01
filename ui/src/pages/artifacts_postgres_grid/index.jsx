@@ -133,6 +133,7 @@ const ArtifactsPostgres = () => {
         if (selectedPipeline && selectedStage && selectedArtifactType) {
             fetchArtifactsByStage(selectedPipeline, selectedStage, selectedArtifactType, sortOrder, activePage, filter, selectedCol);
         }
+        // Added selectedPipeline,selectedStage fetches re-run correctly when the selected pipeline or stage changes,this prevents stale data when switching contexts
     }, [selectedPipeline, selectedStage, selectedArtifactType, sortOrder, activePage, selectedCol, filter]);
 
     // Fetch artifacts from the backend based on selected pipeline, stage, and artifact type, along with pagination, sorting, and filtering parameters.

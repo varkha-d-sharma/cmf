@@ -3,7 +3,6 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-import pandas as pd
 import asyncio
 from server.app.get_data import (
     get_all_artifact_ids,

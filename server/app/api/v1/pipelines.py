@@ -26,6 +26,7 @@ from server.app.db.dbqueries import (
     fetch_unique_execution_stages,
 )
 from server.app.schemas.responses import success_response
+from server.app.services.mlmd_state import mlmd_state
 
 router = APIRouter(prefix="/v1", tags=["pipelines"])
 
@@ -34,7 +35,7 @@ router = APIRouter(prefix="/v1", tags=["pipelines"])
 # This API returns the list of pipeline names present in the current MLMD store.
 async def pipelines(request: Request):
     """Get list of all pipelines."""
-    state = request.app.state.mlmd
+    state = request.app.state.mlmd if request is not None else mlmd_state
     if state.query:
         pipeline_names = state.query.get_pipeline_names()
         return pipeline_names
