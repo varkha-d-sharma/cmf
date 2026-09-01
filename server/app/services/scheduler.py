@@ -121,7 +121,13 @@ async def schedule_runner():
                     status = "failed"
                     await update_schedule_fields(db, schedule_id=sch["id"], status="running")
                     try:
-                        result = await sync_metadata(info=req, db=db, skip_logging=True, state=mlmd_state)
+                        result = await sync_metadata(
+                            state=mlmd_state,
+                            server_name=req.server_name,
+                            server_url=req.server_url,
+                            db=db,
+                            skip_logging=True,
+                        )
                         status = result.get("status", "unknown")
                         status_msg = result.get("message", "")
                     except HTTPException as he:

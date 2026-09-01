@@ -28,7 +28,7 @@ from fastapi import APIRouter, File, HTTPException, Query, Request, UploadFile
 from fastapi.responses import HTMLResponse
 from server.app.schemas.requests import MLMDPullRequest, MLMDPushRequest
 from server.app.schemas.responses import success_response
-from server.app.services.mlmd_state import mlmd_state
+from server.app.services.mlmd_state import MlmdState
 from server.app.get_data import (
     get_mlmd_from_server,
     async_api, 
@@ -40,14 +40,16 @@ router = APIRouter(prefix="/v1", tags=["metadata"])
 # ==================== Business Logic Functions ====================
 
 # API to post MLMD file to cmf-server.
-async def mlmd_push(info: MLMDPushRequest, request: Request | None = None):
+async def mlmd_push(
+    state: MlmdState,
+    pipeline_name: str,
+    json_payload: str,
+    exec_uuid: str | None,
+):
     """Push MLMD metadata to the server."""
-    state = (request.app.state.mlmd if request is not None else mlmd_state)
     print("mlmd push started")
     print("......................")
     status = "unknown_error"
-    req_info = info.model_dump() # Serializing the input data into a dictionary using model_dump()
-    pipeline_name = req_info.get("pipeline_name", "")
     if pipeline_name not in state.pipeline_locks: # create lock object for pipeline if it doesn't exists in lock
         state.pipeline_locks[pipeline_name] = asyncio.Lock()
     pipeline_lock = state.pipeline_locks[pipeline_name]
@@ -57,10 +59,10 @@ async def mlmd_push(info: MLMDPushRequest, request: Request | None = None):
             status = await async_api(
                 update_mlmd,
                 state.query,
-                req_info["json_payload"],
+                json_payload,
                 pipeline_name,
                 "push",
-                req_info["exec_uuid"],
+                exec_uuid,
             )
             # Invalid JSON payload, return 400 Bad Request
             if status == "invalid_json_payload":
@@ -81,12 +83,13 @@ async def mlmd_push(info: MLMDPushRequest, request: Request | None = None):
 
 
 # API to get MLMD file from cmf-server.
-async def mlmd_pull(info: MLMDPullRequest, request: Request | None = None):
+async def mlmd_pull(
+    state: MlmdState,
+    pipeline_name: str | None,
+    exec_uuid: str | None,
+    last_sync_time: int | None,
+):
     """Pull MLMD metadata from the server."""
-    state = (request.app.state.mlmd if request is not None else mlmd_state)
-    pipeline_name = info.pipeline_name
-    exec_uuid = info.exec_uuid
-    last_sync_time = info.last_sync_time
     print("mlmd pull started")
     print("......................")
     # checks if mlmd file exists on server
@@ -113,9 +116,8 @@ async def mlmd_pull(info: MLMDPullRequest, request: Request | None = None):
 
 # Upload TensorBoard logs for a pipeline.
 async def upload_tensorboard_logs(
-    request: Request,
-    pipeline_name: str = Query(..., description="Pipeline name"),
-    file: UploadFile = File(..., description="The file to upload"),
+    pipeline_name: str,
+    file: UploadFile,
 ):
     """Upload a TensorBoard log file under the pipeline-specific logs directory."""
     try:
@@ -134,7 +136,13 @@ async def upload_tensorboard_logs(
 
 @router.post("/mlmd/push")
 async def metadata_push(request: Request, info: MLMDPushRequest):
-    result = await mlmd_push(info, request)
+    state = request.app.state.mlmd
+    result = await mlmd_push(
+        state=state,
+        pipeline_name=info.pipeline_name,
+        json_payload=info.json_payload,
+        exec_uuid=info.exec_uuid,
+    )
     return success_response(
         data=result,
         message="MLMD pushed successfully",
@@ -144,19 +152,23 @@ async def metadata_push(request: Request, info: MLMDPushRequest):
 
 @router.post("/mlmd/pull", response_class=HTMLResponse)
 async def metadata_pull(request: Request, info: MLMDPullRequest):
-    return await mlmd_pull(info, request)
+    state = request.app.state.mlmd
+    return await mlmd_pull(
+        state=state,
+        pipeline_name=info.pipeline_name,
+        exec_uuid=info.exec_uuid,
+        last_sync_time=info.last_sync_time,
+    )
 
 
 @router.post("/tensorboard")
 async def tensorboard_upload(
-    request: Request,
     pipeline_name: str = Query(..., description="Pipeline name"),
-    file: UploadFile = File(..., description="The file to upload"),
+    file: UploadFile = File(..., description="The file to upload")
 ):
-    result = await upload_tensorboard_logs(request, pipeline_name, file)
+    result = await upload_tensorboard_logs(pipeline_name, file)
     return success_response(
         data=result,
         message="TensorBoard file uploaded successfully",
         code=200,
     )
-

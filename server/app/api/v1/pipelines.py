@@ -26,16 +26,15 @@ from server.app.db.dbqueries import (
     fetch_unique_execution_stages,
 )
 from server.app.schemas.responses import success_response
-from server.app.services.mlmd_state import mlmd_state
+from server.app.services.mlmd_state import MlmdState
 
 router = APIRouter(prefix="/v1", tags=["pipelines"])
 
 # ==================== Business Logic Functions ====================
 
 # This API returns the list of pipeline names present in the current MLMD store.
-async def pipelines(request: Request):
+async def pipelines(state: MlmdState):
     """Get list of all pipelines."""
-    state = request.app.state.mlmd if request is not None else mlmd_state
     if state.query:
         pipeline_names = state.query.get_pipeline_names()
         return pipeline_names
@@ -47,7 +46,7 @@ async def pipelines(request: Request):
 
 async def get_pipeline_stages(
     pipeline_name: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession,
 ):
     """
     Retrieve unique pipeline stages (Context_Type values) for a given pipeline.
@@ -70,7 +69,8 @@ async def get_pipeline_stages(
 
 @router.get("/pipelines")
 async def list_pipelines(request: Request):
-    result = await pipelines(request)
+    state = request.app.state.mlmd
+    result = await pipelines(state)
     return success_response(
         data=result,
         message="Pipelines retrieved successfully",
@@ -79,7 +79,7 @@ async def list_pipelines(request: Request):
 
 
 @router.get("/pipelines/{pipeline_name}/stages")
-async def pipeline_stages(request: Request, pipeline_name: str, db: AsyncSession = Depends(get_db)):
+async def pipeline_stages(pipeline_name: str, db: AsyncSession = Depends(get_db)):
     result = await get_pipeline_stages(pipeline_name, db)
     return success_response(
         data=result,

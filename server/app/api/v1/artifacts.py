@@ -22,8 +22,7 @@ including artifact types.
 """
 import os
 import json
-from typing import List, Dict, Any
-from fastapi import APIRouter, Depends, Query, Request, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, Request, HTTPException, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from server.app.db.dbconfig import get_db
 from server.app.db.dbqueries import (
@@ -35,7 +34,7 @@ from server.app.schemas.requests import (
     ArtifactTypesByStageRequest,
 )
 from server.app.schemas.responses import success_response
-from server.app.services.mlmd_state import mlmd_state
+from server.app.services.mlmd_state import MlmdState
 from server.app.get_data import (
     get_artifact_types,
     async_api,
@@ -47,9 +46,8 @@ router = APIRouter(prefix="/v1", tags=["artifacts"])
 # ==================== Business Logic Functions ====================
 
 # This API returns a list of artifact types in the current MLMD store.
-async def artifact_types(request: Request):
+async def artifact_types(state: MlmdState):
     """Get list of artifact types."""
-    state = request.app.state.mlmd if request is not None else mlmd_state
     await state.check_mlmd_file_exists()
 
     artifact_types_list = await async_api(
@@ -63,7 +61,7 @@ async def artifact_types(request: Request):
     return artifact_types_list
 
 # This API returns the model card payload including model, execution, and artifact data.
-async def model_card(request: Request, modelId: int, response_model=List[Dict[str, Any]]):
+async def model_card(state: MlmdState, modelId: int):
     """Get model card information."""
     json_payload_1 = ""
     json_payload_2 = ""
@@ -73,7 +71,6 @@ async def model_card(request: Request, modelId: int, response_model=List[Dict[st
     model_exe_df = pd.DataFrame()
     model_input_art_df = pd.DataFrame()
     model_output_art_df = pd.DataFrame()
-    state = request.app.state.mlmd if request is not None else mlmd_state
     # checks if mlmd file exists on server
     await state.check_mlmd_file_exists()
     model_data_df, model_exe_df, model_input_art_df, model_output_art_df = await async_api(
@@ -94,7 +91,7 @@ async def model_card(request: Request, modelId: int, response_model=List[Dict[st
     return [json_payload_1, json_payload_2, json_payload_3, json_payload_4]
 
 
-async def upload_label(request: Request, file: UploadFile):
+async def upload_label(file: UploadFile):
     """Upload label file."""
     try:
         if not file.filename:
@@ -148,8 +145,8 @@ async def get_label_data(file_name: str) -> str:
 
 async def get_artifact_types_by_stage(
     pipeline_name: str,
-    stage_name: str = Query(..., description="Stage name (Context_Type value)"),
-    db: AsyncSession = Depends(get_db)
+    stage_name: str,
+    db: AsyncSession,
 ):
     """
     Retrieve unique artifact types available in a specific stage of a pipeline.
@@ -169,8 +166,14 @@ async def get_artifact_types_by_stage(
 
 async def get_artifacts_by_stage(
     pipeline_name: str,
-    query_params: ArtifactByStageRequest = Depends(),
-    db: AsyncSession = Depends(get_db)
+    stage_name: str,
+    artifact_type: str,
+    filter_value: str,
+    active_page: int,
+    record_per_page: int,
+    sort_field: str,
+    sort_order: str,
+    db: AsyncSession,
 ):
     """
     Retrieve artifacts filtered by pipeline, stage, and artifact type.
@@ -201,14 +204,6 @@ async def get_artifacts_by_stage(
         ]
     }
     """
-    stage_name = query_params.stage_name
-    artifact_type = query_params.artifact_type
-    filter_value = query_params.filter_value
-    active_page = query_params.active_page
-    record_per_page = query_params.record_per_page
-    sort_field = query_params.sort_field
-    sort_order = query_params.sort_order
-
     return await fetch_artifacts_by_stage(
         db=db,
         pipeline_name=pipeline_name,
@@ -231,7 +226,8 @@ async def get_artifacts(
     """
     Retrieve available artifact types.
     """
-    result = await artifact_types(request)
+    state = request.app.state.mlmd
+    result = await artifact_types(state)
 
     return success_response(
         data=result,
@@ -241,8 +237,9 @@ async def get_artifacts(
 
 
 @router.get("/artifacts/model-card")
-async def get_model_card( request: Request, modelId: int,):
-    result = await model_card(request, modelId)
+async def get_model_card( request: Request, modelId: int):
+    state = request.app.state.mlmd
+    result = await model_card(state, modelId)
     return success_response(
         data=result,
         message="Model card retrieved successfully",
@@ -250,8 +247,8 @@ async def get_model_card( request: Request, modelId: int,):
     )
 
 @router.post("/artifacts/label")
-async def upload_label_file(request: Request,file: UploadFile = File(...),):
-    result = await upload_label(request, file)
+async def upload_label_file(file: UploadFile = File(...)):
+    result = await upload_label(file)
 
     return success_response(
         data=result,
@@ -261,7 +258,7 @@ async def upload_label_file(request: Request,file: UploadFile = File(...),):
 
 
 @router.get("/artifacts/label-data")
-async def get_label_data_route(request: Request, file_name: str):
+async def get_label_data_route(file_name: str):
     result = await get_label_data(file_name)
 
     return success_response(
@@ -273,7 +270,6 @@ async def get_label_data_route(request: Request, file_name: str):
 
 @router.post("/pipelines/{pipeline_name}/artifacts/types")
 async def get_artifact_types_by_stage_route(
-    request: Request,
     query_params: ArtifactTypesByStageRequest,
     db: AsyncSession = Depends(get_db),
 ):
@@ -291,12 +287,21 @@ async def get_artifact_types_by_stage_route(
 
 @router.post("/pipelines/{pipeline_name}/artifacts")
 async def get_artifacts_types(
-    request: Request,
     query_params: ArtifactByStageRequest,
     db: AsyncSession = Depends(get_db),
 ):
     pipeline_name = query_params.pipeline_name
-    result = await get_artifacts_by_stage(pipeline_name, query_params, db)
+    result = await get_artifacts_by_stage(
+        pipeline_name,
+        query_params.stage_name,
+        query_params.artifact_type,
+        query_params.filter_value,
+        query_params.active_page,
+        query_params.record_per_page,
+        query_params.sort_field,
+        query_params.sort_order,
+        db,
+    )
     return success_response(
         data=result,
         message="Artifacts retrieved successfully",

@@ -33,7 +33,7 @@ from server.app.schemas.requests import (
     ExecutionByStageRequest,
 )
 from server.app.schemas.responses import success_response
-from server.app.services.mlmd_state import mlmd_state
+from server.app.services.mlmd_state import MlmdState
 from server.app.get_data import (
     async_api,
     executions_list,
@@ -45,8 +45,7 @@ router = APIRouter(prefix="/v1", tags=["executions"])
 # ==================== Business Logic Functions ====================
 
 # This API returns the list of execution types for a given pipeline.
-async def list_of_executions(request: Request, pipeline_name: str):
-    state = request.app.state.mlmd if request is not None else mlmd_state
+async def list_of_executions(state: MlmdState, pipeline_name: str):
     # checks if mlmd file exists on server
     await state.check_mlmd_file_exists()
     # checks if pipeline exists
@@ -63,7 +62,7 @@ async def list_of_executions(request: Request, pipeline_name: str):
 
 
 # API endpoint for uploading Python environment files.
-async def upload_python_env(request: Request, file: UploadFile):
+async def upload_python_env(file: UploadFile):
     """Upload Python environment file."""
     try:
         if file.filename is None:
@@ -118,8 +117,12 @@ async def get_python_env(file_name: str) -> str:
 
 async def get_executions_by_stage(
     pipeline_name: str,
-    query_params: ExecutionByStageRequest = Depends(),
-    db: AsyncSession = Depends(get_db)
+    stage_name: str,
+    active_page: int,
+    record_per_page: int,
+    sort_order: str,
+    filter_value: str,
+    db: AsyncSession,
 ):
     """
     Retrieve executions filtered by pipeline and stage name (Context_Type).
@@ -144,18 +147,12 @@ async def get_executions_by_stage(
         ]
     }
     """
-    stage_name = query_params.stage_name
-    active_page = query_params.active_page
-    record_per_page = query_params.record_per_page
-    sort_order = query_params.sort_order
-    filter_value = query_params.filter_value
-
     return await fetch_executions_by_stage(db, pipeline_name, stage_name, active_page, record_per_page, sort_order, filter_value)
 
 
 async def get_pipeline_stages(
     pipeline_name: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession,
 ):
     """
     Retrieve unique artifact stages (Context_Type values) for a given pipeline.
@@ -184,8 +181,8 @@ async def get_pipeline_stages(
 # ==================== API Endpoints ====================
 
 @router.post("/executions/python-env")
-async def upload_python_environment(request: Request, file: UploadFile = File(...)):
-    result = await upload_python_env(request, file)
+async def upload_python_environment(file: UploadFile = File(...)):
+    result = await upload_python_env(file)
 
     return success_response(
         data=result,
@@ -195,7 +192,7 @@ async def upload_python_environment(request: Request, file: UploadFile = File(..
 
 
 @router.get("/executions/python-env")
-async def get_python_environment(request: Request, file_name: str):
+async def get_python_environment(file_name: str):
     result = await get_python_env(file_name)
 
     return success_response(
@@ -207,7 +204,6 @@ async def get_python_environment(request: Request, file_name: str):
 
 @router.get("/pipelines/{pipeline_name}/stages")
 async def pipeline_stages(
-    request: Request,
     pipeline_name: str,
     db: AsyncSession = Depends(get_db),
 ):
@@ -222,8 +218,9 @@ async def pipeline_stages(
 @router.get("/pipelines/{pipeline_name}/executions")
 async def get_executions(request: Request, pipeline_name: str):
     """Retrieve the execution list for a pipeline."""
+    state = request.app.state.mlmd
     result = await list_of_executions(
-        request= request,
+        state=state,
         pipeline_name=pipeline_name,
     )
     return success_response(
@@ -235,13 +232,20 @@ async def get_executions(request: Request, pipeline_name: str):
 
 @router.post("/pipelines/{pipeline_name}/executions")
 async def pipeline_executions(
-    request: Request,
     query_params: ExecutionByStageRequest,
     pipeline_name: str,
     db: AsyncSession = Depends(get_db),
 ):
     """Retrieve executions filtered/stage-based search by pipeline and stage name."""
-    result = await get_executions_by_stage(pipeline_name, query_params, db)
+    result = await get_executions_by_stage(
+        pipeline_name=pipeline_name,
+        stage_name=query_params.stage_name,
+        active_page=query_params.active_page,
+        record_per_page=query_params.record_per_page,
+        sort_order=query_params.sort_order,
+        filter_value=query_params.filter_value,
+        db=db,
+    )
     return success_response(
         data=result,
         message="Pipeline executions retrieved successfully",

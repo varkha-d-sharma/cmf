@@ -24,7 +24,7 @@ including execution lineage, artifact lineage, and artifact-execution lineage.
 from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, Request
 from server.app.schemas.responses import success_response
-from server.app.services.mlmd_state import mlmd_state
+from server.app.services.mlmd_state import MlmdState
 from server.app.get_data import async_api
 from server.app.query_execution_lineage_d3tree import (query_execution_lineage_d3tree,)
 from server.app.query_artifact_lineage_d3tree import (query_artifact_lineage_d3tree,)
@@ -37,7 +37,7 @@ router = APIRouter(prefix="/v1", tags=["lineage"])
 
 # This API returns the execution lineage graph for a selected execution UUID.
 async def execution_lineage_tangled(
-    request: Request,
+    state: MlmdState,
     uuid: str,
     pipeline_name: str,
 ):
@@ -46,7 +46,6 @@ async def execution_lineage_tangled(
                    nodes: [{id:"",name:"",execution_uuid:""}],
                    links: [{source:1,target:4},{}],
                  } """
-    state = request.app.state.mlmd if request is not None else mlmd_state
     # checks if mlmd file exists on server
     await state.check_mlmd_file_exists()
     # checks if pipeline exists
@@ -57,7 +56,7 @@ async def execution_lineage_tangled(
         state.query,
         pipeline_name,
         state.dict_of_exe_ids,
-        uuid,
+        uuid
     )
 
     return response
@@ -65,8 +64,8 @@ async def execution_lineage_tangled(
 
 # This API returns artifact lineage in a nested structure used by the tangled-tree visualization.
 async def artifact_lineage_tangled(
-    request: Request,
-    pipeline_name: str,
+    state: MlmdState,
+    pipeline_name: str
 ) -> Optional[List[List[Dict[str, Any]]]]:
     """ Returns:
       A nested list of dictionaries with 'id' and 'parents' keys.
@@ -74,7 +73,6 @@ async def artifact_lineage_tangled(
         [{'id': 'data.xml.gz:236d', 'parents': []}],
         [{'id': 'parsed/train.tsv:32b7', 'parents': ['data.xml.gz:236d']}, 
         ]"""
-    state = request.app.state.mlmd if request is not None else mlmd_state
     # checks if mlmd file exists on server
     await state.check_mlmd_file_exists()
     # checks if pipeline exists
@@ -84,7 +82,7 @@ async def artifact_lineage_tangled(
         query_artifact_lineage_d3tree,
         state.query,
         pipeline_name,
-        state.dict_of_art_ids,
+        state.dict_of_art_ids
     )
 
     return response
@@ -92,11 +90,10 @@ async def artifact_lineage_tangled(
 
 # This API returns the artifact-execution lineage graph for visualizing how artifacts and
 async def artifact_execution_lineage(
-    request: Request,
-    pipeline_name: str,
+    state: MlmdState,
+    pipeline_name: str
 ):
     """Get artifact-execution lineage visualization."""
-    state = request.app.state.mlmd if request is not None else mlmd_state
     # checks if mlmd file exists on server
     await state.check_mlmd_file_exists()
     # checks if pipeline exists
@@ -107,7 +104,7 @@ async def artifact_execution_lineage(
         state.query,
         pipeline_name,
         state.dict_of_art_ids,
-        state.dict_of_exe_ids,
+        state.dict_of_exe_ids
     )
 
     return response
@@ -119,50 +116,53 @@ async def artifact_execution_lineage(
 async def get_execution_lineage(
     request: Request,
     uuid: str,
-    pipeline_name: str,
+    pipeline_name: str
 ):
+    state = request.app.state.mlmd
     result = await execution_lineage_tangled(
-        request,
-        uuid,
-        pipeline_name,
+        state=state,
+        uuid=uuid,
+        pipeline_name=pipeline_name
     )
 
     return success_response(
         data=result,
         message="Execution lineage retrieved successfully",
-        code=200,
+        code=200
     )
 
 
 @router.get("/pipelines/{pipeline_name}/artifacts/lineage")
 async def get_artifact_lineage(
     request: Request,
-    pipeline_name: str,
+    pipeline_name: str
 ):
+    state = request.app.state.mlmd
     result = await artifact_lineage_tangled(
-        request,
-        pipeline_name,
+        state=state,
+        pipeline_name=pipeline_name
     )
 
     return success_response(
         data=result,
         message="Artifact lineage retrieved successfully",
-        code=200,
+        code=200
     )
 
 
 @router.get("/pipelines/{pipeline_name}/artifact-executions/lineage")
 async def get_artifact_execution_lineage(
     request: Request,
-    pipeline_name: str,
+    pipeline_name: str
 ):
+    state = request.app.state.mlmd
     result = await artifact_execution_lineage(
-        request,
-        pipeline_name,
+        state=state,
+        pipeline_name=pipeline_name
     )
 
     return success_response(
         data=result,
         message="Artifact-execution lineage retrieved successfully",
-        code=200,
+        code=200
     )

@@ -151,43 +151,42 @@ class FastAPIClient {
   }
 
  async getModelCard(modelId) {
-  return this.apiClient
-    .get(`/v1/artifacts/model-card`, {
-      params: {
-        modelId: modelId,
-      },
-    })
-    .then(({ data }) => {
-      return data;
-    });
-}
+    return this.apiClient
+      .get(`/v1/artifacts/model-card`, {
+        params: {
+          modelId: modelId,
+        },
+      })
+      .then(({ data }) => {
+        return data;
+      });
+  }
 
   async getPythonEnv(file_name) {
-  return this.apiClient
-    .get(`/v1/executions/python-env`, {
-      params: {
-        file_name: file_name
-      },
-      responseType: "text",
-    })
-    .then((response) => {
-      return response.data;
-    });
-}
+    return this.apiClient
+      .get(`/v1/executions/python-env`, {
+        params: {
+          file_name: file_name
+        },
+        responseType: "text",
+      })
+      .then((response) => {
+        return response.data;
+      });
+  }
 
- async getLabelData(file_name) {
-  return this.apiClient
-    .get(`/v1/artifacts/label-data`, {
-      params: {
-        file_name: file_name
-      },
-      responseType: "text"
-    })
-    .then((response) => {
-      return response.data;
-    });
-}
-
+  async getLabelData(file_name) {
+    return this.apiClient
+      .get(`/v1/artifacts/label-data`, {
+        params: {
+          file_name: file_name
+        },
+        responseType: "text", // Explicitly specify response type as text
+      })
+      .then((response) => {
+        return response.data;
+      });
+  }
   async getServerRegistration(server_name, server_url) {
     return this.apiClient
       .post(`/v1/servers/register`, {
@@ -289,12 +288,12 @@ class FastAPIClient {
   }
 
   async getPipelineStages(pipelineName) {
-  return this.apiClient
-    .get(`/v1/pipelines/${encodeURIComponent(pipelineName)}/stages`)
-    .then(({ data }) => {
-      return data;
-    });
-}
+    return this.apiClient
+      .get(`/v1/pipelines/${encodeURIComponent(pipelineName)}/stages`)
+      .then(({ data }) => {
+        return data;
+      });
+  }
 
   async getArtifactTypesByStage(pipelineName, stageName) {
     return this.apiClient

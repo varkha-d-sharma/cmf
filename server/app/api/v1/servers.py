@@ -39,7 +39,7 @@ from server.app.db.dbqueries import (
     get_sync_status,
     get_registered_server_details,
     update_sync_status,
-    create_schedule,
+    create_schedule as create_schedule_db,
     list_schedules as list_schedules_db,
     get_registered_server_by_id,
     list_sync_logs,
@@ -48,7 +48,7 @@ from server.app.db.dbqueries import (
 )
 from server.app.schemas.requests import ScheduleCreateRequest, ServerRegistrationRequest, AcknowledgeRequest
 from server.app.schemas.responses import success_response
-from server.app.services.mlmd_state import mlmd_state
+from server.app.services.mlmd_state import MlmdState
 from server.app.utils import extract_hostname
 from server.app.get_data import (
     server_mlmd_pull,
@@ -64,13 +64,14 @@ router = APIRouter(prefix="/v1", tags=["servers"])
 # ==================== Business Logic Functions ====================
 
 # Server registration API.
-async def register_server(request: Request, info: ServerRegistrationRequest, db: AsyncSession):
+async def register_server(
+    state: MlmdState,
+    server_name: str,
+    server_url: str,
+    db: AsyncSession,
+):
     """Register a new server."""
-    state = request.app.state.mlmd if request is not None else mlmd_state
     try:
-        # Access the data from the Pydantic model
-        server_name = info.server_name
-        server_url = info.server_url
         server = extract_hostname(server_url)
 
         # # Check user is registering with own details
@@ -101,7 +102,13 @@ async def register_server(request: Request, info: ServerRegistrationRequest, db:
 
 
 # Metadata synchronization API.
-async def sync_metadata(info: ServerRegistrationRequest, db: AsyncSession, skip_logging: bool = False, state=None):
+async def sync_metadata(
+    state: MlmdState,
+    server_name: str,
+    server_url: str,
+    db: AsyncSession,
+    skip_logging: bool = False,
+):
     """
     Synchronize metadata for a registered server.
 
@@ -118,9 +125,6 @@ async def sync_metadata(info: ServerRegistrationRequest, db: AsyncSession, skip_
     Raises:
         HTTPException: If the server is not found or an error occurs during synchronization.
     """
-    state = state or mlmd_state
-    server_name = info.server_name
-    server_url = info.server_url
     current_utc_epoch_time = int(time.time() * 1000)
     
     try:
@@ -198,13 +202,13 @@ async def sync_metadata(info: ServerRegistrationRequest, db: AsyncSession, skip_
         raise HTTPException(status_code=500, detail=f"Failed to sync metadata: {e}")
 
 
-async def server_list(db: AsyncSession = Depends(get_db)):
+async def server_list(db: AsyncSession):
     """Get list of all registered servers."""
     rows = await get_registered_server_details(db)
     return rows
 
 
-def download_python_env(request: Request,list_of_files: Optional[list[str]] = Query(None),):
+def download_python_env(list_of_files: Optional[list[str]] = None):
     """Download Python environment files as a ZIP."""
     directory = "/cmf-server/data/env/" # Directory to be compressed
 
@@ -266,7 +270,17 @@ def download_python_env(request: Request,list_of_files: Optional[list[str]] = Qu
 
 
 # Schedule creation API.
-async def schedule_sync(request: ScheduleCreateRequest, db: AsyncSession = Depends(get_db)):
+async def schedule_sync(
+    server_id: int,
+    timezone: str,
+    start_time_local_iso: str,
+    one_time: bool,
+    recurrence_mode: str | None,
+    interval_unit: str | None,
+    interval_value: int | None,
+    weekly_day: str | None,
+    db: AsyncSession,
+):
     """
     Create a one-time or periodic sync schedule for a registered server.
 
@@ -279,19 +293,19 @@ async def schedule_sync(request: ScheduleCreateRequest, db: AsyncSession = Depen
     """
     try:
         # Validate that target server exists before creating a schedule.
-        server = await get_registered_server_by_id(db, request.server_id)
+        server = await get_registered_server_by_id(db, server_id)
         if not server:
             raise HTTPException(status_code=404, detail="Registered server not found")
 
         # Parse local ISO datetime and convert to UTC epoch ms
         try:
-            tz = ZoneInfo(request.timezone)
+            tz = ZoneInfo(timezone)
         except Exception:
             raise HTTPException(status_code=400, detail="Invalid timezone")
 
         try:
             # Accepts e.g. 2026-01-04T15:00
-            local_dt = datetime.strptime(request.start_time_local_iso, "%Y-%m-%dT%H:%M")
+            local_dt = datetime.strptime(start_time_local_iso, "%Y-%m-%dT%H:%M")
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid datetime format. Use YYYY-MM-DDTHH:MM")
 
@@ -301,13 +315,13 @@ async def schedule_sync(request: ScheduleCreateRequest, db: AsyncSession = Depen
 
         # Derive recurrence fields from the selected start datetime.
         derived_time = local_dt.strftime("%H:%M")
-        recurrence_mode = None if request.one_time else request.recurrence_mode
+        recurrence_mode = None if one_time else recurrence_mode
         daily_time = derived_time if recurrence_mode == "daily" else None
-        weekly_day = request.weekly_day if recurrence_mode == "weekly" else None
+        weekly_day = weekly_day if recurrence_mode == "weekly" else None
         weekly_time = derived_time if recurrence_mode == "weekly" else None
 
         now_ms = int(time.time() * 1000)
-        if request.one_time:
+        if one_time:
             # One-time schedules must be strictly in the future.
             if start_utc_ms <= now_ms:
                 raise HTTPException(status_code=400, detail="Start time must be in the future for one-time schedules")
@@ -317,27 +331,27 @@ async def schedule_sync(request: ScheduleCreateRequest, db: AsyncSession = Depen
             next_ms = await compute_initial_next_run_utc(
                 start_utc_ms,
                 now_ms,
-                request.timezone,
+                timezone,
                 recurrence_mode,
-                interval_unit=request.interval_unit,
-                interval_value=request.interval_value,
+                interval_unit=interval_unit,
+                interval_value=interval_value,
                 daily_time=daily_time,
                 weekly_day=weekly_day,
                 weekly_time=weekly_time,
             )
 
         # Persist schedule details and return created id plus first next-run timestamp.
-        created = await create_schedule(
+        created = await create_schedule_db(
             db,
-            server_id=request.server_id,
-            timezone=request.timezone,
+            server_id=server_id,
+            timezone=timezone,
             start_time_utc=start_utc_ms,
             next_run_time_utc=next_ms,
             created_at=now_ms,
-            one_time=request.one_time,
+            one_time=one_time,
             recurrence_mode=recurrence_mode,
-            interval_unit=request.interval_unit,
-            interval_value=request.interval_value,
+            interval_unit=interval_unit,
+            interval_value=interval_value,
             daily_time=daily_time,
             weekly_day=weekly_day,
             weekly_time=weekly_time,
@@ -350,7 +364,7 @@ async def schedule_sync(request: ScheduleCreateRequest, db: AsyncSession = Depen
 
 
 # Retrieve active schedules, optionally filtered by server id.
-async def get_schedules(server_id: Optional[int] = Query(None), db: AsyncSession = Depends(get_db)):
+async def get_schedules(server_id: Optional[int], db: AsyncSession):
     """
     Retrieve active schedules, optionally filtered by server id.
 
@@ -365,7 +379,7 @@ async def get_schedules(server_id: Optional[int] = Query(None), db: AsyncSession
     return rows
 
 
-async def get_schedule_logs(schedule_id: int, db: AsyncSession = Depends(get_db)):
+async def get_schedule_logs(schedule_id: int, db: AsyncSession):
     """
     Retrieve run history logs for a schedule id.
 
@@ -380,7 +394,7 @@ async def get_schedule_logs(schedule_id: int, db: AsyncSession = Depends(get_db)
     return rows
 
 
-async def get_server_completed_logs(server_id: int, db: AsyncSession = Depends(get_db)):
+async def get_server_completed_logs(server_id: int, db: AsyncSession):
     """
     Get all completed sync logs for a specific server.
     
@@ -397,7 +411,7 @@ async def get_server_completed_logs(server_id: int, db: AsyncSession = Depends(g
         raise HTTPException(status_code=500, detail=f"Failed to fetch completed logs: {e}")
 
 
-async def delete_schedule_route(schedule_id: int, db: AsyncSession = Depends(get_db)):
+async def delete_schedule_route(schedule_id: int, db: AsyncSession):
     """
     Deactivate a schedule so future runs stop.
 
@@ -412,7 +426,7 @@ async def delete_schedule_route(schedule_id: int, db: AsyncSession = Depends(get
 
 
 @router.post("/acknowledge")
-async def acknowledge_server(request: Request, info: AcknowledgeRequest):
+async def acknowledge_server(info: AcknowledgeRequest):
     """Compatibility endpoint used by peer servers during registration and liveness checks."""
     return success_response(
         data={
@@ -427,7 +441,13 @@ async def acknowledge_server(request: Request, info: AcknowledgeRequest):
 
 @router.post("/servers/register")
 async def register_server_route(request: Request, info: ServerRegistrationRequest, db: AsyncSession = Depends(get_db)):
-    result = await register_server(request, info, db)
+    state = request.app.state.mlmd
+    result = await register_server(
+        state=state,
+        server_name=info.server_name,
+        server_url=info.server_url,
+        db=db,
+    )
     return success_response(
         data=result,
         message="Server registered successfully",
@@ -437,7 +457,14 @@ async def register_server_route(request: Request, info: ServerRegistrationReques
 
 @router.post("/servers/sync")
 async def sync_server(request: Request, info: ServerRegistrationRequest, db: AsyncSession = Depends(get_db)):
-    result = await sync_metadata(request, info, db, skip_logging=False)
+    state = request.app.state.mlmd
+    result = await sync_metadata(
+        state=state,
+        server_name=info.server_name,
+        server_url=info.server_url,
+        db=db,
+        skip_logging=False,
+    )
     return success_response(
         data=result,
         message="Server synced successfully",
@@ -446,7 +473,7 @@ async def sync_server(request: Request, info: ServerRegistrationRequest, db: Asy
 
 
 @router.get("/servers")
-async def list_servers(request: Request, db: AsyncSession = Depends(get_db)):
+async def list_servers(db: AsyncSession = Depends(get_db)):
     result = await server_list(db)
     return success_response(
         data=result,
@@ -456,8 +483,18 @@ async def list_servers(request: Request, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/schedules")
-async def create_schedule(request: Request, schedule_info: ScheduleCreateRequest, db: AsyncSession = Depends(get_db)):
-    result = await schedule_sync(schedule_info, db)
+async def create_schedule(schedule_info: ScheduleCreateRequest, db: AsyncSession = Depends(get_db)):
+    result = await schedule_sync(
+        server_id=schedule_info.server_id,
+        timezone=schedule_info.timezone,
+        start_time_local_iso=schedule_info.start_time_local_iso,
+        one_time=schedule_info.one_time,
+        recurrence_mode=schedule_info.recurrence_mode,
+        interval_unit=schedule_info.interval_unit,
+        interval_value=schedule_info.interval_value,
+        weekly_day=schedule_info.weekly_day,
+        db=db,
+    )
     return success_response(
         data=result,
         message="Schedule created successfully",
@@ -466,7 +503,7 @@ async def create_schedule(request: Request, schedule_info: ScheduleCreateRequest
 
 
 @router.get("/schedules")
-async def list_schedules_standard(request: Request, server_id: Optional[int] = None, db: AsyncSession = Depends(get_db)):
+async def list_schedules_standard(server_id: Optional[int] = None, db: AsyncSession = Depends(get_db)):
     """
     Retrieve active schedules, optionally filtered by server id.
 
@@ -486,7 +523,7 @@ async def list_schedules_standard(request: Request, server_id: Optional[int] = N
 
 
 @router.get("/schedules/{schedule_id}/logs")
-async def schedule_logs_standard(request: Request, schedule_id: int, db: AsyncSession = Depends(get_db)):
+async def schedule_logs_standard(schedule_id: int, db: AsyncSession = Depends(get_db)):
     """
     Retrieve run history logs for a schedule id.
 
@@ -506,7 +543,7 @@ async def schedule_logs_standard(request: Request, schedule_id: int, db: AsyncSe
 
 
 @router.get("/servers/{server_id}/completed-logs")
-async def server_completed_logs(request: Request, server_id: int, db: AsyncSession = Depends(get_db)):
+async def server_completed_logs(server_id: int, db: AsyncSession = Depends(get_db)):
     """
     Get all completed sync logs for a specific server.
     
@@ -525,7 +562,7 @@ async def server_completed_logs(request: Request, server_id: int, db: AsyncSessi
 
 
 @router.delete("/schedules/{schedule_id}")
-async def delete_schedule_standard(request: Request, schedule_id: int, db: AsyncSession = Depends(get_db)):
+async def delete_schedule_standard(schedule_id: int, db: AsyncSession = Depends(get_db)):
     """
     Deactivate a schedule so future runs stop.
 
@@ -545,6 +582,6 @@ async def delete_schedule_standard(request: Request, schedule_id: int, db: Async
 
 
 @router.get("/python-envs/download")
-async def download_python_env_route(request: Request, list_of_files: Optional[list[str]] = Query(None)):
+async def download_python_env_route(list_of_files: Optional[list[str]] = Query(None)):
     """Download Python environment files as ZIP."""
-    return download_python_env(request, list_of_files)
+    return download_python_env(list_of_files)
