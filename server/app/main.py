@@ -95,7 +95,6 @@ async def lifespan(app: FastAPI):
     mlmd_state.dict_of_exe_ids.clear()
 
 app = FastAPI(title="cmf-server", lifespan=lifespan, root_path="/api")
-app.state.cmf_query = query
 app.include_router(api_v1_router)
 
 # Add CORS middleware

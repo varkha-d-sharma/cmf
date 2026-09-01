@@ -1,10 +1,11 @@
 import json
 from cmflib.cmfquery import CmfQuery
 from fastapi import APIRouter, Depends
-from server.app.api.dependencies import get_cmf_query
+from server.app.services.mlmd_state import mlmd_state
 from server.app.schemas.responses import ErrorDetail, LastSyncTimeRequest, PipelineJsonRequest, PipelineNameRequest, APIResponse
 
-router = APIRouter(prefix="/pipelines", tags=["pipelines"])
+router = APIRouter(prefix="/v1", tags=["pipelines"])
+query = mlmd_state.query
 
 # ==================== Business Logic Functions For CMFQuery ====================
 
@@ -134,20 +135,18 @@ def extract_pipelines_to_json(request: LastSyncTimeRequest, query: CmfQuery) -> 
 @router.get("/stages/", response_model=APIResponse)
 async def cmfquery_get_pipeline_stages(
     request: PipelineNameRequest = Depends(),
-    query: CmfQuery = Depends(get_cmf_query),
 ):
     return list_pipeline_stages(request, query)
 
 
 @router.get("", response_model=APIResponse)
-async def cmfquery_list_pipelines(query: CmfQuery = Depends(get_cmf_query)):
+async def cmfquery_list_pipelines():
     return list_pipeline_names(query)
 
 
 @router.get("/id/", response_model=APIResponse)
 async def cmfquery_get_pipeline_id(
     request: PipelineNameRequest = Depends(),
-    query: CmfQuery = Depends(get_cmf_query),
 ):
     return return_pipeline_id(request, query)
 
@@ -155,7 +154,6 @@ async def cmfquery_get_pipeline_id(
 @router.get("/executions/", response_model=APIResponse)
 async def cmfquery_get_pipeline_executions(
     request: PipelineNameRequest = Depends(),
-    query: CmfQuery = Depends(get_cmf_query),
 ):
     return get_pipeline_executions(request, query)
 
@@ -163,7 +161,6 @@ async def cmfquery_get_pipeline_executions(
 @router.get("/dumptojson", response_model=APIResponse)
 async def cmfquery_dump_pipeline_to_json(
     request: PipelineJsonRequest = Depends(),
-    query: CmfQuery = Depends(get_cmf_query),
 ):
     return get_pipeline_json(request, query)
 
@@ -171,6 +168,5 @@ async def cmfquery_dump_pipeline_to_json(
 @router.get("/extract_to_json", response_model=APIResponse)
 async def cmfquery_extract_pipelines_to_json(
     request: LastSyncTimeRequest = Depends(),
-    query: CmfQuery = Depends(get_cmf_query),
 ):
     return extract_pipelines_to_json(request, query)

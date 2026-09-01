@@ -1,6 +1,6 @@
 from cmflib.cmfquery import CmfQuery
 from fastapi import APIRouter, Depends
-from server.app.api.dependencies import get_cmf_query
+from server.app.services.mlmd_state import mlmd_state
 from server.app.schemas.responses import (
     ArtifactIdRequest,
     ArtifactIdsRequest,
@@ -13,7 +13,8 @@ from server.app.schemas.responses import (
     APIResponse,
 )
 
-router = APIRouter(prefix="/artifacts", tags=["artifacts"])
+router = APIRouter(prefix="/v1", tags=["artifacts"])
+query = mlmd_state.query
 
 # ==================== Business Logic Functions For CMFQuery ====================
 
@@ -265,19 +266,18 @@ def list_all_artifact_types(query: CmfQuery) -> APIResponse:
 # ==================== API Endpoints For CMfQuery ====================
  
 @router.get("", response_model=APIResponse)
-def cmfquery_list_artifacts(query: CmfQuery = Depends(get_cmf_query)):
+def cmfquery_list_artifacts():
     return list_all_artifacts(query)
 
 
 @router.get("/types", response_model=APIResponse)
-def cmfquery_list_artifact_types(query: CmfQuery = Depends(get_cmf_query)):
+def cmfquery_list_artifact_types():
     return list_all_artifact_types(query)
 
 
 @router.get("/get_all_artifacts_by_context", response_model=APIResponse)
 def cmfquery_get_all_artifacts_by_context(
     request: PipelineNameRequest = Depends(),
-    query: CmfQuery = Depends(get_cmf_query),
 ):
     return get_all_artifacts_by_context(request, query)
 
@@ -285,7 +285,6 @@ def cmfquery_get_all_artifacts_by_context(
 @router.post("/get_all_artifacts_by_ids_list", response_model=APIResponse)
 def cmfquery_get_all_artifacts_by_ids_list(
     request: ArtifactIdsRequest,
-    query: CmfQuery = Depends(get_cmf_query),
 ):
     return get_all_artifacts_by_ids_list(request, query)
 
@@ -293,7 +292,6 @@ def cmfquery_get_all_artifacts_by_ids_list(
 @router.get("/get_artifact", response_model=APIResponse)
 def cmfquery_get_artifact(
     request: ArtifactNameRequest = Depends(),
-    query: CmfQuery = Depends(get_cmf_query),
 ):
     return get_artifact(request, query)
 
@@ -301,7 +299,6 @@ def cmfquery_get_artifact(
 @router.get("/get_all_artifacts_for_execution", response_model=APIResponse)
 def cmfquery_get_all_artifacts_for_execution(
     request: ExecutionIdRequest = Depends(),
-    query: CmfQuery = Depends(get_cmf_query),
 ):
     return get_all_artifacts_for_execution(request, query)
 
@@ -309,7 +306,6 @@ def cmfquery_get_all_artifacts_for_execution(
 @router.get("/get_one_hop_child_artifacts", response_model=APIResponse)
 def cmfquery_get_one_hop_child_artifacts(
     request: ArtifactNameWithPipelineRequest = Depends(),
-    query: CmfQuery = Depends(get_cmf_query),
 ):
     return get_one_hop_child_artifacts(request, query)
 
@@ -317,7 +313,6 @@ def cmfquery_get_one_hop_child_artifacts(
 @router.get("/get_all_child_artifacts", response_model=APIResponse)
 def cmfquery_get_all_child_artifacts(
     request: ArtifactNameRequest = Depends(),
-    query: CmfQuery = Depends(get_cmf_query),
 ):
     return get_all_child_artifacts(request, query)
 
@@ -325,7 +320,6 @@ def cmfquery_get_all_child_artifacts(
 @router.get("/get_one_hop_parent_artifacts", response_model=APIResponse)
 def cmfquery_get_one_hop_parent_artifacts(
     request: ArtifactNameRequest = Depends(),
-    query: CmfQuery = Depends(get_cmf_query),
 ):
     return get_one_hop_parent_artifacts(request, query)
 
@@ -333,7 +327,6 @@ def cmfquery_get_one_hop_parent_artifacts(
 @router.get("/get_one_hop_parent_artifacts_with_id", response_model=APIResponse)
 def cmfquery_get_one_hop_parent_artifacts_with_id(
     request: ArtifactIdRequest = Depends(),
-    query: CmfQuery = Depends(get_cmf_query),
 ):
     return get_one_hop_parent_artifacts_with_id(request, query)
 
@@ -341,7 +334,6 @@ def cmfquery_get_one_hop_parent_artifacts_with_id(
 @router.get("/get_all_parent_artifacts", response_model=APIResponse)
 def cmfquery_get_all_parent_artifacts(
     request: ArtifactNameRequest = Depends(),
-    query: CmfQuery = Depends(get_cmf_query),
 ):
     return get_all_parent_artifacts(request, query)
 
@@ -349,7 +341,6 @@ def cmfquery_get_all_parent_artifacts(
 @router.get("/get_metrics", response_model=APIResponse)
 def cmfquery_get_metrics(
     request: MetricsNameRequest = Depends(),
-    query: CmfQuery = Depends(get_cmf_query),
 ):
     return get_metrics(request, query)
 

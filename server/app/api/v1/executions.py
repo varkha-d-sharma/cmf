@@ -1,6 +1,6 @@
 from cmflib.cmfquery import CmfQuery
 from fastapi import APIRouter, Depends
-from server.app.api.dependencies import get_cmf_query
+from server.app.services.mlmd_state import mlmd_state
 from server.app.schemas.responses import (
     ArtifactIdRequest,
     ArtifactNameRequest,
@@ -14,7 +14,8 @@ from server.app.schemas.responses import (
     APIResponse,
 )
 
-router = APIRouter(prefix="/executions", tags=["executions"])
+router = APIRouter(prefix="/v1", tags=["executions"])
+query = mlmd_state.query
 
 # ==================== Business Logic Functions For CMFQuery ====================
 
@@ -360,7 +361,6 @@ def find_producer_execution(request: ArtifactNameRequest, query: CmfQuery) -> AP
 @router.get("/get_executions_in_pipeline_stages", response_model=APIResponse)
 def cmfquery_get_executions_in_pipeline_stages(
     request: StageNameRequest = Depends(),
-    query: CmfQuery = Depends(get_cmf_query),
 ):
     return get_executions_in_pipeline_stages(request, query)
 
@@ -368,7 +368,6 @@ def cmfquery_get_executions_in_pipeline_stages(
 @router.get("/list_executions_in_pipeline_stages", response_model=APIResponse)
 def cmfquery_list_executions_in_pipeline_stages(
     request: StageNameRequest = Depends(),
-    query: CmfQuery = Depends(get_cmf_query),
 ):
     return list_executions_in_pipeline_stages(request, query)
 
@@ -376,7 +375,6 @@ def cmfquery_list_executions_in_pipeline_stages(
 @router.post("/get_all_executions_by_ids_list", response_model=APIResponse)
 def cmfquery_get_all_executions_by_ids_list(
     request: ExecutionIdsRequest,
-    query: CmfQuery = Depends(get_cmf_query),
 ):
     return get_all_executions_by_ids_list(request, query)
 
@@ -384,7 +382,6 @@ def cmfquery_get_all_executions_by_ids_list(
 @router.get("/get_all_executions_for_artifact", response_model=APIResponse)
 def cmfquery_get_all_executions_for_artifact(
     request: ArtifactNameRequest = Depends(),
-    query: CmfQuery = Depends(get_cmf_query),
 ):
     return get_all_executions_for_artifact(request, query)
 
@@ -392,7 +389,6 @@ def cmfquery_get_all_executions_for_artifact(
 @router.get("/get_all_executions_for_artifact_id", response_model=APIResponse)
 def cmfquery_get_all_executions_for_artifact_id(
     request: ArtifactIdRequest = Depends(),
-    query: CmfQuery = Depends(get_cmf_query),
 ):
     return get_all_executions_for_artifact_id(request, query)
 
@@ -400,7 +396,6 @@ def cmfquery_get_all_executions_for_artifact_id(
 @router.post("/get_one_hop_parent_executions", response_model=APIResponse)
 def cmfquery_get_one_hop_parent_executions(
     request: ExecutionIdsWithPipelineRequest,
-    query: CmfQuery = Depends(get_cmf_query),
 ):
     return get_one_hop_parent_executions(request, query)
 
@@ -408,7 +403,6 @@ def cmfquery_get_one_hop_parent_executions(
 @router.get("/get_one_hop_parent_execution_ids", response_model=APIResponse)
 def cmfquery_get_one_hop_parent_execution_ids(
     request: ParentExecutionIdRequest = Depends(),
-    query: CmfQuery = Depends(get_cmf_query),
 ):
     return get_one_hop_parent_execution_ids(request, query)
 
@@ -416,7 +410,6 @@ def cmfquery_get_one_hop_parent_execution_ids(
 @router.post("/get_all_parent_executions_by_id", response_model=APIResponse)
 def cmfquery_get_all_parent_executions_by_id(
     request: ParentExecutionIdsRequest,
-    query: CmfQuery = Depends(get_cmf_query),
 ):
     return get_all_parent_executions_by_id(request, query)
 
@@ -424,7 +417,6 @@ def cmfquery_get_all_parent_executions_by_id(
 @router.get("/get_all_parent_executions", response_model=APIResponse)
 def cmfquery_get_all_parent_executions(
     request: ArtifactNameRequest = Depends(),
-    query: CmfQuery = Depends(get_cmf_query),
 ):
     return get_all_parent_executions(request, query)
 
@@ -432,7 +424,6 @@ def cmfquery_get_all_parent_executions(
 @router.post("/get_executions_with_execution_ids", response_model=APIResponse)
 def cmfquery_get_executions_with_execution_ids(
     request: ExecutionIdsRequest,
-    query: CmfQuery = Depends(get_cmf_query),
 ):
     return get_executions_with_execution_ids(request, query)
 
@@ -440,7 +431,6 @@ def cmfquery_get_executions_with_execution_ids(
 @router.get("/get_all_executions_by_stage", response_model=APIResponse)
 def cmfquery_get_all_executions_by_stage(
     request: StageIdRequest = Depends(),
-    query: CmfQuery = Depends(get_cmf_query),
 ):
     return get_all_executions_by_stage(request, query)
 
@@ -448,6 +438,5 @@ def cmfquery_get_all_executions_by_stage(
 @router.get("/find_producer_execution", response_model=APIResponse)
 def cmfquery_find_producer_execution(
     request: ArtifactNameRequest = Depends(),
-    query: CmfQuery = Depends(get_cmf_query),
 ):
     return find_producer_execution(request, query)
