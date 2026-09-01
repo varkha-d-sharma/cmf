@@ -25,6 +25,7 @@ including MLMD push/pull,
 import asyncio
 import os
 from fastapi import APIRouter, File, HTTPException, Query, Request, UploadFile
+from fastapi.responses import HTMLResponse
 from server.app.schemas.requests import MLMDPullRequest, MLMDPushRequest
 from server.app.schemas.responses import success_response
 from server.app.services.mlmd_state import mlmd_state
@@ -141,14 +142,9 @@ async def metadata_push(request: Request, info: MLMDPushRequest):
     )
 
 
-@router.post("/mlmd/pull")
+@router.post("/mlmd/pull", response_class=HTMLResponse)
 async def metadata_pull(request: Request, info: MLMDPullRequest):
-    result = await mlmd_pull(info, request)
-    return success_response(
-        data=result,
-        message="MLMD pulled successfully",
-        code=200,
-    )
+    return await mlmd_pull(info, request)
 
 
 @router.post("/tensorboard")
