@@ -77,7 +77,13 @@ class cmfClient:
         return self.connection.post(f"/v1/pipelines/{pipeline_name}/executions", data=payload)
 
     def get_execution_lineage_tangled_tree(self, pipeline_name, uuid):
-        """Retrieve execution lineage for a given execution UUID."""
+        """
+        Retrieve the execution lineage tangled tree for a given UUID and pipeline.
+
+        :param uuid: Unique identifier for the execution.
+        :param pipeline_name: Name of the pipeline.
+        :return: API response containing the execution lineage tangled tree.
+        """
         return self.connection.get(f"/v1/pipelines/{pipeline_name}/executions/{uuid}/lineage")
 
     # Artifacts

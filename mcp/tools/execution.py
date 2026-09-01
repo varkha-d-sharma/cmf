@@ -85,7 +85,7 @@ def register_tools(mcp, cmf_clients):
         for url in targets:
             client = cmf_clients[url]
             try:
-                data = client.get_execution_lineage_tangled_tree(pipeline, selected_uuid_pared)
+                data = client.get_execution_lineage_tangled_tree(selected_uuid_pared,pipeline)
                 result.append({"cmfClient": url, "data": data})
                 logger.debug(json.dumps(data, indent=4))
             except Exception as e:
