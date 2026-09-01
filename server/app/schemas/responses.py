@@ -148,11 +148,7 @@ class ExecutionIdRequest(BaseModel):
 
 
 class ExecutionIdsWithPipelineRequest(BaseModel):
-    execution_id: list[int] = Field(..., min_items=1, description="List of execution identifiers")
-    pipeline_id: Optional[int] = Field(None, description="Optional pipeline identifier")
-
-
-class ParentExecutionIdsRequest(BaseModel):
+    """Execution id list request used by parent execution lookup endpoints."""
     execution_id: list[int] = Field(..., min_items=1, description="List of execution identifiers")
     pipeline_id: Optional[int] = Field(None, description="Optional pipeline identifier")
 

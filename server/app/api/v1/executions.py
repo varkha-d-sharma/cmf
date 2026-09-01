@@ -8,7 +8,6 @@ from server.app.schemas.responses import (
     ExecutionIdsRequest,
     ExecutionIdsWithPipelineRequest,
     ParentExecutionIdRequest,
-    ParentExecutionIdsRequest,
     StageIdRequest,
     StageNameRequest,
     APIResponse,
@@ -265,7 +264,7 @@ def get_one_hop_parent_execution_ids(request: ParentExecutionIdRequest, query: C
     )
 
 
-def get_all_parent_executions_by_id(request: ParentExecutionIdsRequest, query: CmfQuery) -> APIResponse:
+def get_all_parent_executions_by_id(request: ExecutionIdsWithPipelineRequest, query: CmfQuery) -> APIResponse:
     parent_executions = query.get_all_parent_executions_by_id(request.execution_id, request.pipeline_id)
     parent_details = parent_executions[0] if parent_executions else []
     parent_links = parent_executions[1] if len(parent_executions) > 1 else []
@@ -409,7 +408,7 @@ def cmfquery_get_one_hop_parent_execution_ids(
 
 @router.post("/get_all_parent_executions_by_id", response_model=APIResponse)
 def cmfquery_get_all_parent_executions_by_id(
-    request: ParentExecutionIdsRequest,
+    request: ExecutionIdsWithPipelineRequest,
 ):
     return get_all_parent_executions_by_id(request, query)
 
