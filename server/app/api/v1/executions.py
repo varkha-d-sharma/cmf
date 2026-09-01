@@ -1,7 +1,7 @@
 from cmflib.cmfquery import CmfQuery
 from fastapi import APIRouter, Depends
 from server.app.api.dependencies import get_cmf_query
-from server.app.schemas.cmf_query_schema import (
+from server.app.schemas.responses import (
     ArtifactIdRequest,
     ArtifactNameRequest,
     ErrorDetail,
@@ -11,25 +11,31 @@ from server.app.schemas.cmf_query_schema import (
     ParentExecutionIdsRequest,
     StageIdRequest,
     StageNameRequest,
-    StandardResponse,
+    APIResponse,
 )
 
-router = APIRouter()
+router = APIRouter(prefix="/executions", tags=["executions"])
+
+# ==================== Business Logic Functions For CMFQuery ====================
 
 def _mlmd_properties_to_dict(properties) -> dict:
     output = {}
     for key, value in properties.items():
-        if value.HasField("string_value"):
-            output[key] = value.string_value
-        elif value.HasField("int_value"):
-            output[key] = value.int_value
-        elif value.HasField("double_value"):
-            output[key] = value.double_value
-        elif value.HasField("bool_value"):
-            output[key] = value.bool_value
-        else:
-            output[key] = None
+        output[key] = _mlmd_value_to_python(value)
     return output
+
+
+def _mlmd_value_to_python(value):
+    if hasattr(value, "HasField"):
+        if value.HasField("string_value"):
+            return value.string_value
+        if value.HasField("int_value"):
+            return value.int_value
+        if value.HasField("double_value"):
+            return value.double_value
+        if value.HasField("bool_value"):
+            return value.bool_value
+    return None
 
 
 def _execution_to_dict(execution) -> dict:
@@ -46,12 +52,19 @@ def _execution_to_dict(execution) -> dict:
 
 
 def _dataframe_records(dataframe) -> list[dict]:
-    return dataframe.where(dataframe.notna(), None).to_dict(orient="records")
+    records = dataframe.where(dataframe.notna(), None).to_dict(orient="records")
+    return [
+        {
+            key: _mlmd_value_to_python(value) if hasattr(value, "HasField") else value
+            for key, value in record.items()
+        }
+        for record in records
+    ]
 
 
-def _dataframe_response(dataframe, data: dict, not_found_field: str, not_found_message: str, success_message: str) -> StandardResponse:
+def _dataframe_response(dataframe, data: dict, not_found_field: str, not_found_message: str, success_message: str) -> APIResponse:
     if dataframe is None or dataframe.empty:
-        return StandardResponse(
+        return APIResponse(
             status="error",
             code=404,
             data=None,
@@ -66,7 +79,7 @@ def _dataframe_response(dataframe, data: dict, not_found_field: str, not_found_m
             "total_executions": len(execution_records),
         }
     )
-    return StandardResponse(
+    return APIResponse(
         status="success",
         code=200,
         data=data,
@@ -74,9 +87,9 @@ def _dataframe_response(dataframe, data: dict, not_found_field: str, not_found_m
     )
 
 
-def _execution_list_response(executions, data: dict, not_found_field: str, not_found_message: str, success_message: str) -> StandardResponse:
+def _execution_list_response(executions, data: dict, not_found_field: str, not_found_message: str, success_message: str) -> APIResponse:
     if not executions:
-        return StandardResponse(
+        return APIResponse(
             status="error",
             code=404,
             data=None,
@@ -94,7 +107,7 @@ def _execution_list_response(executions, data: dict, not_found_field: str, not_f
             "total_executions": len(execution_records),
         }
     )
-    return StandardResponse(
+    return APIResponse(
         status="success",
         code=200,
         data=data,
@@ -102,11 +115,11 @@ def _execution_list_response(executions, data: dict, not_found_field: str, not_f
     )
 
 
-def list_executions_in_pipeline_stages(request: StageNameRequest, query: CmfQuery) -> StandardResponse:
+def list_executions_in_pipeline_stages(request: StageNameRequest, query: CmfQuery) -> APIResponse:
     # this function will return all executions associated with a given stage name[mlpb.Execution]
     executions = query.get_all_exe_in_stage(request.stage_name)
     if executions == []:
-        return StandardResponse(
+        return APIResponse(
             status="error",
             code=404,
             data=None,
@@ -119,7 +132,7 @@ def list_executions_in_pipeline_stages(request: StageNameRequest, query: CmfQuer
             ],
         )
 
-    return StandardResponse(
+    return APIResponse(
         status="success",
         code=200,
         data={
@@ -131,11 +144,11 @@ def list_executions_in_pipeline_stages(request: StageNameRequest, query: CmfQuer
     )
 
 
-def get_executions_in_pipeline_stages(request: StageNameRequest, query: CmfQuery) -> StandardResponse:
+def get_executions_in_pipeline_stages(request: StageNameRequest, query: CmfQuery) -> APIResponse:
     # this function will return all executions associated with a given stage name[dataframe]
     executions = query.get_all_executions_in_stage(request.stage_name)
     if executions.empty:
-        return StandardResponse(
+        return APIResponse(
             status="error",
             code=404,
             data=None,
@@ -148,7 +161,7 @@ def get_executions_in_pipeline_stages(request: StageNameRequest, query: CmfQuery
             ],
         )
 
-    return StandardResponse(
+    return APIResponse(
         status="success",
         code=200,
         data={
@@ -160,10 +173,10 @@ def get_executions_in_pipeline_stages(request: StageNameRequest, query: CmfQuery
     )
 
 
-def get_all_executions_by_ids_list(request: ExecutionIdsRequest, query: CmfQuery) -> StandardResponse:
+def get_all_executions_by_ids_list(request: ExecutionIdsRequest, query: CmfQuery) -> APIResponse:
     executions = query.get_all_executions_by_ids_list(request.exe_ids)
     if executions.empty:
-        return StandardResponse(
+        return APIResponse(
             status="error",
             code=404,
             data=None,
@@ -177,7 +190,7 @@ def get_all_executions_by_ids_list(request: ExecutionIdsRequest, query: CmfQuery
         )
 
     execution_records = _dataframe_records(executions)
-    return StandardResponse(
+    return APIResponse(
         status="success",
         code=200,
         data={
@@ -189,7 +202,7 @@ def get_all_executions_by_ids_list(request: ExecutionIdsRequest, query: CmfQuery
     )
 
 
-def get_all_executions_for_artifact(request: ArtifactNameRequest, query: CmfQuery) -> StandardResponse:
+def get_all_executions_for_artifact(request: ArtifactNameRequest, query: CmfQuery) -> APIResponse:
     executions = query.get_all_executions_for_artifact(request.artifact_name)
     return _dataframe_response(
         executions,
@@ -200,7 +213,7 @@ def get_all_executions_for_artifact(request: ArtifactNameRequest, query: CmfQuer
     )
 
 
-def get_all_executions_for_artifact_id(request: ArtifactIdRequest, query: CmfQuery) -> StandardResponse:
+def get_all_executions_for_artifact_id(request: ArtifactIdRequest, query: CmfQuery) -> APIResponse:
     executions = query.get_all_executions_for_artifact_id(request.artifact_id)
     return _dataframe_response(
         executions,
@@ -211,7 +224,7 @@ def get_all_executions_for_artifact_id(request: ArtifactIdRequest, query: CmfQue
     )
 
 
-def get_one_hop_parent_executions(request: ExecutionIdsWithPipelineRequest, query: CmfQuery) -> StandardResponse:
+def get_one_hop_parent_executions(request: ExecutionIdsWithPipelineRequest, query: CmfQuery) -> APIResponse:
     executions = query.get_one_hop_parent_executions(request.execution_id, request.pipeline_id)
     return _execution_list_response(
         executions,
@@ -222,10 +235,10 @@ def get_one_hop_parent_executions(request: ExecutionIdsWithPipelineRequest, quer
     )
 
 
-def get_one_hop_parent_execution_ids(request: ParentExecutionIdRequest, query: CmfQuery) -> StandardResponse:
+def get_one_hop_parent_execution_ids(request: ParentExecutionIdRequest, query: CmfQuery) -> APIResponse:
     execution_ids = query.get_one_hop_parent_execution_ids(request.execution_id, request.pipeline_id)
     if not execution_ids:
-        return StandardResponse(
+        return APIResponse(
             status="error",
             code=404,
             data=None,
@@ -238,7 +251,7 @@ def get_one_hop_parent_execution_ids(request: ParentExecutionIdRequest, query: C
             ],
         )
 
-    return StandardResponse(
+    return APIResponse(
         status="success",
         code=200,
         data={
@@ -251,12 +264,12 @@ def get_one_hop_parent_execution_ids(request: ParentExecutionIdRequest, query: C
     )
 
 
-def get_all_parent_executions_by_id(request: ParentExecutionIdsRequest, query: CmfQuery) -> StandardResponse:
+def get_all_parent_executions_by_id(request: ParentExecutionIdsRequest, query: CmfQuery) -> APIResponse:
     parent_executions = query.get_all_parent_executions_by_id(request.execution_id, request.pipeline_id)
     parent_details = parent_executions[0] if parent_executions else []
     parent_links = parent_executions[1] if len(parent_executions) > 1 else []
     if not parent_details and not parent_links:
-        return StandardResponse(
+        return APIResponse(
             status="error",
             code=404,
             data=None,
@@ -269,7 +282,7 @@ def get_all_parent_executions_by_id(request: ParentExecutionIdsRequest, query: C
             ],
         )
 
-    return StandardResponse(
+    return APIResponse(
         status="success",
         code=200,
         data={
@@ -283,7 +296,7 @@ def get_all_parent_executions_by_id(request: ParentExecutionIdsRequest, query: C
     )
 
 
-def get_all_parent_executions(request: ArtifactNameRequest, query: CmfQuery) -> StandardResponse:
+def get_all_parent_executions(request: ArtifactNameRequest, query: CmfQuery) -> APIResponse:
     executions = query.get_all_parent_executions(request.artifact_name)
     return _dataframe_response(
         executions,
@@ -294,7 +307,7 @@ def get_all_parent_executions(request: ArtifactNameRequest, query: CmfQuery) -> 
     )
 
 
-def get_executions_with_execution_ids(request: ExecutionIdsRequest, query: CmfQuery) -> StandardResponse:
+def get_executions_with_execution_ids(request: ExecutionIdsRequest, query: CmfQuery) -> APIResponse:
     executions = query.get_executions_with_execution_ids(request.exe_ids)
     return _dataframe_response(
         executions,
@@ -305,7 +318,7 @@ def get_executions_with_execution_ids(request: ExecutionIdsRequest, query: CmfQu
     )
 
 
-def get_all_executions_by_stage(request: StageIdRequest, query: CmfQuery) -> StandardResponse:
+def get_all_executions_by_stage(request: StageIdRequest, query: CmfQuery) -> APIResponse:
     executions = query.get_all_executions_by_stage(request.stage_id, request.execution_uuid)
     return _execution_list_response(
         executions,
@@ -316,10 +329,10 @@ def get_all_executions_by_stage(request: StageIdRequest, query: CmfQuery) -> Sta
     )
 
 
-def find_producer_execution(request: ArtifactNameRequest, query: CmfQuery) -> StandardResponse:
+def find_producer_execution(request: ArtifactNameRequest, query: CmfQuery) -> APIResponse:
     execution = query.find_producer_execution(request.artifact_name)
     if execution is None:
-        return StandardResponse(
+        return APIResponse(
             status="error",
             code=404,
             data=None,
@@ -332,7 +345,7 @@ def find_producer_execution(request: ArtifactNameRequest, query: CmfQuery) -> St
             ],
         )
 
-    return StandardResponse(
+    return APIResponse(
         status="success",
         code=200,
         data={
@@ -342,8 +355,9 @@ def find_producer_execution(request: ArtifactNameRequest, query: CmfQuery) -> St
         message="Producer execution retrieved successfully",
     )
 
-
-@router.get("/get_executions_in_pipeline_stages", response_model=StandardResponse)
+# ==================== API Endpoints For CMfQuery ====================
+ 
+@router.get("/get_executions_in_pipeline_stages", response_model=APIResponse)
 def cmfquery_get_executions_in_pipeline_stages(
     request: StageNameRequest = Depends(),
     query: CmfQuery = Depends(get_cmf_query),
@@ -351,7 +365,7 @@ def cmfquery_get_executions_in_pipeline_stages(
     return get_executions_in_pipeline_stages(request, query)
 
 
-@router.get("/list_executions_in_pipeline_stages", response_model=StandardResponse)
+@router.get("/list_executions_in_pipeline_stages", response_model=APIResponse)
 def cmfquery_list_executions_in_pipeline_stages(
     request: StageNameRequest = Depends(),
     query: CmfQuery = Depends(get_cmf_query),
@@ -359,7 +373,7 @@ def cmfquery_list_executions_in_pipeline_stages(
     return list_executions_in_pipeline_stages(request, query)
 
 
-@router.post("/get_all_executions_by_ids_list", response_model=StandardResponse)
+@router.post("/get_all_executions_by_ids_list", response_model=APIResponse)
 def cmfquery_get_all_executions_by_ids_list(
     request: ExecutionIdsRequest,
     query: CmfQuery = Depends(get_cmf_query),
@@ -367,7 +381,7 @@ def cmfquery_get_all_executions_by_ids_list(
     return get_all_executions_by_ids_list(request, query)
 
 
-@router.get("/get_all_executions_for_artifact", response_model=StandardResponse)
+@router.get("/get_all_executions_for_artifact", response_model=APIResponse)
 def cmfquery_get_all_executions_for_artifact(
     request: ArtifactNameRequest = Depends(),
     query: CmfQuery = Depends(get_cmf_query),
@@ -375,7 +389,7 @@ def cmfquery_get_all_executions_for_artifact(
     return get_all_executions_for_artifact(request, query)
 
 
-@router.get("/get_all_executions_for_artifact_id", response_model=StandardResponse)
+@router.get("/get_all_executions_for_artifact_id", response_model=APIResponse)
 def cmfquery_get_all_executions_for_artifact_id(
     request: ArtifactIdRequest = Depends(),
     query: CmfQuery = Depends(get_cmf_query),
@@ -383,7 +397,7 @@ def cmfquery_get_all_executions_for_artifact_id(
     return get_all_executions_for_artifact_id(request, query)
 
 
-@router.post("/get_one_hop_parent_executions", response_model=StandardResponse)
+@router.post("/get_one_hop_parent_executions", response_model=APIResponse)
 def cmfquery_get_one_hop_parent_executions(
     request: ExecutionIdsWithPipelineRequest,
     query: CmfQuery = Depends(get_cmf_query),
@@ -391,7 +405,7 @@ def cmfquery_get_one_hop_parent_executions(
     return get_one_hop_parent_executions(request, query)
 
 
-@router.get("/get_one_hop_parent_execution_ids", response_model=StandardResponse)
+@router.get("/get_one_hop_parent_execution_ids", response_model=APIResponse)
 def cmfquery_get_one_hop_parent_execution_ids(
     request: ParentExecutionIdRequest = Depends(),
     query: CmfQuery = Depends(get_cmf_query),
@@ -399,7 +413,7 @@ def cmfquery_get_one_hop_parent_execution_ids(
     return get_one_hop_parent_execution_ids(request, query)
 
 
-@router.post("/get_all_parent_executions_by_id", response_model=StandardResponse)
+@router.post("/get_all_parent_executions_by_id", response_model=APIResponse)
 def cmfquery_get_all_parent_executions_by_id(
     request: ParentExecutionIdsRequest,
     query: CmfQuery = Depends(get_cmf_query),
@@ -407,7 +421,7 @@ def cmfquery_get_all_parent_executions_by_id(
     return get_all_parent_executions_by_id(request, query)
 
 
-@router.get("/get_all_parent_executions", response_model=StandardResponse)
+@router.get("/get_all_parent_executions", response_model=APIResponse)
 def cmfquery_get_all_parent_executions(
     request: ArtifactNameRequest = Depends(),
     query: CmfQuery = Depends(get_cmf_query),
@@ -415,7 +429,7 @@ def cmfquery_get_all_parent_executions(
     return get_all_parent_executions(request, query)
 
 
-@router.post("/get_executions_with_execution_ids", response_model=StandardResponse)
+@router.post("/get_executions_with_execution_ids", response_model=APIResponse)
 def cmfquery_get_executions_with_execution_ids(
     request: ExecutionIdsRequest,
     query: CmfQuery = Depends(get_cmf_query),
@@ -423,7 +437,7 @@ def cmfquery_get_executions_with_execution_ids(
     return get_executions_with_execution_ids(request, query)
 
 
-@router.get("/get_all_executions_by_stage", response_model=StandardResponse)
+@router.get("/get_all_executions_by_stage", response_model=APIResponse)
 def cmfquery_get_all_executions_by_stage(
     request: StageIdRequest = Depends(),
     query: CmfQuery = Depends(get_cmf_query),
@@ -431,7 +445,7 @@ def cmfquery_get_all_executions_by_stage(
     return get_all_executions_by_stage(request, query)
 
 
-@router.get("/find_producer_execution", response_model=StandardResponse)
+@router.get("/find_producer_execution", response_model=APIResponse)
 def cmfquery_find_producer_execution(
     request: ArtifactNameRequest = Depends(),
     query: CmfQuery = Depends(get_cmf_query),

@@ -2,18 +2,20 @@ import json
 from cmflib.cmfquery import CmfQuery
 from fastapi import APIRouter, Depends
 from server.app.api.dependencies import get_cmf_query
-from server.app.schemas.cmf_query_schema import ErrorDetail, LastSyncTimeRequest, PipelineJsonRequest, PipelineNameRequest, StandardResponse
+from server.app.schemas.responses import ErrorDetail, LastSyncTimeRequest, PipelineJsonRequest, PipelineNameRequest, APIResponse
 
-router = APIRouter()
+router = APIRouter(prefix="/pipelines", tags=["pipelines"])
+
+# ==================== Business Logic Functions For CMFQuery ====================
 
 def _dataframe_records(dataframe):
     # Replace NaN values with None and convert the DataFrame to a list of dictionaries
     return dataframe.where(dataframe.notna(), None).to_dict(orient="records")
 
 
-def list_pipeline_names(query: CmfQuery) -> StandardResponse:
+def list_pipeline_names(query: CmfQuery) -> APIResponse:
     pipeline_names = query.get_pipeline_names()
-    return StandardResponse(
+    return APIResponse(
         status="success",
         code=200,
         data={
@@ -24,10 +26,10 @@ def list_pipeline_names(query: CmfQuery) -> StandardResponse:
     )
 
 
-def return_pipeline_id(request: PipelineNameRequest, query: CmfQuery) -> StandardResponse:
+def return_pipeline_id(request: PipelineNameRequest, query: CmfQuery) -> APIResponse:
     pipeline_id = query.get_pipeline_id(request.pipeline_name)
     if pipeline_id == -1:
-        return StandardResponse(
+        return APIResponse(
             status="error",
             code=404,
             data=None,
@@ -40,7 +42,7 @@ def return_pipeline_id(request: PipelineNameRequest, query: CmfQuery) -> Standar
             ],
         )
 
-    return StandardResponse(
+    return APIResponse(
         status="success",
         code=200,
         data={
@@ -51,10 +53,10 @@ def return_pipeline_id(request: PipelineNameRequest, query: CmfQuery) -> Standar
     )
 
 
-def list_pipeline_stages(request: PipelineNameRequest, query: CmfQuery) -> StandardResponse:
+def list_pipeline_stages(request: PipelineNameRequest, query: CmfQuery) -> APIResponse:
     stages = query.get_pipeline_stages(request.pipeline_name)
     if stages == []:
-        return StandardResponse(
+        return APIResponse(
             status="error",
             code=404,
             data=None,
@@ -67,7 +69,7 @@ def list_pipeline_stages(request: PipelineNameRequest, query: CmfQuery) -> Stand
             ],
         )
 
-    return StandardResponse(
+    return APIResponse(
         status="success",
         code=200,
         data={
@@ -79,10 +81,10 @@ def list_pipeline_stages(request: PipelineNameRequest, query: CmfQuery) -> Stand
     )
 
 
-def get_pipeline_executions(request: PipelineNameRequest, query: CmfQuery) -> StandardResponse:
+def get_pipeline_executions(request: PipelineNameRequest, query: CmfQuery) -> APIResponse:
     executions = query.get_all_executions_in_pipeline(request.pipeline_name)
     execution_records = [] if executions.empty else _dataframe_records(executions)
-    return StandardResponse(
+    return APIResponse(
         status="success",
         code=200,
         data={
@@ -94,9 +96,9 @@ def get_pipeline_executions(request: PipelineNameRequest, query: CmfQuery) -> St
     )
 
 
-def get_pipeline_json(request: PipelineJsonRequest, query: CmfQuery) -> StandardResponse:
+def get_pipeline_json(request: PipelineJsonRequest, query: CmfQuery) -> APIResponse:
     if query.get_pipeline_id(request.pipeline_name) == -1:
-        return StandardResponse(
+        return APIResponse(
             status="error",
             code=404,
             data=None,
@@ -110,7 +112,7 @@ def get_pipeline_json(request: PipelineJsonRequest, query: CmfQuery) -> Standard
         )
 
     pipeline_json = query.dumptojson(request.pipeline_name, request.exec_uuid)
-    return StandardResponse(
+    return APIResponse(
         status="success",
         code=200,
         data=json.loads(pipeline_json) if pipeline_json else {"Pipeline": []},
@@ -118,17 +120,18 @@ def get_pipeline_json(request: PipelineJsonRequest, query: CmfQuery) -> Standard
     )
 
 
-def extract_pipelines_to_json(request: LastSyncTimeRequest, query: CmfQuery) -> StandardResponse:
+def extract_pipelines_to_json(request: LastSyncTimeRequest, query: CmfQuery) -> APIResponse:
     pipeline_json = query.extract_to_json(request.last_sync_time)
-    return StandardResponse(
+    return APIResponse(
         status="success",
         code=200,
         data=json.loads(pipeline_json),
         message="Pipelines JSON extracted successfully",
     )
 
-
-@router.get("/stages/", response_model=StandardResponse)
+# ==================== API Endpoints For CMfQuery ====================
+ 
+@router.get("/stages/", response_model=APIResponse)
 async def cmfquery_get_pipeline_stages(
     request: PipelineNameRequest = Depends(),
     query: CmfQuery = Depends(get_cmf_query),
@@ -136,12 +139,12 @@ async def cmfquery_get_pipeline_stages(
     return list_pipeline_stages(request, query)
 
 
-@router.get("", response_model=StandardResponse)
+@router.get("", response_model=APIResponse)
 async def cmfquery_list_pipelines(query: CmfQuery = Depends(get_cmf_query)):
     return list_pipeline_names(query)
 
 
-@router.get("/id/", response_model=StandardResponse)
+@router.get("/id/", response_model=APIResponse)
 async def cmfquery_get_pipeline_id(
     request: PipelineNameRequest = Depends(),
     query: CmfQuery = Depends(get_cmf_query),
@@ -149,7 +152,7 @@ async def cmfquery_get_pipeline_id(
     return return_pipeline_id(request, query)
 
 
-@router.get("/executions/", response_model=StandardResponse)
+@router.get("/executions/", response_model=APIResponse)
 async def cmfquery_get_pipeline_executions(
     request: PipelineNameRequest = Depends(),
     query: CmfQuery = Depends(get_cmf_query),
@@ -157,7 +160,7 @@ async def cmfquery_get_pipeline_executions(
     return get_pipeline_executions(request, query)
 
 
-@router.get("/dumptojson", response_model=StandardResponse)
+@router.get("/dumptojson", response_model=APIResponse)
 async def cmfquery_dump_pipeline_to_json(
     request: PipelineJsonRequest = Depends(),
     query: CmfQuery = Depends(get_cmf_query),
@@ -165,7 +168,7 @@ async def cmfquery_dump_pipeline_to_json(
     return get_pipeline_json(request, query)
 
 
-@router.get("/extract_to_json", response_model=StandardResponse)
+@router.get("/extract_to_json", response_model=APIResponse)
 async def cmfquery_extract_pipelines_to_json(
     request: LastSyncTimeRequest = Depends(),
     query: CmfQuery = Depends(get_cmf_query),

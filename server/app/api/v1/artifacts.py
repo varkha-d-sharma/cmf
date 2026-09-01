@@ -1,7 +1,7 @@
 from cmflib.cmfquery import CmfQuery
 from fastapi import APIRouter, Depends
 from server.app.api.dependencies import get_cmf_query
-from server.app.schemas.cmf_query_schema import (
+from server.app.schemas.responses import (
     ArtifactIdRequest,
     ArtifactIdsRequest,
     ArtifactNameRequest,
@@ -10,18 +10,20 @@ from server.app.schemas.cmf_query_schema import (
     ExecutionIdRequest,
     MetricsNameRequest,
     PipelineNameRequest,
-    StandardResponse,
+    APIResponse,
 )
 
-router = APIRouter()
+router = APIRouter(prefix="/artifacts", tags=["artifacts"])
+
+# ==================== Business Logic Functions For CMFQuery ====================
 
 def _dataframe_records(dataframe) -> list[dict]:
     return dataframe.where(dataframe.notna(), None).to_dict(orient="records")
 
 
-def _dataframe_response(dataframe, data: dict, not_found_field: str, not_found_message: str, success_message: str) -> StandardResponse:
+def _dataframe_response(dataframe, data: dict, not_found_field: str, not_found_message: str, success_message: str) -> APIResponse:
     if dataframe is None or dataframe.empty:
-        return StandardResponse(
+        return APIResponse(
             status="error",
             code=404,
             data=None,
@@ -36,7 +38,7 @@ def _dataframe_response(dataframe, data: dict, not_found_field: str, not_found_m
             "total_artifacts": len(artifact_records),
         }
     )
-    return StandardResponse(
+    return APIResponse(
         status="success",
         code=200,
         data=data,
@@ -44,9 +46,9 @@ def _dataframe_response(dataframe, data: dict, not_found_field: str, not_found_m
     )
 
 
-def _metrics_response(dataframe, metrics_name: str) -> StandardResponse:
+def _metrics_response(dataframe, metrics_name: str) -> APIResponse:
     if dataframe is None or dataframe.empty:
-        return StandardResponse(
+        return APIResponse(
             status="error",
             code=404,
             data=None,
@@ -55,7 +57,7 @@ def _metrics_response(dataframe, metrics_name: str) -> StandardResponse:
         )
 
     metric_records = _dataframe_records(dataframe)
-    return StandardResponse(
+    return APIResponse(
         status="success",
         code=200,
         data={
@@ -66,10 +68,10 @@ def _metrics_response(dataframe, metrics_name: str) -> StandardResponse:
         message="Metrics retrieved successfully",
     )
 
-def list_all_artifacts(query: CmfQuery) -> StandardResponse:
+def list_all_artifacts(query: CmfQuery) -> APIResponse:
     artifact_names = query.get_all_artifacts()
     if artifact_names == []:
-        return StandardResponse(
+        return APIResponse(
             status="error",
             code=404,
             data=None,
@@ -82,7 +84,7 @@ def list_all_artifacts(query: CmfQuery) -> StandardResponse:
             ],
         )
 
-    return StandardResponse(
+    return APIResponse(
         status="success",
         code=200,
         data={
@@ -93,10 +95,10 @@ def list_all_artifacts(query: CmfQuery) -> StandardResponse:
     )
 
 
-def get_all_artifacts_by_context(request: PipelineNameRequest, query: CmfQuery) -> StandardResponse:
+def get_all_artifacts_by_context(request: PipelineNameRequest, query: CmfQuery) -> APIResponse:
     artifacts = query.get_all_artifacts_by_context(request.pipeline_name)
     if artifacts.empty:
-        return StandardResponse(
+        return APIResponse(
             status="error",
             code=404,
             data=None,
@@ -110,7 +112,7 @@ def get_all_artifacts_by_context(request: PipelineNameRequest, query: CmfQuery) 
         )
 
     artifact_records = _dataframe_records(artifacts)
-    return StandardResponse(
+    return APIResponse(
         status="success",
         code=200,
         data={
@@ -122,10 +124,10 @@ def get_all_artifacts_by_context(request: PipelineNameRequest, query: CmfQuery) 
     )
 
 
-def get_all_artifacts_by_ids_list(request: ArtifactIdsRequest, query: CmfQuery) -> StandardResponse:
+def get_all_artifacts_by_ids_list(request: ArtifactIdsRequest, query: CmfQuery) -> APIResponse:
     artifacts = query.get_all_artifacts_by_ids_list(request.artifact_ids)
     if artifacts.empty:
-        return StandardResponse(
+        return APIResponse(
             status="error",
             code=404,
             data=None,
@@ -139,7 +141,7 @@ def get_all_artifacts_by_ids_list(request: ArtifactIdsRequest, query: CmfQuery) 
         )
 
     artifact_records = _dataframe_records(artifacts)
-    return StandardResponse(
+    return APIResponse(
         status="success",
         code=200,
         data={
@@ -151,7 +153,7 @@ def get_all_artifacts_by_ids_list(request: ArtifactIdsRequest, query: CmfQuery) 
     )
 
 
-def get_artifact(request: ArtifactNameRequest, query: CmfQuery) -> StandardResponse:
+def get_artifact(request: ArtifactNameRequest, query: CmfQuery) -> APIResponse:
     artifact = query.get_artifact(request.artifact_name)
     return _dataframe_response(
         artifact,
@@ -162,7 +164,7 @@ def get_artifact(request: ArtifactNameRequest, query: CmfQuery) -> StandardRespo
     )
 
 
-def get_all_artifacts_for_execution(request: ExecutionIdRequest, query: CmfQuery) -> StandardResponse:
+def get_all_artifacts_for_execution(request: ExecutionIdRequest, query: CmfQuery) -> APIResponse:
     artifacts = query.get_all_artifacts_for_execution(request.execution_id)
     return _dataframe_response(
         artifacts,
@@ -173,7 +175,7 @@ def get_all_artifacts_for_execution(request: ExecutionIdRequest, query: CmfQuery
     )
 
 
-def get_one_hop_child_artifacts(request: ArtifactNameWithPipelineRequest, query: CmfQuery) -> StandardResponse:
+def get_one_hop_child_artifacts(request: ArtifactNameWithPipelineRequest, query: CmfQuery) -> APIResponse:
     artifacts = query.get_one_hop_child_artifacts(request.artifact_name, request.pipeline_id)
     return _dataframe_response(
         artifacts,
@@ -184,7 +186,7 @@ def get_one_hop_child_artifacts(request: ArtifactNameWithPipelineRequest, query:
     )
 
 
-def get_all_child_artifacts(request: ArtifactNameRequest, query: CmfQuery) -> StandardResponse:
+def get_all_child_artifacts(request: ArtifactNameRequest, query: CmfQuery) -> APIResponse:
     artifacts = query.get_all_child_artifacts(request.artifact_name)
     return _dataframe_response(
         artifacts,
@@ -195,7 +197,7 @@ def get_all_child_artifacts(request: ArtifactNameRequest, query: CmfQuery) -> St
     )
 
 
-def get_one_hop_parent_artifacts(request: ArtifactNameRequest, query: CmfQuery) -> StandardResponse:
+def get_one_hop_parent_artifacts(request: ArtifactNameRequest, query: CmfQuery) -> APIResponse:
     artifacts = query.get_one_hop_parent_artifacts(request.artifact_name)
     return _dataframe_response(
         artifacts,
@@ -206,7 +208,7 @@ def get_one_hop_parent_artifacts(request: ArtifactNameRequest, query: CmfQuery) 
     )
 
 
-def get_one_hop_parent_artifacts_with_id(request: ArtifactIdRequest, query: CmfQuery) -> StandardResponse:
+def get_one_hop_parent_artifacts_with_id(request: ArtifactIdRequest, query: CmfQuery) -> APIResponse:
     artifacts = query.get_one_hop_parent_artifacts_with_id(request.artifact_id)
     return _dataframe_response(
         artifacts,
@@ -217,7 +219,7 @@ def get_one_hop_parent_artifacts_with_id(request: ArtifactIdRequest, query: CmfQ
     )
 
 
-def get_all_parent_artifacts(request: ArtifactNameRequest, query: CmfQuery) -> StandardResponse:
+def get_all_parent_artifacts(request: ArtifactNameRequest, query: CmfQuery) -> APIResponse:
     artifacts = query.get_all_parent_artifacts(request.artifact_name)
     return _dataframe_response(
         artifacts,
@@ -228,15 +230,15 @@ def get_all_parent_artifacts(request: ArtifactNameRequest, query: CmfQuery) -> S
     )
 
 
-def get_metrics(request: MetricsNameRequest, query: CmfQuery) -> StandardResponse:
+def get_metrics(request: MetricsNameRequest, query: CmfQuery) -> APIResponse:
     metrics = query.get_metrics(request.metrics_name)
     return _metrics_response(metrics, request.metrics_name)
 
 
-def list_all_artifact_types(query: CmfQuery) -> StandardResponse:
+def list_all_artifact_types(query: CmfQuery) -> APIResponse:
     artifact_types = query.get_all_artifact_types()
     if artifact_types == []:
-        return StandardResponse(
+        return APIResponse(
             status="error",
             code=404,
             data=None,
@@ -249,7 +251,7 @@ def list_all_artifact_types(query: CmfQuery) -> StandardResponse:
             ],
         )
         
-    return StandardResponse(
+    return APIResponse(
         status="success",
         code=200,
         data={
@@ -260,17 +262,19 @@ def list_all_artifact_types(query: CmfQuery) -> StandardResponse:
     )
 
 
-@router.get("", response_model=StandardResponse)
+# ==================== API Endpoints For CMfQuery ====================
+ 
+@router.get("", response_model=APIResponse)
 def cmfquery_list_artifacts(query: CmfQuery = Depends(get_cmf_query)):
     return list_all_artifacts(query)
 
 
-@router.get("/types", response_model=StandardResponse)
+@router.get("/types", response_model=APIResponse)
 def cmfquery_list_artifact_types(query: CmfQuery = Depends(get_cmf_query)):
     return list_all_artifact_types(query)
 
 
-@router.get("/get_all_artifacts_by_context", response_model=StandardResponse)
+@router.get("/get_all_artifacts_by_context", response_model=APIResponse)
 def cmfquery_get_all_artifacts_by_context(
     request: PipelineNameRequest = Depends(),
     query: CmfQuery = Depends(get_cmf_query),
@@ -278,7 +282,7 @@ def cmfquery_get_all_artifacts_by_context(
     return get_all_artifacts_by_context(request, query)
 
 
-@router.post("/get_all_artifacts_by_ids_list", response_model=StandardResponse)
+@router.post("/get_all_artifacts_by_ids_list", response_model=APIResponse)
 def cmfquery_get_all_artifacts_by_ids_list(
     request: ArtifactIdsRequest,
     query: CmfQuery = Depends(get_cmf_query),
@@ -286,7 +290,7 @@ def cmfquery_get_all_artifacts_by_ids_list(
     return get_all_artifacts_by_ids_list(request, query)
 
 
-@router.get("/get_artifact", response_model=StandardResponse)
+@router.get("/get_artifact", response_model=APIResponse)
 def cmfquery_get_artifact(
     request: ArtifactNameRequest = Depends(),
     query: CmfQuery = Depends(get_cmf_query),
@@ -294,7 +298,7 @@ def cmfquery_get_artifact(
     return get_artifact(request, query)
 
 
-@router.get("/get_all_artifacts_for_execution", response_model=StandardResponse)
+@router.get("/get_all_artifacts_for_execution", response_model=APIResponse)
 def cmfquery_get_all_artifacts_for_execution(
     request: ExecutionIdRequest = Depends(),
     query: CmfQuery = Depends(get_cmf_query),
@@ -302,7 +306,7 @@ def cmfquery_get_all_artifacts_for_execution(
     return get_all_artifacts_for_execution(request, query)
 
 
-@router.get("/get_one_hop_child_artifacts", response_model=StandardResponse)
+@router.get("/get_one_hop_child_artifacts", response_model=APIResponse)
 def cmfquery_get_one_hop_child_artifacts(
     request: ArtifactNameWithPipelineRequest = Depends(),
     query: CmfQuery = Depends(get_cmf_query),
@@ -310,7 +314,7 @@ def cmfquery_get_one_hop_child_artifacts(
     return get_one_hop_child_artifacts(request, query)
 
 
-@router.get("/get_all_child_artifacts", response_model=StandardResponse)
+@router.get("/get_all_child_artifacts", response_model=APIResponse)
 def cmfquery_get_all_child_artifacts(
     request: ArtifactNameRequest = Depends(),
     query: CmfQuery = Depends(get_cmf_query),
@@ -318,7 +322,7 @@ def cmfquery_get_all_child_artifacts(
     return get_all_child_artifacts(request, query)
 
 
-@router.get("/get_one_hop_parent_artifacts", response_model=StandardResponse)
+@router.get("/get_one_hop_parent_artifacts", response_model=APIResponse)
 def cmfquery_get_one_hop_parent_artifacts(
     request: ArtifactNameRequest = Depends(),
     query: CmfQuery = Depends(get_cmf_query),
@@ -326,7 +330,7 @@ def cmfquery_get_one_hop_parent_artifacts(
     return get_one_hop_parent_artifacts(request, query)
 
 
-@router.get("/get_one_hop_parent_artifacts_with_id", response_model=StandardResponse)
+@router.get("/get_one_hop_parent_artifacts_with_id", response_model=APIResponse)
 def cmfquery_get_one_hop_parent_artifacts_with_id(
     request: ArtifactIdRequest = Depends(),
     query: CmfQuery = Depends(get_cmf_query),
@@ -334,7 +338,7 @@ def cmfquery_get_one_hop_parent_artifacts_with_id(
     return get_one_hop_parent_artifacts_with_id(request, query)
 
 
-@router.get("/get_all_parent_artifacts", response_model=StandardResponse)
+@router.get("/get_all_parent_artifacts", response_model=APIResponse)
 def cmfquery_get_all_parent_artifacts(
     request: ArtifactNameRequest = Depends(),
     query: CmfQuery = Depends(get_cmf_query),
@@ -342,7 +346,7 @@ def cmfquery_get_all_parent_artifacts(
     return get_all_parent_artifacts(request, query)
 
 
-@router.get("/get_metrics", response_model=StandardResponse)
+@router.get("/get_metrics", response_model=APIResponse)
 def cmfquery_get_metrics(
     request: MetricsNameRequest = Depends(),
     query: CmfQuery = Depends(get_cmf_query),
