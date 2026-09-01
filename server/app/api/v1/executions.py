@@ -44,8 +44,11 @@ router = APIRouter(prefix="/v1", tags=["executions"])
 
 # ==================== Business Logic Functions ====================
 
-# This API returns the list of execution types for a given pipeline.
 async def list_of_executions(state: MlmdState, pipeline_name: str):
+    '''
+      This api's returns list of execution types.
+
+    '''
     # checks if mlmd file exists on server
     await state.check_mlmd_file_exists()
     # checks if pipeline exists
@@ -55,7 +58,7 @@ async def list_of_executions(state: MlmdState, pipeline_name: str):
         executions_list,
         state.query,
         pipeline_name,
-        state.dict_of_exe_ids,
+        state.dict_of_exe_ids
     )
 
     return response
@@ -111,8 +114,8 @@ async def get_python_env(file_name: str) -> str:
             content = file.read()
         return content
 
-    except OSError as e:
-        raise HTTPException(status_code=500, detail=f"Error reading file: {str(e)}") from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error reading file: {str(e)}")
 
 
 async def get_executions_by_stage(
@@ -122,7 +125,7 @@ async def get_executions_by_stage(
     record_per_page: int,
     sort_order: str,
     filter_value: str,
-    db: AsyncSession,
+    db: AsyncSession
 ):
     """
     Retrieve executions filtered by pipeline and stage name (Context_Type).
@@ -152,7 +155,7 @@ async def get_executions_by_stage(
 
 async def get_pipeline_stages(
     pipeline_name: str,
-    db: AsyncSession,
+    db: AsyncSession
 ):
     """
     Retrieve unique artifact stages (Context_Type values) for a given pipeline.
@@ -181,13 +184,13 @@ async def get_pipeline_stages(
 # ==================== API Endpoints ====================
 
 @router.post("/executions/python-env")
-async def upload_python_environment(file: UploadFile = File(...)):
+async def upload_python_environment(file: UploadFile = File(..., description="The Python environment file to upload")):
     result = await upload_python_env(file)
 
     return success_response(
         data=result,
         message="Python environment uploaded successfully",
-        code=201,
+        code=201
     )
 
 
@@ -198,20 +201,20 @@ async def get_python_environment(file_name: str):
     return success_response(
         data=result,
         message="Python environment retrieved successfully",
-        code=200,
+        code=200
     )
 
 
 @router.get("/pipelines/{pipeline_name}/stages")
 async def pipeline_stages(
     pipeline_name: str,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db)
 ):
     result = await get_pipeline_stages(pipeline_name, db)
     return success_response(
         data=result,
         message="Pipeline stages retrieved successfully",
-        code=200,
+        code=200
     )
 
 
@@ -221,12 +224,12 @@ async def get_executions(request: Request, pipeline_name: str):
     state = request.app.state.mlmd
     result = await list_of_executions(
         state=state,
-        pipeline_name=pipeline_name,
+        pipeline_name=pipeline_name
     )
     return success_response(
         data=result,
         message="Executions retrieved successfully",
-        code=200,
+        code=200
     )
 
 
@@ -234,7 +237,7 @@ async def get_executions(request: Request, pipeline_name: str):
 async def pipeline_executions(
     query_params: ExecutionByStageRequest,
     pipeline_name: str,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db)
 ):
     """Retrieve executions filtered/stage-based search by pipeline and stage name."""
     result = await get_executions_by_stage(
@@ -244,10 +247,10 @@ async def pipeline_executions(
         record_per_page=query_params.record_per_page,
         sort_order=query_params.sort_order,
         filter_value=query_params.filter_value,
-        db=db,
+        db=db
     )
     return success_response(
         data=result,
         message="Pipeline executions retrieved successfully",
-        code=200,
+        code=200
     )

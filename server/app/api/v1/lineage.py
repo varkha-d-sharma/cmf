@@ -39,7 +39,7 @@ router = APIRouter(prefix="/v1", tags=["lineage"])
 async def execution_lineage_tangled(
     state: MlmdState,
     uuid: str,
-    pipeline_name: str,
+    pipeline_name: str
 ):
     """returns dictionary of nodes and links for given execution_type.
       response = {

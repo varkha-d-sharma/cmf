@@ -104,7 +104,7 @@ async def mlmd_pull(
             pipeline_name,
             exec_uuid,
             last_sync_time,
-            state.dict_of_exe_ids,
+            state.dict_of_exe_ids
         )
     else:
         json_payload = await async_api(get_mlmd_from_server, state.query, None, None, last_sync_time)
@@ -117,7 +117,7 @@ async def mlmd_pull(
 # Upload TensorBoard logs for a pipeline.
 async def upload_tensorboard_logs(
     pipeline_name: str,
-    file: UploadFile,
+    file: UploadFile
 ):
     """Upload a TensorBoard log file under the pipeline-specific logs directory."""
     try:

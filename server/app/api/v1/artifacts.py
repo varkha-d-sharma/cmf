@@ -52,7 +52,7 @@ async def artifact_types(state: MlmdState):
 
     artifact_types_list = await async_api(
         get_artifact_types,
-        state.query,
+        state.query
     )
 
     if "Environment" in artifact_types_list:
@@ -115,6 +115,7 @@ async def upload_label(file: UploadFile):
     except Exception as e:
         return {"error": f"Failed to upload file: {e}"}
 
+
 """Retrieve label data from from the /cmf-server/data/labels folder."""
 async def get_label_data(file_name: str) -> str:
    
@@ -146,7 +147,7 @@ async def get_label_data(file_name: str) -> str:
 async def get_artifact_types_by_stage(
     pipeline_name: str,
     stage_name: str,
-    db: AsyncSession,
+    db: AsyncSession
 ):
     """
     Retrieve unique artifact types available in a specific stage of a pipeline.
@@ -173,7 +174,7 @@ async def get_artifacts_by_stage(
     record_per_page: int,
     sort_field: str,
     sort_order: str,
-    db: AsyncSession,
+    db: AsyncSession
 ):
     """
     Retrieve artifacts filtered by pipeline, stage, and artifact type.
@@ -219,8 +220,8 @@ async def get_artifacts_by_stage(
 
 # ==================== API Endpoints ====================
 # only This API is used by the MCP server.
-@router.get("/metadata/artifact-types")
-async def get_artifacts(
+@router.get("/artifacts/artifact-types")
+async def get_artifacts_by_types(
     request: Request,
 ):
     """
@@ -232,7 +233,7 @@ async def get_artifacts(
     return success_response(
         data=result,
         message="Artifact types retrieved successfully",
-        code=200,
+        code=200
     )
 
 
@@ -243,17 +244,17 @@ async def get_model_card( request: Request, modelId: int):
     return success_response(
         data=result,
         message="Model card retrieved successfully",
-        code=200,
+        code=200
     )
 
 @router.post("/artifacts/label")
-async def upload_label_file(file: UploadFile = File(...)):
+async def upload_label_file(file: UploadFile = File(..., description="The file to upload")):
     result = await upload_label(file)
 
     return success_response(
         data=result,
         message="Label uploaded successfully",
-        code=201,
+        code=201
     )
 
 
@@ -264,31 +265,31 @@ async def get_label_data_route(file_name: str):
     return success_response(
         data=result,
         message="Label data retrieved successfully",
-        code=200,
+        code=200
     )
 
 
 @router.post("/pipelines/{pipeline_name}/artifacts/types")
 async def get_artifact_types_by_stage_route(
     query_params: ArtifactTypesByStageRequest,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db)
 ):
     result = await get_artifact_types_by_stage(
         query_params.pipeline_name,
         query_params.stage_name,
-        db,
+        db
     )
     return success_response(
         data=result,
         message="Artifact types retrieved successfully",
-        code=200,
+        code=200
     )
 
 
 @router.post("/pipelines/{pipeline_name}/artifacts")
-async def get_artifacts_types(
+async def get_artifacts_by_stage_route(
     query_params: ArtifactByStageRequest,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db)
 ):
     pipeline_name = query_params.pipeline_name
     result = await get_artifacts_by_stage(
@@ -300,10 +301,10 @@ async def get_artifacts_types(
         query_params.record_per_page,
         query_params.sort_field,
         query_params.sort_order,
-        db,
+        db
     )
     return success_response(
         data=result,
         message="Artifacts retrieved successfully",
-        code=200,
+        code=200
     )

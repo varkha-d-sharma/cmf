@@ -39,12 +39,12 @@ from server.app.db.dbqueries import (
     get_sync_status,
     get_registered_server_details,
     update_sync_status,
-    create_schedule as create_schedule_db,
-    list_schedules as list_schedules_db,
+    create_schedule,
+    list_schedules,
     get_registered_server_by_id,
     list_sync_logs,
     get_completed_logs_by_server,
-    delete_schedule,
+    delete_schedule
 )
 from server.app.schemas.requests import ScheduleCreateRequest, ServerRegistrationRequest, AcknowledgeRequest
 from server.app.schemas.responses import success_response
@@ -54,7 +54,7 @@ from server.app.get_data import (
     server_mlmd_pull,
     log_sync_attempt,
     async_api,
-    compute_initial_next_run_utc,
+    compute_initial_next_run_utc
 )
 from cmflib.cmf_federation import update_mlmd
 
@@ -76,7 +76,7 @@ async def register_server(
 
         # # Check user is registering with own details
         if server in state.LOCAL_ADDRESSES:
-            raise HTTPException(status_code=400,detail="Cannot register the server with its own details.",)
+            raise HTTPException(status_code=400,detail="Cannot register the server with its own details.")
 
         # Step 1: Send a request to the target server for acknowledgement
         async with httpx.AsyncClient() as client:
@@ -85,20 +85,21 @@ async def register_server(
                     f"{server_url}/api/v1/acknowledge",
                     json={
                         "server_name": server_name,
-                        "server_url": server_url,
-                    },
+                        "server_url": server_url
+                    }
                 )
-            except httpx.RequestError as exc:
-                raise HTTPException(status_code=500, detail="Target server is not reachable",) from exc
-
-            if response.status_code != 200:
-                raise HTTPException(status_code=500,detail="Target server did not respond successfully",)
+                if response.status_code != 200:
+                    raise HTTPException(status_code=500,detail="Target server did not respond successfully")
+                target_server_data = response.json()
+            except httpx.RequestError :
+                raise HTTPException(status_code=500,detail="Target server is not reachable")
         # Save server details in the database
-        return await register_server_details(db,server_name,server_url,)
+        return await register_server_details(db,server_name,server_url)
 
-    except HTTPException: raise
-    except Exception as exc:
-        raise HTTPException(status_code=500,detail=f"Failed to register server: {exc}",) from exc
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500,detail=f"Failed to register server: {e}") 
 
 
 # Metadata synchronization API.
@@ -107,7 +108,7 @@ async def sync_metadata(
     server_name: str,
     server_url: str,
     db: AsyncSession,
-    skip_logging: bool = False,
+    skip_logging: bool = False
 ):
     """
     Synchronize metadata for a registered server.
@@ -141,8 +142,11 @@ async def sync_metadata(
         # Pull MLMD data from the target server using the /mlmd_pull endpoint
         json_payload = await server_mlmd_pull(server_url, last_sync_time)
 
-        json_payload_str = json.dumps(json_payload)
-
+        json_data = {
+            "exec_uuid": None,
+            "json_payload": json.dumps(json_payload),
+            "pipeline_name": None
+        }
         # Ensure the pipeline name in req_info matches the one in the JSON payload
         # to maintain data integrity
         pipelines = json_payload.get("Pipeline", [])
@@ -160,7 +164,7 @@ async def sync_metadata(
         pipeline_names = [pipeline.get("name") for pipeline in pipelines]
 
         # Push the JSON payload to the host server
-        status = await async_api(update_mlmd, state.query, json_payload_str, None, "push", None)
+        status = await async_api(update_mlmd, state.query,  json_data["json_payload"], None, "push", None)
         if status == "invalid_json_payload":
             # Invalid JSON payload, return 400 Bad Request
             await log_sync_attempt("failed", "Invalid JSON payload. The pipeline name is missing.", db, server_name, server_url, current_utc_epoch_time, skip_logging)
@@ -209,36 +213,34 @@ async def server_list(db: AsyncSession):
 
 
 def download_python_env(list_of_files: Optional[list[str]] = None):
-    """Download Python environment files as a ZIP."""
-    directory = "/cmf-server/data/env/" # Directory to be compressed
-
+    """
+    API endpoint to compress and download the entire folder as a ZIP file.
+    """
     try:
-        # Check if the directory exists
-        if not os.path.isdir(directory):
-            raise HTTPException(status_code=404,detail="Python environment directory does not exist",)
+        DIRECTORY = "/cmf-server/data/env/" # Directory to be compressed
+        #  Check if the directory exists
+        if not os.path.exists(DIRECTORY):
+            return {"error": "Directory does not exist"}
         # Determine files to include in the ZIP
         files_to_zip = []
         # if list_of_files is provided, include only those files
         # else include all files in the directory
         if list_of_files:
             for file_name in list_of_files:
-                safe_file_name = os.path.basename(file_name)
-                file_path = os.path.join(directory, safe_file_name)
-
-                if not os.path.isfile(file_path):
-                    raise HTTPException(status_code=404,detail=f"File {file_name} does not exist",)
-
-                files_to_zip.append((file_path, safe_file_name))
-
+                file_path = os.path.join(DIRECTORY, file_name)
+                if os.path.exists(file_path):
+                    files_to_zip.append((file_path, file_name))
+                else:
+                    return {"error": f"File {file_name} does not exist"}
         else:
-            if not os.listdir(directory):
-                raise HTTPException(status_code=404,detail="Python environment directory is empty",)
-
-            for root, _, files in os.walk(directory):
-                for file_name in files:
-                    file_path = os.path.join(root, file_name)
-                    arcname = os.path.relpath(file_path,directory,)
+            if not os.listdir(DIRECTORY):
+                return {"error": "Directory is empty"}
+            for root, _, files in os.walk(DIRECTORY):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    arcname = os.path.relpath(file_path, DIRECTORY)
                     files_to_zip.append((file_path, arcname))
+
         # Create and send the ZIP file 
         zip_buffer = io.BytesIO()
 
@@ -248,25 +250,15 @@ def download_python_env(list_of_files: Optional[list[str]] = None):
 
         zip_buffer.seek(0)
 
-        filename = ("python_env_files.zip"
-            if list_of_files
-            else "python_env_folder.zip"
-        )
-
         return StreamingResponse(
             zip_buffer,
             media_type="application/zip",
             headers={
-                "Content-Disposition": (
-                    f"attachment; filename={filename}"
-                )
-            },
+                "Content-Disposition": f"attachment; filename={'python_env_files.zip' if list_of_files else 'python_env_folder.zip'}"
+            }
         )
-
-    except HTTPException:
-        raise
-    except OSError as exc:
-        raise HTTPException(status_code=500,detail=f"Failed to download files: {exc}",) from exc
+    except Exception as e:
+        return {"error": str(e)}
 
 
 # Schedule creation API.
@@ -279,7 +271,7 @@ async def schedule_sync(
     interval_unit: str | None,
     interval_value: int | None,
     weekly_day: str | None,
-    db: AsyncSession,
+    db: AsyncSession
 ):
     """
     Create a one-time or periodic sync schedule for a registered server.
@@ -337,11 +329,11 @@ async def schedule_sync(
                 interval_value=interval_value,
                 daily_time=daily_time,
                 weekly_day=weekly_day,
-                weekly_time=weekly_time,
+                weekly_time=weekly_time
             )
 
         # Persist schedule details and return created id plus first next-run timestamp.
-        created = await create_schedule_db(
+        created = await create_schedule(
             db,
             server_id=server_id,
             timezone=timezone,
@@ -354,7 +346,7 @@ async def schedule_sync(
             interval_value=interval_value,
             daily_time=daily_time,
             weekly_day=weekly_day,
-            weekly_time=weekly_time,
+            weekly_time=weekly_time
         )
         return {"message": "Schedule created", "schedule_id": created["id"], "next_run_time_utc": next_ms}
     except HTTPException as e:
@@ -375,7 +367,7 @@ async def get_schedules(server_id: Optional[int], db: AsyncSession):
     Returns:
         list: Active schedule rows.
     """
-    rows = await list_schedules_db(db, server_id)
+    rows = await list_schedules(db, server_id)
     return rows
 
 
@@ -432,10 +424,10 @@ async def acknowledge_server(info: AcknowledgeRequest):
         data={
             "server_name": info.server_name,
             "server_url": info.server_url,
-            "status": "ok",
+            "status": "ok"
         },
         message="Server acknowledged successfully",
-        code=200,
+        code=200
     )
 
 
@@ -446,29 +438,29 @@ async def register_server_route(request: Request, info: ServerRegistrationReques
         state=state,
         server_name=info.server_name,
         server_url=info.server_url,
-        db=db,
+        db=db
     )
     return success_response(
         data=result,
         message="Server registered successfully",
-        code=201,
+        code=201
     )
 
 
 @router.post("/servers/sync")
-async def sync_server(request: Request, info: ServerRegistrationRequest, db: AsyncSession = Depends(get_db)):
+async def sync_server(request: Request, info: ServerRegistrationRequest, db: AsyncSession = Depends(get_db), skip_logging: bool = False):
     state = request.app.state.mlmd
     result = await sync_metadata(
         state=state,
         server_name=info.server_name,
         server_url=info.server_url,
         db=db,
-        skip_logging=False,
+        skip_logging=skip_logging
     )
     return success_response(
         data=result,
         message="Server synced successfully",
-        code=200,
+        code=200
     )
 
 
@@ -503,7 +495,7 @@ async def create_schedule(schedule_info: ScheduleCreateRequest, db: AsyncSession
 
 
 @router.get("/schedules")
-async def list_schedules_standard(server_id: Optional[int] = None, db: AsyncSession = Depends(get_db)):
+async def get_schedules_route(server_id: Optional[int] = None, db: AsyncSession = Depends(get_db)):
     """
     Retrieve active schedules, optionally filtered by server id.
 
@@ -523,7 +515,7 @@ async def list_schedules_standard(server_id: Optional[int] = None, db: AsyncSess
 
 
 @router.get("/schedules/{schedule_id}/logs")
-async def schedule_logs_standard(schedule_id: int, db: AsyncSession = Depends(get_db)):
+async def get_schedule_logs_route(schedule_id: int, db: AsyncSession = Depends(get_db)):
     """
     Retrieve run history logs for a schedule id.
 
@@ -562,7 +554,7 @@ async def server_completed_logs(server_id: int, db: AsyncSession = Depends(get_d
 
 
 @router.delete("/schedules/{schedule_id}")
-async def delete_schedule_standard(schedule_id: int, db: AsyncSession = Depends(get_db)):
+async def delete_sync_schedule(schedule_id: int, db: AsyncSession = Depends(get_db)):
     """
     Deactivate a schedule so future runs stop.
 

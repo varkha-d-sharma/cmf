@@ -93,7 +93,7 @@ class cmfClient:
 
         :return: API response containing artifact types.
         """
-        return self.connection.get("/v1/metadata/artifact-types")
+        return self.connection.get("/v1/artifacts/artifact-types")
 
     def get_artifact_types_by_stage(self, pipeline_name, stage_name):
         """Retrieve artifact types for a given pipeline and stage."""
