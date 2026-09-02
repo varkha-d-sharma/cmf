@@ -66,23 +66,6 @@ class cmfClient:
         # Use the standardized endpoint for getting all executions in the pipeline.
         return self.connection.get(f"/v1/pipelines/{pipeline_name}/executions")
 
-    # def get_executions_by_stage(
-    #     self,
-    #     pipeline_name,
-    #     stage_name,
-    #     active_page=1,
-    #     record_per_page=5,
-    #     sort_order="DESC",
-    #     filter_value="",
-    # ):
-    #     """Retrieve executions filtered by pipeline and stage."""
-    #     payload = {
-    #         "active_page": active_page,
-    #         "record_per_page": record_per_page,
-    #         "sort_order": sort_order,
-    #         "filter_value": filter_value,
-    #     }
-    #     return self.connection.post(f"/v1/pipelines/{pipeline_name}/executions/stages/{stage_name}", data=payload)
 
     def get_execution_lineage_tangled_tree(self, pipeline_name, uuid):
         """
@@ -103,31 +86,6 @@ class cmfClient:
         """
         return self.connection.get("/v1/artifacts/artifact/types")
 
-    # def get_artifact_types_by_stage(self, pipeline_name, stage_name):
-    #     """Retrieve artifact types for a given pipeline and stage."""
-    #     return self.connection.post(f"/v1/pipelines/{pipeline_name}/artifacts/stages/{stage_name}/types", data={})
-
-    # def get_artifacts_by_stage(
-    #     self,
-    #     pipeline_name,
-    #     stage_name,
-    #     artifact_type,
-    #     active_page=1,
-    #     record_per_page=5,
-    #     sort_field="name",
-    #     sort_order="asc",
-    #     filter_value="",
-    # ):
-    #     """Retrieve artifacts filtered by pipeline, stage, and artifact type."""
-    #     payload = {
-    #         "artifact_type": artifact_type,
-    #         "active_page": active_page,
-    #         "record_per_page": record_per_page,
-    #         "sort_field": sort_field,
-    #         "sort_order": sort_order,
-    #         "filter_value": filter_value,
-    #     }
-    #     return self.connection.post(f"/v1/pipelines/{pipeline_name}/artifacts/stages/{stage_name}", data=payload)
 
     def get_artifacts(self, pipeline_name):
         """
