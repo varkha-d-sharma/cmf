@@ -23,8 +23,7 @@ including MLMD push/pull,
 
 
 import asyncio
-import os
-from fastapi import APIRouter, File, HTTPException, Query, Request, UploadFile
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from server.app.schemas.requests import MLMDPullRequest, MLMDPushRequest
 from server.app.schemas.responses import success_response
@@ -114,26 +113,6 @@ async def mlmd_pull(
     return json_payload
 
 
-# Upload TensorBoard logs for a pipeline.
-async def upload_tensorboard_logs(
-    pipeline_name: str,
-    file: UploadFile
-):
-    """Upload a TensorBoard log file under the pipeline-specific logs directory."""
-    try:
-        if file.filename is None:
-            raise HTTPException(status_code=400, detail="No file uploaded")
-        file_path = os.path.join("/cmf-server/data/tensorboard-logs", pipeline_name, file.filename)
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
-        with open(file_path, "wb") as buffer:
-            buffer.write(await file.read())
-        return {"message": f"File '{file.filename}' uploaded successfully"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to upload file: {str(e)}") from e
-
-
 @router.post("/mlmd/push")
 async def metadata_push(request: Request, info: MLMDPushRequest):
     state = request.app.state.mlmd
@@ -158,17 +137,4 @@ async def metadata_pull(request: Request, info: MLMDPullRequest):
         pipeline_name=info.pipeline_name,
         exec_uuid=info.exec_uuid,
         last_sync_time=info.last_sync_time,
-    )
-
-
-@router.post("/tensorboard")
-async def tensorboard_upload(
-    pipeline_name: str = Query(..., description="Pipeline name"),
-    file: UploadFile = File(..., description="The file to upload")
-):
-    result = await upload_tensorboard_logs(pipeline_name, file)
-    return success_response(
-        data=result,
-        message="TensorBoard file uploaded successfully",
-        code=200,
     )

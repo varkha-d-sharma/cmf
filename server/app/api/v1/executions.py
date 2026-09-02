@@ -20,17 +20,15 @@ Execution API endpoints and business logic.
 This module contains execution-related API endpoints and their business logic,
 including execution listing and Python environment management.
 """
-
-import os
-from fastapi import APIRouter, Depends, Request, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from server.app.db.dbconfig import get_db
 from server.app.db.dbqueries import (
     fetch_executions_by_stage,
-    fetch_unique_execution_stages,
+    fetch_unique_execution_stages
 )
 from server.app.schemas.requests import (
-    ExecutionByStageRequest,
+    ExecutionByStageRequest
 )
 from server.app.schemas.responses import success_response
 from server.app.services.mlmd_state import MlmdState
@@ -64,58 +62,8 @@ async def list_of_executions(state: MlmdState, pipeline_name: str):
     return response
 
 
-# API endpoint for uploading Python environment files.
-async def upload_python_env(file: UploadFile):
-    """Upload Python environment file."""
-    try:
-        if file.filename is None:
-            raise HTTPException(status_code=400, detail="No file uploaded")
-
-        file_path = os.path.join("/cmf-server/data/env/", os.path.basename(file.filename))
-
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
-
-        with open(file_path, "wb") as buffer:
-            buffer.write(await file.read())
-
-        return {
-            "message": f"File '{file.filename}' uploaded successfully"
-        }
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to upload file: {str(e)}") from e
 
 
-# Rest api to fetch the env data from the /cmf-server/data/env folder
-async def get_python_env(file_name: str) -> str:
-    """
-    API endpoint to fetch the content of a requirements file.
-
-    Args:
-        file_name (str): The name of the file to be fetched. Must end with .txt or .yaml.
-
-    Returns:
-        str: The content of the file as plain text.
-
-    Raises:
-        HTTPException: If the file does not exist or the extension is unsupported.
-    """
-    # Validate file extension
-    if not (file_name.endswith(".txt") or file_name.endswith(".yaml")):
-        raise HTTPException(status_code=400, detail="Unsupported file extension. Use .txt or .yaml")
-    # Check if the file exists
-    file_path = os.path.join("/cmf-server/data/env/", os.path.basename(file_name))
-
-    if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="File not found")
-     # Read and return the file content as plain text
-    try:
-        with open(file_path, "r") as file:
-            content = file.read()
-        return content
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error reading file: {str(e)}")
 
 
 async def get_executions_by_stage(
@@ -183,42 +131,7 @@ async def get_pipeline_stages(
 
 # ==================== API Endpoints ====================
 
-@router.post("/executions/python-env")
-async def upload_python_environment(file: UploadFile = File(..., description="The Python environment file to upload")):
-    result = await upload_python_env(file)
-
-    return success_response(
-        data=result,
-        message="Python environment uploaded successfully",
-        code=201
-    )
-
-
-@router.get("/executions/python-env")
-async def get_python_environment(file_name: str):
-    result = await get_python_env(file_name)
-
-    return success_response(
-        data=result,
-        message="Python environment retrieved successfully",
-        code=200
-    )
-
-
-@router.get("/pipelines/{pipeline_name}/stages")
-async def pipeline_stages(
-    pipeline_name: str,
-    db: AsyncSession = Depends(get_db)
-):
-    result = await get_pipeline_stages(pipeline_name, db)
-    return success_response(
-        data=result,
-        message="Pipeline stages retrieved successfully",
-        code=200
-    )
-
-
-@router.get("/pipelines/{pipeline_name}/executions")
+@router.get("/pipelines/{pipeline_name}/executions/list")
 async def get_executions(request: Request, pipeline_name: str):
     """Retrieve the execution list for a pipeline."""
     state = request.app.state.mlmd
@@ -233,7 +146,7 @@ async def get_executions(request: Request, pipeline_name: str):
     )
 
 
-@router.post("/pipelines/{pipeline_name}/executions")
+@router.post("/pipelines/{pipeline_name}/executions/stages/{stage}")
 async def pipeline_executions(
     query_params: ExecutionByStageRequest,
     pipeline_name: str,

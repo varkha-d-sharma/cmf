@@ -20,18 +20,10 @@ Server API endpoints and business logic.
 This module contains all server-related API endpoints and their business logic,
 including server registration, sync, scheduling, and logging.
 """
-
-import io
 import json
-import os
 import time
-import zipfile
-from typing import Optional
-from datetime import datetime
-from zoneinfo import ZoneInfo
 import httpx
-from fastapi import APIRouter, Depends, Request, Query, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, Request, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from server.app.db.dbconfig import get_db
 from server.app.db.dbqueries import (
@@ -39,22 +31,16 @@ from server.app.db.dbqueries import (
     get_sync_status,
     get_registered_server_details,
     update_sync_status,
-    create_schedule,
-    list_schedules,
-    get_registered_server_by_id,
-    list_sync_logs,
     get_completed_logs_by_server,
-    delete_schedule
 )
-from server.app.schemas.requests import ScheduleCreateRequest, ServerRegistrationRequest, AcknowledgeRequest
+from server.app.schemas.requests import ServerRegistrationRequest, AcknowledgeRequest
 from server.app.schemas.responses import success_response
 from server.app.services.mlmd_state import MlmdState
 from server.app.utils import extract_hostname
 from server.app.get_data import (
     server_mlmd_pull,
     log_sync_attempt,
-    async_api,
-    compute_initial_next_run_utc
+    async_api
 )
 from cmflib.cmf_federation import update_mlmd
 
@@ -212,180 +198,6 @@ async def server_list(db: AsyncSession):
     return rows
 
 
-def download_python_env(list_of_files: Optional[list[str]] = None):
-    """
-    API endpoint to compress and download the entire folder as a ZIP file.
-    """
-    try:
-        DIRECTORY = "/cmf-server/data/env/" # Directory to be compressed
-        #  Check if the directory exists
-        if not os.path.exists(DIRECTORY):
-            return {"error": "Directory does not exist"}
-        # Determine files to include in the ZIP
-        files_to_zip = []
-        # if list_of_files is provided, include only those files
-        # else include all files in the directory
-        if list_of_files:
-            for file_name in list_of_files:
-                file_path = os.path.join(DIRECTORY, file_name)
-                if os.path.exists(file_path):
-                    files_to_zip.append((file_path, file_name))
-                else:
-                    return {"error": f"File {file_name} does not exist"}
-        else:
-            if not os.listdir(DIRECTORY):
-                return {"error": "Directory is empty"}
-            for root, _, files in os.walk(DIRECTORY):
-                for file in files:
-                    file_path = os.path.join(root, file)
-                    arcname = os.path.relpath(file_path, DIRECTORY)
-                    files_to_zip.append((file_path, arcname))
-
-        # Create and send the ZIP file 
-        zip_buffer = io.BytesIO()
-
-        with zipfile.ZipFile(zip_buffer,"w",zipfile.ZIP_DEFLATED,) as zip_file:
-            for file_path, arcname in files_to_zip:
-                zip_file.write(file_path, arcname)
-
-        zip_buffer.seek(0)
-
-        return StreamingResponse(
-            zip_buffer,
-            media_type="application/zip",
-            headers={
-                "Content-Disposition": f"attachment; filename={'python_env_files.zip' if list_of_files else 'python_env_folder.zip'}"
-            }
-        )
-    except Exception as e:
-        return {"error": str(e)}
-
-
-# Schedule creation API.
-async def schedule_sync(
-    server_id: int,
-    timezone: str,
-    start_time_local_iso: str,
-    one_time: bool,
-    recurrence_mode: str | None,
-    interval_unit: str | None,
-    interval_value: int | None,
-    weekly_day: str | None,
-    db: AsyncSession
-):
-    """
-    Create a one-time or periodic sync schedule for a registered server.
-
-    Args:
-        request (ScheduleCreateRequest): Schedule configuration payload.
-        db (AsyncSession): Database session dependency.
-
-    Returns:
-        dict: Created schedule id and computed next run time.
-    """
-    try:
-        # Validate that target server exists before creating a schedule.
-        server = await get_registered_server_by_id(db, server_id)
-        if not server:
-            raise HTTPException(status_code=404, detail="Registered server not found")
-
-        # Parse local ISO datetime and convert to UTC epoch ms
-        try:
-            tz = ZoneInfo(timezone)
-        except Exception:
-            raise HTTPException(status_code=400, detail="Invalid timezone")
-
-        try:
-            # Accepts e.g. 2026-01-04T15:00
-            local_dt = datetime.strptime(start_time_local_iso, "%Y-%m-%dT%H:%M")
-        except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid datetime format. Use YYYY-MM-DDTHH:MM")
-
-        # Convert local datetime with timezone info to UTC epoch milliseconds
-        local_dt = local_dt.replace(tzinfo=tz)
-        start_utc_ms = int(local_dt.astimezone(ZoneInfo("UTC")).timestamp() * 1000)
-
-        # Derive recurrence fields from the selected start datetime.
-        derived_time = local_dt.strftime("%H:%M")
-        recurrence_mode = None if one_time else recurrence_mode
-        daily_time = derived_time if recurrence_mode == "daily" else None
-        weekly_day = weekly_day if recurrence_mode == "weekly" else None
-        weekly_time = derived_time if recurrence_mode == "weekly" else None
-
-        now_ms = int(time.time() * 1000)
-        if one_time:
-            # One-time schedules must be strictly in the future.
-            if start_utc_ms <= now_ms:
-                raise HTTPException(status_code=400, detail="Start time must be in the future for one-time schedules")
-            next_ms = start_utc_ms
-        else:
-            # Compute first due run for periodic schedules based on recurrence settings.
-            next_ms = await compute_initial_next_run_utc(
-                start_utc_ms,
-                now_ms,
-                timezone,
-                recurrence_mode,
-                interval_unit=interval_unit,
-                interval_value=interval_value,
-                daily_time=daily_time,
-                weekly_day=weekly_day,
-                weekly_time=weekly_time
-            )
-
-        # Persist schedule details and return created id plus first next-run timestamp.
-        created = await create_schedule(
-            db,
-            server_id=server_id,
-            timezone=timezone,
-            start_time_utc=start_utc_ms,
-            next_run_time_utc=next_ms,
-            created_at=now_ms,
-            one_time=one_time,
-            recurrence_mode=recurrence_mode,
-            interval_unit=interval_unit,
-            interval_value=interval_value,
-            daily_time=daily_time,
-            weekly_day=weekly_day,
-            weekly_time=weekly_time
-        )
-        return {"message": "Schedule created", "schedule_id": created["id"], "next_run_time_utc": next_ms}
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to create schedule: {e}")
-
-
-# Retrieve active schedules, optionally filtered by server id.
-async def get_schedules(server_id: Optional[int], db: AsyncSession):
-    """
-    Retrieve active schedules, optionally filtered by server id.
-
-    Args:
-        server_id (Optional[int]): Optional server id filter.
-        db (AsyncSession): Database session dependency.
-
-    Returns:
-        list: Active schedule rows.
-    """
-    rows = await list_schedules(db, server_id)
-    return rows
-
-
-async def get_schedule_logs(schedule_id: int, db: AsyncSession):
-    """
-    Retrieve run history logs for a schedule id.
-
-    Args:
-        schedule_id (int): Schedule id.
-        db (AsyncSession): Database session dependency.
-
-    Returns:
-        list: Sync log rows ordered by latest first.
-    """
-    rows = await list_sync_logs(db, schedule_id)
-    return rows
-
-
 async def get_server_completed_logs(server_id: int, db: AsyncSession):
     """
     Get all completed sync logs for a specific server.
@@ -403,20 +215,9 @@ async def get_server_completed_logs(server_id: int, db: AsyncSession):
         raise HTTPException(status_code=500, detail=f"Failed to fetch completed logs: {e}")
 
 
-async def delete_schedule_route(schedule_id: int, db: AsyncSession):
-    """
-    Deactivate a schedule so future runs stop.
 
-    Args:
-        schedule_id (int): Schedule id to deactivate.
-        db (AsyncSession): Database session dependency.
-
-    Returns:
-        dict: Deactivation status message.
-    """
-    return await delete_schedule(db, schedule_id)
-
-
+# ==================== API Endpoints ====================
+# ==================== API Endpoints ====================
 @router.post("/acknowledge")
 async def acknowledge_server(info: AcknowledgeRequest):
     """Compatibility endpoint used by peer servers during registration and liveness checks."""
@@ -474,66 +275,6 @@ async def list_servers(db: AsyncSession = Depends(get_db)):
     )
 
 
-@router.post("/schedules")
-async def create_schedule(schedule_info: ScheduleCreateRequest, db: AsyncSession = Depends(get_db)):
-    result = await schedule_sync(
-        server_id=schedule_info.server_id,
-        timezone=schedule_info.timezone,
-        start_time_local_iso=schedule_info.start_time_local_iso,
-        one_time=schedule_info.one_time,
-        recurrence_mode=schedule_info.recurrence_mode,
-        interval_unit=schedule_info.interval_unit,
-        interval_value=schedule_info.interval_value,
-        weekly_day=schedule_info.weekly_day,
-        db=db,
-    )
-    return success_response(
-        data=result,
-        message="Schedule created successfully",
-        code=201,
-    )
-
-
-@router.get("/schedules")
-async def get_schedules_route(server_id: Optional[int] = None, db: AsyncSession = Depends(get_db)):
-    """
-    Retrieve active schedules, optionally filtered by server id.
-
-    Args:
-        server_id (Optional[int]): Optional server id filter.
-        db (AsyncSession): Database session dependency.
-
-    Returns:
-        list: Active schedule rows.
-    """
-    result = await get_schedules(server_id, db)
-    return success_response(
-        data=result,
-        message="Schedules retrieved successfully",
-        code=200,
-    )
-
-
-@router.get("/schedules/{schedule_id}/logs")
-async def get_schedule_logs_route(schedule_id: int, db: AsyncSession = Depends(get_db)):
-    """
-    Retrieve run history logs for a schedule id.
-
-    Args:
-        schedule_id (int): Schedule id.
-        db (AsyncSession): Database session dependency.
-
-    Returns:
-        list: Sync log rows ordered by latest first.
-    """
-    result = await get_schedule_logs(schedule_id, db)
-    return success_response(
-        data=result,
-        message="Schedule logs retrieved successfully",
-        code=200,
-    )
-
-
 @router.get("/servers/{server_id}/completed-logs")
 async def server_completed_logs(server_id: int, db: AsyncSession = Depends(get_db)):
     """
@@ -551,29 +292,3 @@ async def server_completed_logs(server_id: int, db: AsyncSession = Depends(get_d
         message="Server completed logs retrieved successfully",
         code=200,
     )
-
-
-@router.delete("/schedules/{schedule_id}")
-async def delete_sync_schedule(schedule_id: int, db: AsyncSession = Depends(get_db)):
-    """
-    Deactivate a schedule so future runs stop.
-
-    Args:
-        schedule_id (int): Schedule id to deactivate.
-        db (AsyncSession): Database session dependency.
-
-    Returns:
-        dict: Deactivation status message.
-    """
-    result = await delete_schedule_route(schedule_id, db)
-    return success_response(
-        data=result,
-        message="Schedule deleted successfully",
-        code=200,
-    )
-
-
-@router.get("/python-envs/download")
-async def download_python_env_route(list_of_files: Optional[list[str]] = Query(None)):
-    """Download Python environment files as ZIP."""
-    return download_python_env(list_of_files)
