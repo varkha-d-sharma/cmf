@@ -54,27 +54,35 @@ class cmfClient:
         :param pipeline_name: Name of the pipeline.
         :return: API response containing execution names.
         """
+        return self.connection.get(f"/v1/pipelines/{pipeline_name}/executions/list")
+
+    def get_executions(self, pipeline_name):
+        """
+        Retrieve detailed executions for a pipeline.
+
+        :param pipeline_name: Name of the pipeline.
+        :return: API response containing executions.
+        """
+        # Use the standardized endpoint for getting all executions in the pipeline.
         return self.connection.get(f"/v1/pipelines/{pipeline_name}/executions")
 
-    def get_executions_by_stage(
-        self,
-        pipeline_name,
-        stage_name,
-        active_page=1,
-        record_per_page=5,
-        sort_order="DESC",
-        filter_value="",
-    ):
-        """Retrieve executions filtered by pipeline and stage."""
-        payload = {
-            "pipeline_name": pipeline_name,
-            "stage_name": stage_name,
-            "active_page": active_page,
-            "record_per_page": record_per_page,
-            "sort_order": sort_order,
-            "filter_value": filter_value,
-        }
-        return self.connection.post(f"/v1/pipelines/{pipeline_name}/executions", data=payload)
+    # def get_executions_by_stage(
+    #     self,
+    #     pipeline_name,
+    #     stage_name,
+    #     active_page=1,
+    #     record_per_page=5,
+    #     sort_order="DESC",
+    #     filter_value="",
+    # ):
+    #     """Retrieve executions filtered by pipeline and stage."""
+    #     payload = {
+    #         "active_page": active_page,
+    #         "record_per_page": record_per_page,
+    #         "sort_order": sort_order,
+    #         "filter_value": filter_value,
+    #     }
+    #     return self.connection.post(f"/v1/pipelines/{pipeline_name}/executions/stages/{stage_name}", data=payload)
 
     def get_execution_lineage_tangled_tree(self, pipeline_name, uuid):
         """
@@ -93,50 +101,41 @@ class cmfClient:
 
         :return: API response containing artifact types.
         """
-        return self.connection.get("/v1/artifacts/artifact-types")
+        return self.connection.get("/v1/artifacts/artifact/types")
 
-    def get_artifact_types_by_stage(self, pipeline_name, stage_name):
-        """Retrieve artifact types for a given pipeline and stage."""
-        payload = {"pipeline_name": pipeline_name, "stage_name": stage_name}
-        return self.connection.post(f"/v1/pipelines/{pipeline_name}/artifacts/types", data=payload)
+    # def get_artifact_types_by_stage(self, pipeline_name, stage_name):
+    #     """Retrieve artifact types for a given pipeline and stage."""
+    #     return self.connection.post(f"/v1/pipelines/{pipeline_name}/artifacts/stages/{stage_name}/types", data={})
 
-    def get_artifacts_by_stage(
-        self,
-        pipeline_name,
-        stage_name,
-        artifact_type,
-        active_page=1,
-        record_per_page=5,
-        sort_field="name",
-        sort_order="asc",
-        filter_value="",
-    ):
-        """Retrieve artifacts filtered by pipeline, stage, and artifact type."""
-        payload = {
-            "pipeline_name": pipeline_name,
-            "stage_name": stage_name,
-            "artifact_type": artifact_type,
-            "active_page": active_page,
-            "record_per_page": record_per_page,
-            "sort_field": sort_field,
-            "sort_order": sort_order,
-            "filter_value": filter_value,
-        }
-        return self.connection.post(f"/v1/pipelines/{pipeline_name}/artifacts", data=payload)
+    # def get_artifacts_by_stage(
+    #     self,
+    #     pipeline_name,
+    #     stage_name,
+    #     artifact_type,
+    #     active_page=1,
+    #     record_per_page=5,
+    #     sort_field="name",
+    #     sort_order="asc",
+    #     filter_value="",
+    # ):
+    #     """Retrieve artifacts filtered by pipeline, stage, and artifact type."""
+    #     payload = {
+    #         "artifact_type": artifact_type,
+    #         "active_page": active_page,
+    #         "record_per_page": record_per_page,
+    #         "sort_field": sort_field,
+    #         "sort_order": sort_order,
+    #         "filter_value": filter_value,
+    #     }
+    #     return self.connection.post(f"/v1/pipelines/{pipeline_name}/artifacts/stages/{stage_name}", data=payload)
 
-    def get_artifacts(self, pipeline_name, artifact_type):
+    def get_artifacts(self, pipeline_name):
         """
-        Retrieve artifacts of a specific type for a given pipeline.
-
-        :param pipeline_name: Name of the pipeline.
-        :param artifact_type: Type of the artifact.
-        :return: API response containing artifacts of the specified type.
+        Retrieve all artifacts for a given pipeline.
+        :return: API response containing all artifacts for the pipeline.
         """
-        return self.get_artifacts_by_stage(
-            pipeline_name=pipeline_name,
-            stage_name="",
-            artifact_type=artifact_type,
-        )
+        # Use the standardized endpoint for getting all artifacts in the pipeline.
+        return self.connection.get(f"/v1/pipelines/{pipeline_name}/artifacts")
 
     def get_artifact_lineage_tangled_tree(self, pipeline_name):
         """
@@ -155,7 +154,7 @@ class cmfClient:
         :return: API response containing the model card details.
         """
         model_id_int = int(model_id)
-        return self.connection.get("/v1/artifacts/model-card", params={"modelId": model_id_int})
+        return self.connection.get("/v1/model-card", params={"modelId": model_id_int})
 
     def get_python_env(self, file_name):
         """
@@ -163,7 +162,7 @@ class cmfClient:
 
         :return: API response containing the Python environment details.
         """
-        return self.connection.get("/v1/executions/python-env", params={"file_name": file_name})
+        return self.connection.get("/v1/python-env", params={"file_name": file_name})
 
 
     # MLMD metadata sync

@@ -29,7 +29,6 @@ from server.app.db.dbqueries import (
 )
 from server.app.schemas.requests import (
     ArtifactByStageRequest,
-    ArtifactTypesByStageRequest,
 )
 from server.app.schemas.responses import success_response
 from server.app.services.mlmd_state import MlmdState
@@ -38,9 +37,25 @@ from server.app.get_data import (
     async_api,
 )
 import pandas as pd
+from cmflib.cmfquery import CmfQuery
 router = APIRouter(prefix="/v1", tags=["artifacts"])
 
 # ==================== Business Logic Functions ====================
+
+# Used by the MCP client to retrieve all pipeline artifacts
+async def get_all_artifacts(state: MlmdState, pipeline_name: str):
+    """Retrieve all artifacts for a pipeline without pagination or filtering."""
+    await state.check_mlmd_file_exists()
+    await state.check_pipeline_exists(pipeline_name)
+
+    artifacts = await async_api(
+        CmfQuery.get_all_artifacts_by_context,
+        state.query,
+        pipeline_name
+    )
+    if artifacts.empty:
+        return []
+    return artifacts.to_dict(orient="records")
 
 # This API returns a list of artifact types in the current MLMD store.
 async def get_artifacts_types(state: MlmdState):
@@ -133,6 +148,19 @@ async def get_artifacts_by_stage(
 
 
 # ==================== API Endpoints ====================
+
+@router.get("/pipelines/{pipeline_name}/artifacts")
+async def get_artifacts(request: Request, pipeline_name: str):
+    """Retrieve all artifacts for a pipeline without pagination or filtering."""
+    state = request.app.state.mlmd
+    result = await get_all_artifacts(state, pipeline_name)
+    return success_response(
+        data=result,
+        message="Pipeline artifacts retrieved successfully",
+        code=200
+    )
+
+
 # only This API is used by the MCP server.
 @router.get("/artifacts/artifact/types")
 async def get_artifacts_by_types(
@@ -151,14 +179,15 @@ async def get_artifacts_by_types(
     )
 
 
-@router.post("/pipelines/{pipeline_name}/artifacts/stages/{stage}/types")
+@router.post("/pipelines/{pipeline_name}/artifacts/stages/{stage:path}/types")
 async def get_artifact_types_by_stage_route(
-    query_params: ArtifactTypesByStageRequest,
+    pipeline_name: str,
+    stage: str,
     db: AsyncSession = Depends(get_db)
 ):
     result = await get_artifact_types_by_stage(
-        query_params.pipeline_name,
-        query_params.stage_name,
+        pipeline_name,
+        stage,
         db
     )
     return success_response(
@@ -168,15 +197,16 @@ async def get_artifact_types_by_stage_route(
     )
 
 
-@router.post("/pipelines/{pipeline_name}/artifacts/stages/{stage}")
+@router.post("/pipelines/{pipeline_name}/artifacts/stages/{stage:path}")
 async def get_artifacts_by_stage_route(
     query_params: ArtifactByStageRequest,
+    pipeline_name: str,
+    stage: str,
     db: AsyncSession = Depends(get_db)
 ):
-    pipeline_name = query_params.pipeline_name
     result = await get_artifacts_by_stage(
         pipeline_name,
-        query_params.stage_name,
+        stage,
         query_params.artifact_type,
         query_params.filter_value,
         query_params.active_page,

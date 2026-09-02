@@ -22,6 +22,7 @@ including execution listing and Python environment management.
 """
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
+from cmflib.cmfquery import CmfQuery
 from server.app.db.dbconfig import get_db
 from server.app.db.dbqueries import (
     fetch_executions_by_stage,
@@ -42,6 +43,22 @@ router = APIRouter(prefix="/v1", tags=["executions"])
 
 # ==================== Business Logic Functions ====================
 
+# Used by the MCP client to retrieve all pipeline executions
+async def get_all_executions(state: MlmdState, pipeline_name: str):
+    """Retrieve all executions for a pipeline without pagination or filtering."""
+    await state.check_mlmd_file_exists()
+    await state.check_pipeline_exists(pipeline_name)
+
+    executions = await async_api(
+        CmfQuery.get_all_executions_in_pipeline,
+        state.query,
+        pipeline_name
+    )
+    if executions.empty:
+        return []
+    return executions.to_dict(orient="records")
+
+
 async def list_of_executions(state: MlmdState, pipeline_name: str):
     '''
       This api's returns list of execution types.
@@ -60,10 +77,6 @@ async def list_of_executions(state: MlmdState, pipeline_name: str):
     )
 
     return response
-
-
-
-
 
 
 async def get_executions_by_stage(
@@ -131,6 +144,18 @@ async def get_pipeline_stages(
 
 # ==================== API Endpoints ====================
 
+@router.get("/pipelines/{pipeline_name}/executions")
+async def get_all_pipeline_executions(request: Request, pipeline_name: str):
+    """Retrieve all executions for a pipeline without pagination or filtering."""
+    state = request.app.state.mlmd
+    result = await get_all_executions(state, pipeline_name)
+    return success_response(
+        data=result,
+        message="Pipeline executions retrieved successfully",
+        code=200
+    )
+
+
 @router.get("/pipelines/{pipeline_name}/executions/list")
 async def get_executions(request: Request, pipeline_name: str):
     """Retrieve the execution list for a pipeline."""
@@ -146,16 +171,17 @@ async def get_executions(request: Request, pipeline_name: str):
     )
 
 
-@router.post("/pipelines/{pipeline_name}/executions/stages/{stage}")
+@router.post("/pipelines/{pipeline_name}/executions/stages/{stage:path}")
 async def pipeline_executions(
     query_params: ExecutionByStageRequest,
     pipeline_name: str,
+    stage: str,
     db: AsyncSession = Depends(get_db)
 ):
     """Retrieve executions filtered/stage-based search by pipeline and stage name."""
     result = await get_executions_by_stage(
         pipeline_name=pipeline_name,
-        stage_name=query_params.stage_name,
+        stage_name= stage,
         active_page=query_params.active_page,
         record_per_page=query_params.record_per_page,
         sort_order=query_params.sort_order,

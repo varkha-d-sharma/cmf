@@ -30,7 +30,7 @@ def register_tools(mcp, cmf_clients):
         for url in targets:
             client = cmf_clients[url]
             try:
-                data = client.get_executions_list(pipeline)
+                data = client.get_executions(pipeline)
                 result.append({"cmfClient": url, "data": data})
                 logger.debug(json.dumps(data, indent=4))
             except Exception as e:

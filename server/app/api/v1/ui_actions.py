@@ -30,7 +30,7 @@ from server.app.get_data import (
     get_model_data
 )
 import pandas as pd
-router = APIRouter(prefix="/v1", tags=["ui"])
+router = APIRouter(prefix="/v1", tags=["ui-actions"])
 # ==================== Business Logic Functions ====================
 # This API returns the model card payload including model, execution, and artifact data.
 async def model_card(state: MlmdState, modelId: int):

@@ -41,7 +41,6 @@ class BaseRequest(BaseModel):
 
 
 class ExecutionByStageRequest(BaseRequest):
-    stage_name: str = Field(..., description="Stage name (Context_Type value)")
     sort_order: str = Field("DESC", description="Sort order: ASC or DESC")
       
 # Query parameters for artifact (legacy, non-stage).
@@ -51,11 +50,8 @@ class ExecutionByStageRequest(BaseRequest):
 
 
 class ArtifactByStageRequest(BaseRequest):
-    pipeline_name: str = Field(..., description="Pipeline name")
     sort_field: str = Field("name", description="Column to sort by (default: name)")
-    stage_name: str = Field(..., description="Stage name (Context_Type value)")
     artifact_type: str = Field(..., description="Artifact type to filter")
-
 
 # Define a Pydantic model for the request body
 class ServerRegistrationRequest(BaseModel):
@@ -144,7 +140,3 @@ class ScheduleCreateRequest(BaseModel):
             self.interval_value = None
             self.daily_time = None
         return self
-
-class ArtifactTypesByStageRequest(BaseModel):
-    pipeline_name: str = Field(..., description="Pipeline name")
-    stage_name: str = Field(..., description="Stage name (Context_Type value)")

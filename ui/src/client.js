@@ -102,7 +102,7 @@ class FastAPIClient {
 
   async getExecutionTypes(pipeline) {
     return this.apiClient
-      .get(`/v1/pipelines/${encodeURIComponent(pipeline)}/executions`)
+      .get(`/v1/pipelines/${encodeURIComponent(pipeline)}/executions/list`)
       .then(({ data }) => {
         return data;
       });
@@ -152,7 +152,7 @@ class FastAPIClient {
 
  async getModelCard(modelId) {
     return this.apiClient
-      .get(`/v1/artifacts/model-card`, {
+      .get(`/v1/model-card`, {
         params: {
           modelId: modelId,
         },
@@ -164,7 +164,7 @@ class FastAPIClient {
 
   async getPythonEnv(file_name) {
     return this.apiClient
-      .get(`/v1/executions/python-env`, {
+      .get(`/v1/python-env`, {
         params: {
           file_name: file_name
         },
@@ -177,7 +177,7 @@ class FastAPIClient {
 
   async getLabelData(file_name) {
     return this.apiClient
-      .get(`/v1/artifacts/label-data`, {
+      .get(`/v1/label-data`, {
         params: {
           file_name: file_name
         },
@@ -274,9 +274,7 @@ class FastAPIClient {
   
   async getExecutionsByStage(pipelineName, stageName, activePage = 1, recordPerPage = 5, sortOrder = "desc", filterValue = "") {
     return this.apiClient
-      .post(`/v1/pipelines/${encodeURIComponent(pipelineName)}/executions`, {
-        pipeline_name: pipelineName,
-        stage_name: stageName,
+      .post(`/v1/pipelines/${encodeURIComponent(pipelineName)}/executions/stages/${encodeURIComponent(stageName)}`, {
         active_page: activePage,
         record_per_page: recordPerPage,
         sort_order: sortOrder,
@@ -297,20 +295,16 @@ class FastAPIClient {
 
   async getArtifactTypesByStage(pipelineName, stageName) {
     return this.apiClient
-      .post(`/v1/pipelines/${encodeURIComponent(pipelineName)}/artifacts/types`, {
-        pipeline_name: pipelineName,
-        stage_name: stageName,
+      .post(`/v1/pipelines/${encodeURIComponent(pipelineName)}/artifacts/stages/${encodeURIComponent(stageName)}/types`, {
       })
       .then(({ data }) => {
         return data;
-      });
+      }); 
   }
 
   async getArtifactsByStage(pipelineName, stageName, artifactType, sortOrder, activePage = 1, recordPerPage = 5, filter = "", sortField = "name") {
     return this.apiClient
-      .post(`/v1/pipelines/${encodeURIComponent(pipelineName)}/artifacts`, {
-        pipeline_name: pipelineName,
-        stage_name: stageName,
+      .post(`/v1/pipelines/${encodeURIComponent(pipelineName)}/artifacts/stages/${encodeURIComponent(stageName)}`, {
         artifact_type: artifactType,
         sort_order: sortOrder,
         active_page: activePage,
