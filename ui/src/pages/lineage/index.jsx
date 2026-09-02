@@ -28,7 +28,6 @@ import ExecutionTangledDropdown from "../../components/ExecutionTangledDropdown"
 import Loader from "../../components/Loader";
 import CommonLineageComponent from "../../components/LineageComponent/CommonLineageComponent";
 import HierarchicalLineageFlow from "../../components/LineageComponent/HierarchicalLineageFlow";
-import { TransformLineageData } from "../../components/LineageComponent/TransformLineageData";
 
 const client = new FastAPIClient(config);
 
@@ -195,10 +194,8 @@ const Lineage = () => {
         setLoading(false);
         return;
       }
-      const transformed = TransformLineageData(data);
-      setHierarchicalData(transformed);
+      setHierarchicalData(data);
       setLoading(false);
-      
     }).catch((err) => {
       console.error("Failed to fetch hierarchical lineage:", err);
       setHierarchicalData(null);
