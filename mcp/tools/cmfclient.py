@@ -67,7 +67,7 @@ class cmfClient:
         return self.connection.get(f"/v1/pipelines/{pipeline_name}/executions")
 
 
-    def get_execution_lineage_tangled_tree(self, pipeline_name, uuid):
+    def get_execution_lineage_tangled_tree(self, uuid, pipeline_name):
         """
         Retrieve the execution lineage tangled tree for a given UUID and pipeline.
 
