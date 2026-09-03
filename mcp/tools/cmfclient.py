@@ -112,15 +112,15 @@ class cmfClient:
         :return: API response containing the model card details.
         """
         model_id_int = int(model_id)
-        return self.connection.get("/v1/model-card", params={"modelId": model_id_int})
+        return self.connection.get(f"/v1/artifacts/models/{model_id_int}/card")
 
-    def get_python_env(self, file_name):
+    def get_python_env(self, pipeline_name, execution_uuid):
         """
         Retrieve the Python environment details.
 
         :return: API response containing the Python environment details.
         """
-        return self.connection.get("/v1/python-env", params={"file_name": file_name})
+        return self.connection.get(f"/v1/pipelines/{pipeline_name}/executions/{execution_uuid}/python-env")
 
 
     # MLMD metadata sync

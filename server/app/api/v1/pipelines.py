@@ -19,7 +19,7 @@ This module contains API endpoints for pipeline discovery, stage queries,
 executions, artifacts, and execution/artifact lineage.
 """
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from server.app.db.dbconfig import get_db
 from server.app.db.dbqueries import (
@@ -45,6 +45,7 @@ from server.app.get_data import (
     async_api,
     executions_list,
 )
+from server.app.api.v1.env import get_python_env as read_python_env
 
 router = APIRouter(prefix="/v1", tags=["pipelines"])
 
@@ -229,6 +230,22 @@ async def pipeline_executions(
     return success_response(
         data=result,
         message="Pipeline executions retrieved successfully",
+        code=200
+    )
+
+
+@router.get("/pipelines/{pipeline_name}/executions/{execution_uuid}/python-env")
+async def get_execution_python_env(
+    request: Request,
+    pipeline_name: str,
+    execution_uuid: str
+):
+    """Retrieve the Python environment file associated with an execution."""
+    state = request.app.state.mlmd
+    result = await get_python_env_by_execution(state, pipeline_name, execution_uuid)
+    return success_response(
+        data=result,
+        message="Python environment retrieved successfully",
         code=200
     )
 
@@ -531,3 +548,42 @@ async def get_pipeline_stages(
     print("DEBUG: result =", result)
 
     return result
+
+
+async def get_python_env_by_execution(
+    state: MlmdState,
+    pipeline_name: str,
+    execution_uuid: str
+):
+    """Resolve an execution's Python_Env property and return its file content."""
+    await state.check_mlmd_file_exists()
+    await state.check_pipeline_exists(pipeline_name)
+
+    executions = await async_api(
+        CmfQuery.get_all_executions_in_pipeline,
+        state.query,
+        pipeline_name
+    )
+    if executions.empty or "Execution_uuid" not in executions.columns:
+        raise HTTPException(status_code=404, detail="Execution not found")
+
+    matching_execution = executions[
+        executions["Execution_uuid"].astype(str).apply(
+            lambda value: any(
+                uuid.strip() == execution_uuid or uuid.strip().startswith(execution_uuid)
+                for uuid in value.split(",")
+            )
+        )
+    ]
+    if matching_execution.empty:
+        raise HTTPException(status_code=404, detail="Execution not found")
+
+    python_env_column = "custom_properties_Python_Env"
+    if python_env_column not in matching_execution.columns:
+        raise HTTPException(status_code=404, detail="Python environment is not available for this execution")
+
+    python_env_file = matching_execution.iloc[0][python_env_column]
+    if not python_env_file:
+        raise HTTPException(status_code=404, detail="Python environment is not available for this execution")
+
+    return await read_python_env(str(python_env_file))
