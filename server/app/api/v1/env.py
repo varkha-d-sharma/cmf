@@ -62,6 +62,8 @@ async def upload_python_env(file: UploadFile):
         }
 
     except Exception as e:
+        if isinstance(e, HTTPException):
+            raise
         raise HTTPException(status_code=500, detail=f"Failed to upload file: {str(e)}") from e
 
 
@@ -105,7 +107,7 @@ def download_python_env(list_of_files: Optional[list[str]] = None):
         DIRECTORY = "/cmf-server/data/env/" # Directory to be compressed
         #  Check if the directory exists
         if not os.path.exists(DIRECTORY):
-            return {"error": "Directory does not exist"}
+            raise HTTPException(status_code=404, detail="Directory does not exist")
         # Determine files to include in the ZIP
         files_to_zip = []
         # if list_of_files is provided, include only those files
@@ -116,10 +118,10 @@ def download_python_env(list_of_files: Optional[list[str]] = None):
                 if os.path.exists(file_path):
                     files_to_zip.append((file_path, file_name))
                 else:
-                    return {"error": f"File {file_name} does not exist"}
+                    raise HTTPException(status_code=404, detail=f"File {file_name} does not exist")
         else:
             if not os.listdir(DIRECTORY):
-                return {"error": "Directory is empty"}
+                raise HTTPException(status_code=404, detail="Directory is empty")
             for root, _, files in os.walk(DIRECTORY):
                 for file in files:
                     file_path = os.path.join(root, file)
@@ -142,5 +144,7 @@ def download_python_env(list_of_files: Optional[list[str]] = None):
                 "Content-Disposition": f"attachment; filename={'python_env_files.zip' if list_of_files else 'python_env_folder.zip'}"
             }
         )
+    except HTTPException:
+        raise
     except Exception as e:
-        return {"error": str(e)}
+        raise HTTPException(status_code=500, detail=str(e)) from e

@@ -136,8 +136,10 @@ async def upload_label(file: UploadFile):
 
         return {"message": f"File '{file.filename}' uploaded successfully to {labels_dir}."}
 
+    except HTTPException:
+        raise
     except Exception as e:
-        return {"error": f"Failed to upload file: {e}"}
+        raise HTTPException(status_code=500, detail=f"Failed to upload file: {e}") from e
 
 
 """Retrieve label data from from the /cmf-server/data/labels folder."""
