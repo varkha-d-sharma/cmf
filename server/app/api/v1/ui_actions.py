@@ -31,6 +31,54 @@ from server.app.get_data import (
 )
 import pandas as pd
 router = APIRouter(prefix="/v1", tags=["ui-actions"])
+
+# ==================== API Endpoints ====================
+
+@router.get("/model-card")
+async def get_model_card( request: Request, modelId: int):
+    state = request.app.state.mlmd
+    result = await model_card(state, modelId)
+    return success_response(
+        data=result,
+        message="Model card retrieved successfully",
+        code=200
+    )
+
+
+@router.post("/label")
+async def upload_label_file(file: UploadFile = File(..., description="The file to upload")):
+    result = await upload_label(file)
+
+    return success_response(
+        data=result,
+        message="Label uploaded successfully",
+        code=201
+    )
+
+
+@router.get("/label-data")
+async def get_label_data_route(file_name: str):
+    result = await get_label_data(file_name)
+
+    return success_response(
+        data=result,
+        message="Label data retrieved successfully",
+        code=200
+    )
+
+@router.post("/tensorboard")
+async def tensorboard_upload(
+    pipeline_name: str = Query(..., description="Pipeline name"),
+    file: UploadFile = File(..., description="The file to upload")
+):
+    result = await upload_tensorboard_logs(pipeline_name, file)
+    return success_response(
+        data=result,
+        message="TensorBoard file uploaded successfully",
+        code=200,
+    )
+
+
 # ==================== Business Logic Functions ====================
 # This API returns the model card payload including model, execution, and artifact data.
 async def model_card(state: MlmdState, modelId: int):
@@ -134,50 +182,3 @@ async def upload_tensorboard_logs(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to upload file: {str(e)}") from e
-
-
-# ==================== API Endpoints ====================
-
-@router.get("/model-card")
-async def get_model_card( request: Request, modelId: int):
-    state = request.app.state.mlmd
-    result = await model_card(state, modelId)
-    return success_response(
-        data=result,
-        message="Model card retrieved successfully",
-        code=200
-    )
-
-
-@router.post("/label")
-async def upload_label_file(file: UploadFile = File(..., description="The file to upload")):
-    result = await upload_label(file)
-
-    return success_response(
-        data=result,
-        message="Label uploaded successfully",
-        code=201
-    )
-
-
-@router.get("/label-data")
-async def get_label_data_route(file_name: str):
-    result = await get_label_data(file_name)
-
-    return success_response(
-        data=result,
-        message="Label data retrieved successfully",
-        code=200
-    )
-
-@router.post("/tensorboard")
-async def tensorboard_upload(
-    pipeline_name: str = Query(..., description="Pipeline name"),
-    file: UploadFile = File(..., description="The file to upload")
-):
-    result = await upload_tensorboard_logs(pipeline_name, file)
-    return success_response(
-        data=result,
-        message="TensorBoard file uploaded successfully",
-        code=200,
-    )

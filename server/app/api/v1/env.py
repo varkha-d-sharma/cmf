@@ -9,6 +9,35 @@ from typing import Optional
 
 router = APIRouter(prefix="/v1", tags=["environment"])
 
+# ==================== API Endpoints ====================
+
+@router.post("/python-env")
+async def upload_python_environment(file: UploadFile = File(..., description="The Python environment file to upload")):
+    result = await upload_python_env(file)
+
+    return success_response(
+        data=result,
+        message="Python environment uploaded successfully",
+        code=201
+    )
+
+
+@router.get("/python-env")
+async def get_python_environment(file_name: str):
+    result = await get_python_env(file_name)
+
+    return success_response(
+        data=result,
+        message="Python environment retrieved successfully",
+        code=200
+    )
+
+
+@router.get("/python-env/download")
+async def download_python_env_route(list_of_files: Optional[list[str]] = Query(None)):
+    """Download Python environment files as ZIP."""
+    return download_python_env(list_of_files)
+
 
 # ==================== Business Logic Functions ====================
 
@@ -113,33 +142,3 @@ def download_python_env(list_of_files: Optional[list[str]] = None):
         )
     except Exception as e:
         return {"error": str(e)}
-
-
-# ==================== API Endpoints ====================
-
-@router.post("/python-env")
-async def upload_python_environment(file: UploadFile = File(..., description="The Python environment file to upload")):
-    result = await upload_python_env(file)
-
-    return success_response(
-        data=result,
-        message="Python environment uploaded successfully",
-        code=201
-    )
-
-
-@router.get("/python-env")
-async def get_python_environment(file_name: str):
-    result = await get_python_env(file_name)
-
-    return success_response(
-        data=result,
-        message="Python environment retrieved successfully",
-        code=200
-    )
-
-
-@router.get("/python-env/download")
-async def download_python_env_route(list_of_files: Optional[list[str]] = Query(None)):
-    """Download Python environment files as ZIP."""
-    return download_python_env(list_of_files)

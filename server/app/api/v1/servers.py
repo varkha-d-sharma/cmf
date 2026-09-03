@@ -46,6 +46,82 @@ from cmflib.cmf_federation import update_mlmd
 
 router = APIRouter(prefix="/v1", tags=["servers"])
 
+# ==================== API Endpoints ====================
+@router.post("/acknowledge")
+async def acknowledge_server(info: AcknowledgeRequest):
+    """Compatibility endpoint used by peer servers during registration and liveness checks."""
+    return success_response(
+        data={
+            "server_name": info.server_name,
+            "server_url": info.server_url,
+            "status": "ok"
+        },
+        message="Server acknowledged successfully",
+        code=200
+    )
+
+
+@router.post("/servers/register")
+async def register_server_route(request: Request, info: ServerRegistrationRequest, db: AsyncSession = Depends(get_db)):
+    state = request.app.state.mlmd
+    result = await register_server(
+        state=state,
+        server_name=info.server_name,
+        server_url=info.server_url,
+        db=db
+    )
+    return success_response(
+        data=result,
+        message="Server registered successfully",
+        code=201
+    )
+
+
+@router.post("/servers/sync")
+async def sync_server(request: Request, info: ServerRegistrationRequest, db: AsyncSession = Depends(get_db), skip_logging: bool = False):
+    state = request.app.state.mlmd
+    result = await sync_metadata(
+        state=state,
+        server_name=info.server_name,
+        server_url=info.server_url,
+        db=db,
+        skip_logging=skip_logging
+    )
+    return success_response(
+        data=result,
+        message="Server synced successfully",
+        code=200
+    )
+
+
+@router.get("/servers")
+async def list_servers(db: AsyncSession = Depends(get_db)):
+    result = await server_list(db)
+    return success_response(
+        data=result,
+        message="Servers retrieved successfully",
+        code=200,
+    )
+
+
+@router.get("/servers/{server_id}/completed-logs")
+async def server_completed_logs(server_id: int, db: AsyncSession = Depends(get_db)):
+    """
+    Get all completed sync logs for a specific server.
+    
+    Args:
+        server_id (int): The ID of the server to get logs for.
+    
+    Returns:
+        list: A list of completed sync logs with sync_type, status, message, and timestamp.
+    """
+    result = await get_server_completed_logs(server_id, db)
+    return success_response(
+        data=result,
+        message="Server completed logs retrieved successfully",
+        code=200,
+    )
+
 
 # ==================== Business Logic Functions ====================
 
@@ -213,82 +289,3 @@ async def get_server_completed_logs(server_id: int, db: AsyncSession):
         return logs
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch completed logs: {e}")
-
-
-
-# ==================== API Endpoints ====================
-# ==================== API Endpoints ====================
-@router.post("/acknowledge")
-async def acknowledge_server(info: AcknowledgeRequest):
-    """Compatibility endpoint used by peer servers during registration and liveness checks."""
-    return success_response(
-        data={
-            "server_name": info.server_name,
-            "server_url": info.server_url,
-            "status": "ok"
-        },
-        message="Server acknowledged successfully",
-        code=200
-    )
-
-
-@router.post("/servers/register")
-async def register_server_route(request: Request, info: ServerRegistrationRequest, db: AsyncSession = Depends(get_db)):
-    state = request.app.state.mlmd
-    result = await register_server(
-        state=state,
-        server_name=info.server_name,
-        server_url=info.server_url,
-        db=db
-    )
-    return success_response(
-        data=result,
-        message="Server registered successfully",
-        code=201
-    )
-
-
-@router.post("/servers/sync")
-async def sync_server(request: Request, info: ServerRegistrationRequest, db: AsyncSession = Depends(get_db), skip_logging: bool = False):
-    state = request.app.state.mlmd
-    result = await sync_metadata(
-        state=state,
-        server_name=info.server_name,
-        server_url=info.server_url,
-        db=db,
-        skip_logging=skip_logging
-    )
-    return success_response(
-        data=result,
-        message="Server synced successfully",
-        code=200
-    )
-
-
-@router.get("/servers")
-async def list_servers(db: AsyncSession = Depends(get_db)):
-    result = await server_list(db)
-    return success_response(
-        data=result,
-        message="Servers retrieved successfully",
-        code=200,
-    )
-
-
-@router.get("/servers/{server_id}/completed-logs")
-async def server_completed_logs(server_id: int, db: AsyncSession = Depends(get_db)):
-    """
-    Get all completed sync logs for a specific server.
-    
-    Args:
-        server_id (int): The ID of the server to get logs for.
-    
-    Returns:
-        list: A list of completed sync logs with sync_type, status, message, and timestamp.
-    """
-    result = await get_server_completed_logs(server_id, db)
-    return success_response(
-        data=result,
-        message="Server completed logs retrieved successfully",
-        code=200,
-    )

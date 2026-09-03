@@ -42,6 +42,89 @@ from server.app.db.dbconfig import get_db
 
 router = APIRouter(prefix="/v1", tags=["schedules"])
 
+
+# ==================== API Endpoints ====================
+
+@router.post("/schedules")
+async def create_schedule(schedule_info: ScheduleCreateRequest, db: AsyncSession = Depends(get_db)):
+    result = await schedule_sync(
+        server_id=schedule_info.server_id,
+        timezone=schedule_info.timezone,
+        start_time_local_iso=schedule_info.start_time_local_iso,
+        one_time=schedule_info.one_time,
+        recurrence_mode=schedule_info.recurrence_mode,
+        interval_unit=schedule_info.interval_unit,
+        interval_value=schedule_info.interval_value,
+        weekly_day=schedule_info.weekly_day,
+        db=db,
+    )
+    return success_response(
+        data=result,
+        message="Schedule created successfully",
+        code=201,
+    )
+
+
+@router.get("/schedules")
+async def get_schedules_route(server_id: Optional[int] = None, db: AsyncSession = Depends(get_db)):
+    """
+    Retrieve active schedules, optionally filtered by server id.
+
+    Args:
+        server_id (Optional[int]): Optional server id filter.
+        db (AsyncSession): Database session dependency.
+
+    Returns:
+        list: Active schedule rows.
+    """
+    result = await get_schedules(server_id, db)
+    return success_response(
+        data=result,
+        message="Schedules retrieved successfully",
+        code=200,
+    )
+
+
+@router.get("/schedules/{schedule_id}/logs")
+async def get_schedule_logs_route(schedule_id: int, db: AsyncSession = Depends(get_db)):
+    """
+    Retrieve run history logs for a schedule id.
+
+    Args:
+        schedule_id (int): Schedule id.
+        db (AsyncSession): Database session dependency.
+
+    Returns:
+        list: Sync log rows ordered by latest first.
+    """
+    result = await get_schedule_logs(schedule_id, db)
+    return success_response(
+        data=result,
+        message="Schedule logs retrieved successfully",
+        code=200,
+    )
+
+
+@router.delete("/schedules/{schedule_id}")
+async def delete_sync_schedule(schedule_id: int, db: AsyncSession = Depends(get_db)):
+    """
+    Deactivate a schedule so future runs stop.
+
+    Args:
+        schedule_id (int): Schedule id to deactivate.
+        db (AsyncSession): Database session dependency.
+
+    Returns:
+        dict: Deactivation status message.
+    """
+    result = await delete_schedule_route(schedule_id, db)
+    return success_response(
+        data=result,
+        message="Schedule deleted successfully",
+        code=200,
+    )
+
+
 # ==================== Business Logic Functions ====================
 # Schedule creation API.
 async def schedule_sync(
@@ -170,7 +253,6 @@ async def get_schedule_logs(schedule_id: int, db: AsyncSession):
 
 
 
-
 async def delete_schedule_route(schedule_id: int, db: AsyncSession):
     """
     Deactivate a schedule so future runs stop.
@@ -183,87 +265,3 @@ async def delete_schedule_route(schedule_id: int, db: AsyncSession):
         dict: Deactivation status message.
     """
     return await delete_schedule(db, schedule_id)
-
-
-
-
-# ==================== API Endpoints ====================
-
-@router.post("/schedules")
-async def create_schedule(schedule_info: ScheduleCreateRequest, db: AsyncSession = Depends(get_db)):
-    result = await schedule_sync(
-        server_id=schedule_info.server_id,
-        timezone=schedule_info.timezone,
-        start_time_local_iso=schedule_info.start_time_local_iso,
-        one_time=schedule_info.one_time,
-        recurrence_mode=schedule_info.recurrence_mode,
-        interval_unit=schedule_info.interval_unit,
-        interval_value=schedule_info.interval_value,
-        weekly_day=schedule_info.weekly_day,
-        db=db,
-    )
-    return success_response(
-        data=result,
-        message="Schedule created successfully",
-        code=201,
-    )
-
-
-@router.get("/schedules")
-async def get_schedules_route(server_id: Optional[int] = None, db: AsyncSession = Depends(get_db)):
-    """
-    Retrieve active schedules, optionally filtered by server id.
-
-    Args:
-        server_id (Optional[int]): Optional server id filter.
-        db (AsyncSession): Database session dependency.
-
-    Returns:
-        list: Active schedule rows.
-    """
-    result = await get_schedules(server_id, db)
-    return success_response(
-        data=result,
-        message="Schedules retrieved successfully",
-        code=200,
-    )
-
-
-@router.get("/schedules/{schedule_id}/logs")
-async def get_schedule_logs_route(schedule_id: int, db: AsyncSession = Depends(get_db)):
-    """
-    Retrieve run history logs for a schedule id.
-
-    Args:
-        schedule_id (int): Schedule id.
-        db (AsyncSession): Database session dependency.
-
-    Returns:
-        list: Sync log rows ordered by latest first.
-    """
-    result = await get_schedule_logs(schedule_id, db)
-    return success_response(
-        data=result,
-        message="Schedule logs retrieved successfully",
-        code=200,
-    )
-
-
-@router.delete("/schedules/{schedule_id}")
-async def delete_sync_schedule(schedule_id: int, db: AsyncSession = Depends(get_db)):
-    """
-    Deactivate a schedule so future runs stop.
-
-    Args:
-        schedule_id (int): Schedule id to deactivate.
-        db (AsyncSession): Database session dependency.
-
-    Returns:
-        dict: Deactivation status message.
-    """
-    result = await delete_schedule_route(schedule_id, db)
-    return success_response(
-        data=result,
-        message="Schedule deleted successfully",
-        code=200,
-    )

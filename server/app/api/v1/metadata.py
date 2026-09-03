@@ -36,6 +36,36 @@ from cmflib.cmf_federation import update_mlmd
 
 router = APIRouter(prefix="/v1", tags=["metadata"])
 
+# ==================== API Endpoints ====================
+
+@router.post("/mlmd/push")
+async def metadata_push(request: Request, info: MLMDPushRequest):
+    state = request.app.state.mlmd
+    result = await mlmd_push(
+        state=state,
+        pipeline_name=info.pipeline_name,
+        json_payload=info.json_payload,
+        exec_uuid=info.exec_uuid,
+    )
+    return success_response(
+        data=result,
+        message="MLMD pushed successfully",
+        code=200,
+    )
+
+
+@router.post("/mlmd/pull", response_class=HTMLResponse)
+async def metadata_pull(request: Request, info: MLMDPullRequest):
+    state = request.app.state.mlmd
+    return await mlmd_pull(
+        state=state,
+        pipeline_name=info.pipeline_name,
+        exec_uuid=info.exec_uuid,
+        last_sync_time=info.last_sync_time,
+    )
+
+
+
 # ==================== Business Logic Functions ====================
 
 # API to post MLMD file to cmf-server.
@@ -111,30 +141,3 @@ async def mlmd_pull(
     if json_payload is None:
         raise HTTPException(status_code=406, detail=f"Pipeline {pipeline_name} not found.")
     return json_payload
-
-
-@router.post("/mlmd/push")
-async def metadata_push(request: Request, info: MLMDPushRequest):
-    state = request.app.state.mlmd
-    result = await mlmd_push(
-        state=state,
-        pipeline_name=info.pipeline_name,
-        json_payload=info.json_payload,
-        exec_uuid=info.exec_uuid,
-    )
-    return success_response(
-        data=result,
-        message="MLMD pushed successfully",
-        code=200,
-    )
-
-
-@router.post("/mlmd/pull", response_class=HTMLResponse)
-async def metadata_pull(request: Request, info: MLMDPullRequest):
-    state = request.app.state.mlmd
-    return await mlmd_pull(
-        state=state,
-        pipeline_name=info.pipeline_name,
-        exec_uuid=info.exec_uuid,
-        last_sync_time=info.last_sync_time,
-    )
