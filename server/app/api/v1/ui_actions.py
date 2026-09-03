@@ -36,6 +36,7 @@ router = APIRouter(prefix="/v1", tags=["ui-actions"])
 
 @router.get("/model-card")
 async def get_model_card( request: Request, modelId: int):
+    """Return model, execution, input-artifact, and output-artifact card data."""
     state = request.app.state.mlmd
     result = await model_card(state, modelId)
     return success_response(
@@ -47,6 +48,7 @@ async def get_model_card( request: Request, modelId: int):
 
 @router.post("/label")
 async def upload_label_file(file: UploadFile = File(..., description="The file to upload")):
+    """Upload a label file to the server label directory."""
     result = await upload_label(file)
 
     return success_response(
@@ -58,6 +60,7 @@ async def upload_label_file(file: UploadFile = File(..., description="The file t
 
 @router.get("/label-data")
 async def get_label_data_route(file_name: str):
+    """Return the contents of a stored label data file."""
     result = await get_label_data(file_name)
 
     return success_response(
@@ -71,6 +74,7 @@ async def tensorboard_upload(
     pipeline_name: str = Query(..., description="Pipeline name"),
     file: UploadFile = File(..., description="The file to upload")
 ):
+    """Upload a TensorBoard log file to a pipeline-specific directory."""
     result = await upload_tensorboard_logs(pipeline_name, file)
     return success_response(
         data=result,

@@ -47,6 +47,7 @@ router = APIRouter(prefix="/v1", tags=["schedules"])
 
 @router.post("/schedules")
 async def create_schedule(schedule_info: ScheduleCreateRequest, db: AsyncSession = Depends(get_db)):
+    """Create a one-time or recurring metadata synchronization schedule."""
     result = await schedule_sync(
         server_id=schedule_info.server_id,
         timezone=schedule_info.timezone,

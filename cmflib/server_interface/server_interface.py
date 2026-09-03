@@ -43,13 +43,13 @@ def call_tensorboard(url, pipeline_name, file_name, file_path):
 
 # This function posts env file to cmf-server
 def call_python_env(url, file_name, file_path):
-    url_to_pass = f"{url}/api/v1/executions/python-env"
+    url_to_pass = f"{url}/api/v1/python-env"
     files = {'file': (file_name, open(file_path, 'rb'))}
     response = requests.post(url_to_pass, files=files)
     return response
 
 def call_label(url, file_name, path):
-    url_to_pass = f"{url}/api/v1/artifacts/label"
+    url_to_pass = f"{url}/api/v1/label"
     files = {'file': (file_name, open(path, 'rb'))}
     response = requests.post(url_to_pass, files=files)
     return response

@@ -13,6 +13,7 @@ router = APIRouter(prefix="/v1", tags=["environment"])
 
 @router.post("/python-env")
 async def upload_python_environment(file: UploadFile = File(..., description="The Python environment file to upload")):
+    """Upload a Python environment file to the server environment directory."""
     result = await upload_python_env(file)
 
     return success_response(
@@ -24,6 +25,7 @@ async def upload_python_environment(file: UploadFile = File(..., description="Th
 
 @router.get("/python-env")
 async def get_python_environment(file_name: str):
+    """Retrieve the contents of a stored Python environment file."""
     result = await get_python_env(file_name)
 
     return success_response(

@@ -53,6 +53,7 @@ router = APIRouter(prefix="/v1", tags=["pipelines"])
 
 @router.get("/pipelines")
 async def list_pipelines(request: Request):
+    """Return the pipeline names available in the current MLMD store."""
     state = request.app.state.mlmd
     result = await pipelines(state)
     return success_response(
@@ -64,6 +65,7 @@ async def list_pipelines(request: Request):
 
 @router.get("/pipelines/{pipeline_name}/stages")
 async def pipeline_stages(pipeline_name: str, db: AsyncSession = Depends(get_db)):
+    """Return the unique execution stages for a pipeline."""
     result = await get_pipeline_stages(pipeline_name, db)
     return success_response(
         data=result,
@@ -78,6 +80,7 @@ async def get_execution_lineage(
     uuid: str,
     pipeline_name: str
 ):
+    """Return the tangled-tree execution lineage for an execution in a pipeline."""
     state = request.app.state.mlmd
     result = await execution_lineage_tangled(
         state=state,
@@ -97,6 +100,7 @@ async def get_artifact_lineage(
     request: Request,
     pipeline_name: str
 ):
+    """Return the tangled-tree artifact lineage for a pipeline."""
     state = request.app.state.mlmd
     result = await artifact_lineage_tangled(
         state=state,
@@ -115,6 +119,7 @@ async def get_artifact_execution_lineage(
     request: Request,
     pipeline_name: str
 ):
+    """Return the lineage graph connecting artifacts and executions in a pipeline."""
     state = request.app.state.mlmd
     result = await artifact_execution_lineage(
         state=state,
@@ -146,6 +151,7 @@ async def get_artifact_types_by_stage_route(
     stage: str,
     db: AsyncSession = Depends(get_db)
 ):
+    """Return artifact types available in a pipeline stage."""
     result = await get_artifact_types_by_stage(
         pipeline_name,
         stage,
@@ -165,6 +171,7 @@ async def get_artifacts_by_stage_route(
     stage: str,
     db: AsyncSession = Depends(get_db)
 ):
+    """Return paginated artifacts filtered by pipeline stage and artifact type."""
     result = await get_artifacts_by_stage(
         pipeline_name,
         stage,

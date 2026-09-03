@@ -63,6 +63,7 @@ async def acknowledge_server(info: AcknowledgeRequest):
 
 @router.post("/servers/register")
 async def register_server_route(request: Request, info: ServerRegistrationRequest, db: AsyncSession = Depends(get_db)):
+    """Register a reachable peer server for metadata synchronization."""
     state = request.app.state.mlmd
     result = await register_server(
         state=state,
@@ -79,6 +80,7 @@ async def register_server_route(request: Request, info: ServerRegistrationReques
 
 @router.post("/servers/sync")
 async def sync_server(request: Request, info: ServerRegistrationRequest, db: AsyncSession = Depends(get_db), skip_logging: bool = False):
+    """Synchronize metadata from a registered peer server."""
     state = request.app.state.mlmd
     result = await sync_metadata(
         state=state,
@@ -96,6 +98,7 @@ async def sync_server(request: Request, info: ServerRegistrationRequest, db: Asy
 
 @router.get("/servers")
 async def list_servers(db: AsyncSession = Depends(get_db)):
+    """Return all servers registered for metadata synchronization."""
     result = await server_list(db)
     return success_response(
         data=result,

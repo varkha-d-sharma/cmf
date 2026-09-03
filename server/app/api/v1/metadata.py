@@ -40,6 +40,7 @@ router = APIRouter(prefix="/v1", tags=["metadata"])
 
 @router.post("/mlmd/push")
 async def metadata_push(request: Request, info: MLMDPushRequest):
+    """Push MLMD metadata into the server's current metadata store."""
     state = request.app.state.mlmd
     result = await mlmd_push(
         state=state,
@@ -56,6 +57,7 @@ async def metadata_push(request: Request, info: MLMDPushRequest):
 
 @router.post("/mlmd/pull", response_class=HTMLResponse)
 async def metadata_pull(request: Request, info: MLMDPullRequest):
+    """Pull MLMD metadata for a pipeline, execution, or synchronization point."""
     state = request.app.state.mlmd
     return await mlmd_pull(
         state=state,
