@@ -1,172 +1,163 @@
 import json
+from typing import Optional
+
 from cmflib.cmfquery import CmfQuery
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
+from server.app.get_data import async_api
 from server.app.services.mlmd_state import mlmd_state
-from server.app.schemas.responses import ErrorDetail, LastSyncTimeRequest, PipelineJsonRequest, PipelineNameRequest, APIResponse
+from server.app.schemas.responses import (
+    ErrorDetail,
+    APIResponse,
+    error_response,
+    success_response,
+)
 
 router = APIRouter(prefix="/v1", tags=["pipelines"])
 query = mlmd_state.query
 
-# ==================== Business Logic Functions For CMFQuery ====================
 
-def _dataframe_records(dataframe):
-    # Replace NaN values with None and convert the DataFrame to a list of dictionaries
-    return dataframe.where(dataframe.notna(), None).to_dict(orient="records")
+# ==================== API Endpoints For CMFQuery ====================
 
+@router.get("/pipelines/{pipeline_name}/stages", response_model=APIResponse)
+async def cmfquery_get_pipeline_stages(pipeline_name: str):
+    stages = await async_api(list_pipeline_stages, query, pipeline_name)
+    if stages == []:
+        return error_response(
+            message="Pipeline not found",
+            code=404,
+            errors=[
+                ErrorDetail(
+                    field="pipeline_name",
+                    message=f"Pipeline '{pipeline_name}' not found",
+                )
+            ],
+        )
 
-def list_pipeline_names(query: CmfQuery) -> APIResponse:
-    pipeline_names = query.get_pipeline_names()
-    return APIResponse(
-        status="success",
+    return success_response(
+        data={
+            "pipeline_name": pipeline_name,
+            "stages": stages,
+            "total_stages": len(stages),
+        },
+        message="Pipeline stages retrieved successfully",
         code=200,
+    )
+
+
+@router.get("/pipelines", response_model=APIResponse)
+async def cmfquery_list_pipelines():
+    pipeline_names = await async_api(list_pipeline_names, query)
+    return success_response(
         data={
             "pipelines": pipeline_names,
             "total_pipelines": len(pipeline_names),
         },
         message="Pipeline names retrieved successfully",
+        code=200,
     )
 
 
-def return_pipeline_id(request: PipelineNameRequest, query: CmfQuery) -> APIResponse:
-    pipeline_id = query.get_pipeline_id(request.pipeline_name)
+@router.get("/pipelines/{pipeline_name}/id", response_model=APIResponse)
+async def cmfquery_get_pipeline_id(pipeline_name: str):
+    pipeline_id = await async_api(return_pipeline_id, query, pipeline_name)
     if pipeline_id == -1:
-        return APIResponse(
-            status="error",
-            code=404,
-            data=None,
+        return error_response(
             message="Pipeline not found",
+            code=404,
             errors=[
                 ErrorDetail(
                     field="pipeline_name",
-                    message=f"Pipeline '{request.pipeline_name}' not found",
+                    message=f"Pipeline '{pipeline_name}' not found",
                 )
             ],
         )
 
-    return APIResponse(
-        status="success",
-        code=200,
+    return success_response(
         data={
-            "pipeline_name": request.pipeline_name,
+            "pipeline_name": pipeline_name,
             "pipeline_id": pipeline_id,
         },
         message="Pipeline ID retrieved successfully",
+        code=200,
     )
 
 
-def list_pipeline_stages(request: PipelineNameRequest, query: CmfQuery) -> APIResponse:
-    stages = query.get_pipeline_stages(request.pipeline_name)
-    if stages == []:
-        return APIResponse(
-            status="error",
-            code=404,
-            data=None,
-            message="Pipeline not found",
-            errors=[
-                ErrorDetail(
-                    field="pipeline_name",
-                    message=f"Pipeline '{request.pipeline_name}' not found",
-                )
-            ],
-        )
-
-    return APIResponse(
-        status="success",
-        code=200,
+@router.get("/pipelines/{pipeline_name}/executions", response_model=APIResponse)
+async def cmfquery_get_pipeline_executions(pipeline_name: str):
+    executions = await async_api(get_pipeline_executions, query, pipeline_name)
+    execution_records = [] if executions is None or executions.empty else _dataframe_records(executions)
+    return success_response(
         data={
-            "pipeline_name": request.pipeline_name,
-            "stages": stages,
-            "total_stages": len(stages),
-        },
-        message="Pipeline stages retrieved successfully",
-    )
-
-
-def get_pipeline_executions(request: PipelineNameRequest, query: CmfQuery) -> APIResponse:
-    executions = query.get_all_executions_in_pipeline(request.pipeline_name)
-    execution_records = [] if executions.empty else _dataframe_records(executions)
-    return APIResponse(
-        status="success",
-        code=200,
-        data={
-            "pipeline_name": request.pipeline_name,
+            "pipeline_name": pipeline_name,
             "executions": execution_records,
             "total_executions": len(execution_records),
         },
         message="Pipeline executions retrieved successfully",
+        code=200,
     )
 
 
-def get_pipeline_json(request: PipelineJsonRequest, query: CmfQuery) -> APIResponse:
-    if query.get_pipeline_id(request.pipeline_name) == -1:
-        return APIResponse(
-            status="error",
-            code=404,
-            data=None,
+@router.get("/pipelines/{pipeline_name}/json", response_model=APIResponse)
+async def cmfquery_dump_pipeline_to_json(
+    pipeline_name: str,
+    exec_uuid: Optional[str] = None,
+):
+    pipeline_id = await async_api(return_pipeline_id, query, pipeline_name)
+    if pipeline_id == -1:
+        return error_response(
             message="Pipeline not found",
+            code=404,
             errors=[
                 ErrorDetail(
                     field="pipeline_name",
-                    message=f"Pipeline '{request.pipeline_name}' not found",
+                    message=f"Pipeline '{pipeline_name}' not found",
                 )
             ],
         )
 
-    pipeline_json = query.dumptojson(request.pipeline_name, request.exec_uuid)
-    return APIResponse(
-        status="success",
-        code=200,
+    pipeline_json = await async_api(get_pipeline_json, query, pipeline_name, exec_uuid)
+    return success_response(
         data=json.loads(pipeline_json) if pipeline_json else {"Pipeline": []},
         message="Pipeline JSON retrieved successfully",
+        code=200,
     )
 
 
-def extract_pipelines_to_json(request: LastSyncTimeRequest, query: CmfQuery) -> APIResponse:
-    pipeline_json = query.extract_to_json(request.last_sync_time)
-    return APIResponse(
-        status="success",
-        code=200,
+@router.get("/pipelines/sync/{last_sync_time}/json", response_model=APIResponse)
+async def cmfquery_extract_pipelines_to_json(last_sync_time: int):
+    pipeline_json = await async_api(extract_pipelines_to_json, query, last_sync_time)
+    return success_response(
         data=json.loads(pipeline_json),
         message="Pipelines JSON extracted successfully",
+        code=200,
     )
 
-# ==================== API Endpoints For CMfQuery ====================
- 
-@router.get("/stages/", response_model=APIResponse)
-async def cmfquery_get_pipeline_stages(
-    request: PipelineNameRequest = Depends(),
-):
-    return list_pipeline_stages(request, query)
+
+# ==================== Business Logic Functions For CMFQuery ====================
+
+def _dataframe_records(dataframe):
+    return dataframe.where(dataframe.notna(), None).to_dict(orient="records")
 
 
-@router.get("", response_model=APIResponse)
-async def cmfquery_list_pipelines():
-    return list_pipeline_names(query)
+def list_pipeline_names(query: CmfQuery):
+    return query.get_pipeline_names()
 
 
-@router.get("/id/", response_model=APIResponse)
-async def cmfquery_get_pipeline_id(
-    request: PipelineNameRequest = Depends(),
-):
-    return return_pipeline_id(request, query)
+def return_pipeline_id(query: CmfQuery, pipeline_name: str):
+    return query.get_pipeline_id(pipeline_name)
 
 
-@router.get("/executions/", response_model=APIResponse)
-async def cmfquery_get_pipeline_executions(
-    request: PipelineNameRequest = Depends(),
-):
-    return get_pipeline_executions(request, query)
+def list_pipeline_stages(query: CmfQuery, pipeline_name: str):
+    return query.get_pipeline_stages(pipeline_name)
 
 
-@router.get("/dumptojson", response_model=APIResponse)
-async def cmfquery_dump_pipeline_to_json(
-    request: PipelineJsonRequest = Depends(),
-):
-    return get_pipeline_json(request, query)
+def get_pipeline_executions(query: CmfQuery, pipeline_name: str):
+    return query.get_all_executions_in_pipeline(pipeline_name)
 
 
-@router.get("/extract_to_json", response_model=APIResponse)
-async def cmfquery_extract_pipelines_to_json(
-    request: LastSyncTimeRequest = Depends(),
-):
-    return extract_pipelines_to_json(request, query)
+def get_pipeline_json(query: CmfQuery, pipeline_name: str, exec_uuid: Optional[str]):
+    return query.dumptojson(pipeline_name, exec_uuid)
+
+
+def extract_pipelines_to_json(query: CmfQuery, last_sync_time: int):
+    return query.extract_to_json(last_sync_time)
