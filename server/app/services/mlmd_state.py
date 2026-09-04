@@ -72,5 +72,45 @@ class MlmdState:
             print(f"Pipeline {pipeline_name} not found.")
             raise HTTPException(status_code=404, detail=f"Pipeline {pipeline_name} not found.")
 
+    def _mlmd_properties_to_dict(self, properties) -> dict:
+        output = {}
+        for key, value in properties.items():
+            output[key] = self._mlmd_value_to_python(value)
+        return output
+
+    def _mlmd_value_to_python(self, value):
+        if hasattr(value, "HasField"):
+            if value.HasField("string_value"):
+                return value.string_value
+            if value.HasField("int_value"):
+                return value.int_value
+            if value.HasField("double_value"):
+                return value.double_value
+            if value.HasField("bool_value"):
+                return value.bool_value
+        return None
+
+    def _execution_to_dict(self, execution) -> dict:
+        return {
+            "id": execution.id,
+            "type_id": execution.type_id,
+            "name": execution.name,
+            "external_id": execution.external_id,
+            "create_time_since_epoch": execution.create_time_since_epoch,
+            "last_update_time_since_epoch": execution.last_update_time_since_epoch,
+            "properties": self._mlmd_properties_to_dict(execution.properties),
+            "custom_properties": self._mlmd_properties_to_dict(execution.custom_properties),
+        }
+
+    def _dataframe_records(self, dataframe) -> list[dict]:
+        records = dataframe.where(dataframe.notna(), None).to_dict(orient="records")
+        return [
+            {
+                key: self._mlmd_value_to_python(value) if hasattr(value, "HasField") else value
+                for key, value in record.items()
+            }
+            for record in records
+        ]
+
 
 mlmd_state = MlmdState()

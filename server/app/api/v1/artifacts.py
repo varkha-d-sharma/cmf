@@ -7,6 +7,7 @@ from server.app.services.mlmd_state import mlmd_state
 from server.app.schemas.responses import (
     ArtifactIdsRequest,
     ErrorDetail,
+    ExecutionIdsRequest,
     APIResponse,
     error_response,
     success_response,
@@ -19,8 +20,8 @@ query = mlmd_state.query
 # ==================== API Endpoints For CMFQuery ====================
 
 @router.get("/artifacts", response_model=APIResponse)
-async def cmfquery_list_artifacts():
-    artifact_names = await async_api(list_all_artifacts, query)
+async def cmfquery_get_all_artifacts():
+    artifact_names = await async_api(get_all_artifacts, query)
     if artifact_names == []:
         return error_response(
             message="No artifacts found",
@@ -63,7 +64,7 @@ async def cmfquery_list_artifact_types():
             "artifact_types": artifact_types,
             "total_artifact_types": len(artifact_types),
         },
-        message="Artifacts retrieved successfully",
+        message="Artifacts types retrieved successfully",
         code=200,
     )
 
@@ -83,7 +84,7 @@ async def cmfquery_get_all_artifacts_by_context(pipeline_name: str):
             ],
         )
 
-    artifact_records = _dataframe_records(artifacts)
+    artifact_records = mlmd_state._dataframe_records(artifacts)
     return success_response(
         data={
             "pipeline_name": pipeline_name,
@@ -112,7 +113,7 @@ async def cmfquery_get_all_artifacts_by_ids_list(
             ],
         )
 
-    artifact_records = _dataframe_records(artifacts)
+    artifact_records = mlmd_state._dataframe_records(artifacts)
     return success_response(
         data={
             "artifact_ids": request.artifact_ids,
@@ -120,6 +121,57 @@ async def cmfquery_get_all_artifacts_by_ids_list(
             "total_artifacts": len(artifact_records),
         },
         message="Artifacts retrieved successfully",
+        code=200,
+    )
+
+
+@router.post("/executions/artifacts", response_model=APIResponse)
+async def cmfquery_get_all_artifacts_for_executions(
+    request: ExecutionIdsRequest,
+):
+    artifacts = await async_api(get_all_artifacts_for_executions, query, request.exe_ids)
+    if artifacts is None or artifacts.empty:
+        return error_response(
+            message="Artifacts not found",
+            code=404,
+            errors=[
+                ErrorDetail(
+                    field="exe_ids",
+                    message=f"Artifacts not found for execution ids {request.exe_ids}",
+                )
+            ],
+        )
+
+    artifact_records = mlmd_state._dataframe_records(artifacts)
+    return success_response(
+        data={
+            "exe_ids": request.exe_ids,
+            "artifacts": artifact_records,
+            "total_artifacts": len(artifact_records),
+        },
+        message="Artifacts for executions retrieved successfully",
+        code=200,
+    )
+
+
+@router.get("/artifacts/dataframe/{artifact_name:path}", response_model=APIResponse)
+async def cmfquery_get_artifact_df(artifact_name: str):
+    artifact = await async_api(get_artifact_df, query, artifact_name)
+    if artifact is None or artifact.empty:
+        return error_response(
+            message="Artifact not found",
+            code=404,
+            errors=[ErrorDetail(field="artifact_name", message=f"Artifact '{artifact_name}' not found")],
+        )
+
+    artifact_records = mlmd_state._dataframe_records(artifact)
+    return success_response(
+        data={
+            "artifact_name": artifact_name,
+            "artifacts": artifact_records,
+            "total_artifacts": len(artifact_records),
+        },
+        message="Artifact dataframe retrieved successfully",
         code=200,
     )
 
@@ -134,7 +186,7 @@ async def cmfquery_get_artifact(artifact_name: str):
             errors=[ErrorDetail(field="artifact_name", message=f"Artifact '{artifact_name}' not found")],
         )
 
-    artifact_records = _dataframe_records(artifact)
+    artifact_records = mlmd_state._dataframe_records(artifact)
     return success_response(
         data={
             "artifact_name": artifact_name,
@@ -146,29 +198,7 @@ async def cmfquery_get_artifact(artifact_name: str):
     )
 
 
-@router.get("/executions/{execution_id}/artifacts", response_model=APIResponse)
-async def cmfquery_get_all_artifacts_for_execution(execution_id: int):
-    artifacts = await async_api(get_all_artifacts_for_execution, query, execution_id)
-    if artifacts is None or artifacts.empty:
-        return error_response(
-            message="Artifacts not found",
-            code=404,
-            errors=[ErrorDetail(field="execution_id", message=f"Artifacts not found for execution id {execution_id}")],
-        )
-
-    artifact_records = _dataframe_records(artifacts)
-    return success_response(
-        data={
-            "execution_id": execution_id,
-            "artifacts": artifact_records,
-            "total_artifacts": len(artifact_records),
-        },
-        message="Artifacts for execution retrieved successfully",
-        code=200,
-    )
-
-
-@router.get("/artifacts/children/{artifact_name:path}", response_model=APIResponse)
+@router.get("/artifacts/children/one-hop/{artifact_name:path}", response_model=APIResponse)
 async def cmfquery_get_one_hop_child_artifacts(
     artifact_name: str,
     pipeline_id: Optional[int] = None,
@@ -181,7 +211,7 @@ async def cmfquery_get_one_hop_child_artifacts(
             errors=[ErrorDetail(field="artifact_name", message=f"Child artifacts not found for artifact '{artifact_name}'")],
         )
 
-    artifact_records = _dataframe_records(artifacts)
+    artifact_records = mlmd_state._dataframe_records(artifacts)
     return success_response(
         data={
             "artifact_name": artifact_name,
@@ -204,7 +234,7 @@ async def cmfquery_get_all_child_artifacts(artifact_name: str):
             errors=[ErrorDetail(field="artifact_name", message=f"Child artifacts not found for artifact '{artifact_name}'")],
         )
 
-    artifact_records = _dataframe_records(artifacts)
+    artifact_records = mlmd_state._dataframe_records(artifacts)
     return success_response(
         data={
             "artifact_name": artifact_name,
@@ -216,7 +246,7 @@ async def cmfquery_get_all_child_artifacts(artifact_name: str):
     )
 
 
-@router.get("/artifacts/parents/{artifact_name:path}", response_model=APIResponse)
+@router.get("/artifacts/parents/one-hop/name/{artifact_name:path}", response_model=APIResponse)
 async def cmfquery_get_one_hop_parent_artifacts(artifact_name: str):
     artifacts = await async_api(get_one_hop_parent_artifacts, query, artifact_name)
     if artifacts is None or artifacts.empty:
@@ -226,7 +256,7 @@ async def cmfquery_get_one_hop_parent_artifacts(artifact_name: str):
             errors=[ErrorDetail(field="artifact_name", message=f"Parent artifacts not found for artifact '{artifact_name}'")],
         )
 
-    artifact_records = _dataframe_records(artifacts)
+    artifact_records = mlmd_state._dataframe_records(artifacts)
     return success_response(
         data={
             "artifact_name": artifact_name,
@@ -238,7 +268,7 @@ async def cmfquery_get_one_hop_parent_artifacts(artifact_name: str):
     )
 
 
-@router.get("/artifacts/{artifact_id}/parents", response_model=APIResponse)
+@router.get("/artifacts/parents/one-hop/id/{artifact_id}", response_model=APIResponse)
 async def cmfquery_get_one_hop_parent_artifacts_with_id(artifact_id: int):
     artifacts = await async_api(get_one_hop_parent_artifacts_with_id, query, artifact_id)
     if artifacts is None or artifacts.empty:
@@ -248,7 +278,7 @@ async def cmfquery_get_one_hop_parent_artifacts_with_id(artifact_id: int):
             errors=[ErrorDetail(field="artifact_id", message=f"Parent artifacts not found for artifact id {artifact_id}")],
         )
 
-    artifact_records = _dataframe_records(artifacts)
+    artifact_records = mlmd_state._dataframe_records(artifacts)
     return success_response(
         data={
             "artifact_id": artifact_id,
@@ -270,7 +300,7 @@ async def cmfquery_get_all_parent_artifacts(artifact_name: str):
             errors=[ErrorDetail(field="artifact_name", message=f"Parent artifacts not found for artifact '{artifact_name}'")],
         )
 
-    artifact_records = _dataframe_records(artifacts)
+    artifact_records = mlmd_state._dataframe_records(artifacts)
     return success_response(
         data={
             "artifact_name": artifact_name,
@@ -292,7 +322,7 @@ async def cmfquery_get_metrics(metrics_name: str):
             errors=[ErrorDetail(field="metrics_name", message=f"Metrics '{metrics_name}' not found")],
         )
 
-    metric_records = _dataframe_records(metrics)
+    metric_records = mlmd_state._dataframe_records(metrics)
     return success_response(
         data={
             "metrics_name": metrics_name,
@@ -306,11 +336,7 @@ async def cmfquery_get_metrics(metrics_name: str):
 
 # ==================== Business Logic Functions For CMFQuery ====================
 
-def _dataframe_records(dataframe) -> list[dict]:
-    return dataframe.where(dataframe.notna(), None).to_dict(orient="records")
-
-
-def list_all_artifacts(query: CmfQuery):
+def get_all_artifacts(query: CmfQuery):
     return query.get_all_artifacts()
 
 
@@ -322,12 +348,19 @@ def get_all_artifacts_by_ids_list(query: CmfQuery, artifact_ids: list[int]):
     return query.get_all_artifacts_by_ids_list(artifact_ids)
 
 
+def get_artifact_df(query: CmfQuery, artifact_name: str):
+    artifact = query._get_artifact(artifact_name)
+    if artifact is None:
+        return None
+    return query.get_artifact_df(artifact)
+
+
 def get_artifact(query: CmfQuery, artifact_name: str):
     return query.get_artifact(artifact_name)
 
 
-def get_all_artifacts_for_execution(query: CmfQuery, execution_id: int):
-    return query.get_all_artifacts_for_execution(execution_id)
+def get_all_artifacts_for_executions(query: CmfQuery, execution_ids: list[int]):
+    return query.get_all_artifacts_for_executions(execution_ids)
 
 
 def get_one_hop_child_artifacts(query: CmfQuery, artifact_name: str, pipeline_id: Optional[int]):

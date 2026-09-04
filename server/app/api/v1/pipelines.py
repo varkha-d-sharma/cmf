@@ -23,12 +23,12 @@ async def cmfquery_get_pipeline_stages(pipeline_name: str):
     stages = await async_api(list_pipeline_stages, query, pipeline_name)
     if stages == []:
         return error_response(
-            message="Pipeline not found",
+            message=f"Stages for '{pipeline_name}' not found",
             code=404,
             errors=[
                 ErrorDetail(
                     field="pipeline_name",
-                    message=f"Pipeline '{pipeline_name}' not found",
+                    message=f"Stages for pipeline '{pipeline_name}' not found",
                 )
             ],
         )
@@ -44,16 +44,27 @@ async def cmfquery_get_pipeline_stages(pipeline_name: str):
     )
 
 
-@router.get("/pipelines", response_model=APIResponse)
+@router.get("/pipelines/names", response_model=APIResponse)
 async def cmfquery_list_pipelines():
     pipeline_names = await async_api(list_pipeline_names, query)
-    return success_response(
-        data={
-            "pipelines": pipeline_names,
-            "total_pipelines": len(pipeline_names),
-        },
-        message="Pipeline names retrieved successfully",
-        code=200,
+    if pipeline_names:
+        return success_response(
+            data={
+                "pipelines": pipeline_names,
+                "total_pipelines": len(pipeline_names),
+            },
+            message="Pipeline names retrieved successfully",
+            code=200,
+        )
+    return error_response(
+        message="No pipelines found",
+        code=404,
+        errors=[
+            ErrorDetail(
+                field="pipelines",
+                message="No pipelines found",
+            )
+        ],
     )
 
 
@@ -85,7 +96,7 @@ async def cmfquery_get_pipeline_id(pipeline_name: str):
 @router.get("/pipelines/{pipeline_name}/executions", response_model=APIResponse)
 async def cmfquery_get_pipeline_executions(pipeline_name: str):
     executions = await async_api(get_pipeline_executions, query, pipeline_name)
-    execution_records = [] if executions is None or executions.empty else _dataframe_records(executions)
+    execution_records = [] if executions is None or executions.empty else mlmd_state._dataframe_records(executions)
     return success_response(
         data={
             "pipeline_name": pipeline_name,
@@ -134,10 +145,6 @@ async def cmfquery_extract_pipelines_to_json(last_sync_time: int):
 
 
 # ==================== Business Logic Functions For CMFQuery ====================
-
-def _dataframe_records(dataframe):
-    return dataframe.where(dataframe.notna(), None).to_dict(orient="records")
-
 
 def list_pipeline_names(query: CmfQuery):
     return query.get_pipeline_names()

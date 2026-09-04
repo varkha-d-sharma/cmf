@@ -37,7 +37,7 @@ async def cmfquery_get_executions_in_pipeline_stages(stage_name: str):
     return success_response(
         data={
             "stage_name": stage_name,
-            "executions": _dataframe_records(executions),
+            "executions": mlmd_state._dataframe_records(executions),
             "total_executions": len(executions),
         },
         message="Executions associated with pipeline stage retrieved successfully",
@@ -45,9 +45,9 @@ async def cmfquery_get_executions_in_pipeline_stages(stage_name: str):
     )
 
 
-@router.get("/executions/stages-list/{stage_name:path}", response_model=APIResponse)
-async def cmfquery_list_executions_in_pipeline_stages(stage_name: str):
-    executions = await async_api(list_executions_in_pipeline_stages, query, stage_name)
+@router.get("/executions/stages/list/{stage_name:path}", response_model=APIResponse)
+async def cmfquery_list_executions_in_pipelines_stages(stage_name: str):
+    executions = await async_api(list_executions_in_pipelines_stages, query, stage_name)
     if executions == []:
         return error_response(
             message="Executions associated with stage not found",
@@ -63,7 +63,7 @@ async def cmfquery_list_executions_in_pipeline_stages(stage_name: str):
     return success_response(
         data={
             "stage_name": stage_name,
-            "executions": [_execution_to_dict(execution) for execution in executions],
+            "executions": [mlmd_state._execution_to_dict(execution) for execution in executions],
             "total_executions": len(executions),
         },
         message="Executions associated with pipeline stage retrieved successfully",
@@ -88,7 +88,7 @@ async def cmfquery_get_all_executions_by_ids_list(
             ],
         )
 
-    execution_records = _dataframe_records(executions)
+    execution_records = mlmd_state._dataframe_records(executions)
     return success_response(
         data={
             "exe_ids": request.exe_ids,
@@ -103,7 +103,7 @@ async def cmfquery_get_all_executions_by_ids_list(
 @router.get("/executions/{pipeline_name}", response_model=APIResponse)
 async def cmfquery_get_all_executions_in_pipeline(pipeline_name: str):
     executions = await async_api(get_all_executions_in_pipeline, query, pipeline_name)
-    execution_records = [] if executions is None or executions.empty else _dataframe_records(executions)
+    execution_records = [] if executions is None or executions.empty else mlmd_state._dataframe_records(executions)
     return success_response(
         data={
             "pipeline_name": pipeline_name,
@@ -130,7 +130,7 @@ async def cmfquery_get_all_executions_for_artifact(artifact_name: str):
             ],
         )
 
-    execution_records = _dataframe_records(executions)
+    execution_records = mlmd_state._dataframe_records(executions)
     return success_response(
         data={
             "artifact_name": artifact_name,
@@ -142,7 +142,7 @@ async def cmfquery_get_all_executions_for_artifact(artifact_name: str):
     )
 
 
-@router.get("/executions/artifacts/{artifact_id}", response_model=APIResponse)
+@router.get("/executions/artifacts/id/{artifact_id}", response_model=APIResponse)
 async def cmfquery_get_all_executions_for_artifact_id(artifact_id: int):
     executions = await async_api(get_all_executions_for_artifact_id, query, artifact_id)
     if executions is None or executions.empty:
@@ -157,7 +157,7 @@ async def cmfquery_get_all_executions_for_artifact_id(artifact_id: int):
             ],
         )
 
-    execution_records = _dataframe_records(executions)
+    execution_records = mlmd_state._dataframe_records(executions)
     return success_response(
         data={
             "artifact_id": artifact_id,
@@ -169,7 +169,7 @@ async def cmfquery_get_all_executions_for_artifact_id(artifact_id: int):
     )
 
 
-@router.post("/executions/parents", response_model=APIResponse)
+@router.post("/executions/one-hop/parents", response_model=APIResponse)
 async def cmfquery_get_one_hop_parent_executions(
     request: ExecutionIdsWithPipelineRequest,
 ):
@@ -187,7 +187,7 @@ async def cmfquery_get_one_hop_parent_executions(
         )
 
     execution_records = [
-        _execution_to_dict(execution) if hasattr(execution, "id") else execution
+        mlmd_state._execution_to_dict(execution) if hasattr(execution, "id") else execution
         for execution in executions
     ]
     return success_response(
@@ -202,7 +202,7 @@ async def cmfquery_get_one_hop_parent_executions(
     )
 
 
-@router.get("/executions/{execution_id}/parent-ids", response_model=APIResponse)
+@router.get("/executions/{execution_id}/one-hop/parent/executions/ids", response_model=APIResponse)
 async def cmfquery_get_one_hop_parent_execution_ids(
     execution_id: int,
     pipeline_id: Optional[int] = None,
@@ -279,7 +279,7 @@ async def cmfquery_get_all_parent_executions(artifact_name: str):
             ],
         )
 
-    execution_records = _dataframe_records(executions)
+    execution_records = mlmd_state._dataframe_records(executions)
     return success_response(
         data={
             "artifact_name": artifact_name,
@@ -308,7 +308,7 @@ async def cmfquery_get_executions_with_execution_ids(
             ],
         )
 
-    execution_records = _dataframe_records(executions)
+    execution_records = mlmd_state._dataframe_records(executions)
     return success_response(
         data={
             "exe_ids": request.exe_ids,
@@ -320,7 +320,7 @@ async def cmfquery_get_executions_with_execution_ids(
     )
 
 
-@router.get("/executions/stages-by-id/{stage_id}", response_model=APIResponse)
+@router.get("/executions/stages/id/{stage_id}", response_model=APIResponse)
 async def cmfquery_get_all_executions_by_stage(
     stage_id: int,
     execution_uuid: Optional[str] = None,
@@ -339,7 +339,7 @@ async def cmfquery_get_all_executions_by_stage(
         )
 
     execution_records = [
-        _execution_to_dict(execution) if hasattr(execution, "id") else execution
+        mlmd_state._execution_to_dict(execution) if hasattr(execution, "id") else execution
         for execution in executions
     ]
     return success_response(
@@ -372,60 +372,36 @@ async def cmfquery_find_producer_execution(artifact_name: str):
     return success_response(
         data={
             "artifact_name": artifact_name,
-            "execution": _execution_to_dict(execution),
+            "execution": mlmd_state._execution_to_dict(execution),
         },
         message="Producer execution retrieved successfully",
         code=200,
     )
 
+@router.get("/executions/{execution_id}/artifacts", response_model=APIResponse)
+async def cmfquery_get_all_artifacts_for_execution(execution_id: int):
+    artifacts = await async_api(get_all_artifacts_for_execution, query, execution_id)
+    if artifacts is None or artifacts.empty:
+        return error_response(
+            message="Artifacts not found",
+            code=404,
+            errors=[ErrorDetail(field="execution_id", message=f"Artifacts not found for execution id {execution_id}")],
+        )
+
+    artifact_records = mlmd_state._dataframe_records(artifacts)
+    return success_response(
+        data={
+            "execution_id": execution_id,
+            "artifacts": artifact_records,
+            "total_artifacts": len(artifact_records),
+        },
+        message="Artifacts for execution retrieved successfully",
+        code=200,
+    )
 
 # ==================== Business Logic Functions For CMFQuery ====================
 
-def _mlmd_properties_to_dict(properties) -> dict:
-    output = {}
-    for key, value in properties.items():
-        output[key] = _mlmd_value_to_python(value)
-    return output
-
-
-def _mlmd_value_to_python(value):
-    if hasattr(value, "HasField"):
-        if value.HasField("string_value"):
-            return value.string_value
-        if value.HasField("int_value"):
-            return value.int_value
-        if value.HasField("double_value"):
-            return value.double_value
-        if value.HasField("bool_value"):
-            return value.bool_value
-    return None
-
-
-def _execution_to_dict(execution) -> dict:
-    return {
-        "id": execution.id,
-        "type_id": execution.type_id,
-        "name": execution.name,
-        "external_id": execution.external_id,
-        "create_time_since_epoch": execution.create_time_since_epoch,
-        "last_update_time_since_epoch": execution.last_update_time_since_epoch,
-        "properties": _mlmd_properties_to_dict(execution.properties),
-        "custom_properties": _mlmd_properties_to_dict(execution.custom_properties),
-    }
-
-
-def _dataframe_records(dataframe) -> list[dict]:
-    records = dataframe.where(dataframe.notna(), None).to_dict(orient="records")
-    return [
-        {
-            key: _mlmd_value_to_python(value) if hasattr(value, "HasField") else value
-            for key, value in record.items()
-        }
-        for record in records
-    ]
-
-
-def list_executions_in_pipeline_stages(query: CmfQuery, stage_name: str):
+def list_executions_in_pipelines_stages(query: CmfQuery, stage_name: str):
     return query.get_all_exe_in_stage(stage_name)
 
 
@@ -475,3 +451,7 @@ def get_all_executions_by_stage(query: CmfQuery, stage_id: int, execution_uuid: 
 
 def find_producer_execution(query: CmfQuery, artifact_name: str):
     return query.find_producer_execution(artifact_name)
+
+
+def get_all_artifacts_for_execution(query: CmfQuery, execution_id: int):
+    return query.get_all_artifacts_for_execution(execution_id)
