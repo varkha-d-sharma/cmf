@@ -19,7 +19,7 @@ query = mlmd_state.query
 
 # ==================== API Endpoints For CMFQuery ====================
 
-@router.get("/executions/stages/{stage_name:path}", response_model=APIResponse)
+@router.get("/executions/stages/name/{stage_name:path}", response_model=APIResponse)
 async def cmfquery_get_executions_in_pipeline_stages(stage_name: str):
     executions = await async_api(get_executions_in_pipeline_stages, query, stage_name)
     if executions is None or executions.empty:
