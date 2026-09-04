@@ -1,9 +1,10 @@
 # cmf-server api's
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import asyncio
+from starlette.exceptions import HTTPException
 from server.app.get_data import (
     get_all_artifact_ids,
     get_all_exe_ids,
@@ -91,13 +92,33 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
-    """Handle FastAPI HTTPException"""
+    """Handle all HTTP exceptions raised by API routes or routing."""
     response = error_response(
         message=str(exc.detail),
         code=exc.status_code,
         errors=[],
     )
     return JSONResponse(status_code=exc.status_code, content=response.dict())
+
+
+@app.exception_handler(Exception)
+async def unexpected_exception_handler(request: Request, exc: Exception):
+    """
+    Handle unexpected/non-HTTP exceptions using the standard error format.
+    Examples :
+    - ZeroDivisionError: 10 / 0
+    - AttributeError: accessing a method/property on None
+    - KeyError: accessing a missing dictionary key
+    - TypeError: invalid operation between incompatible types
+    - ValueError: invalid value passed to a function
+    """
+    response = error_response(
+        message="Internal server error",
+        code=500,
+        errors=[],
+    )
+    return JSONResponse(status_code=500, content=response.dict())
+
 
 BASE_PATH = Path(__file__).resolve().parent
 app.mount("/cmf-server/data/static", StaticFiles(directory="/cmf-server/data/static"), name="static")
