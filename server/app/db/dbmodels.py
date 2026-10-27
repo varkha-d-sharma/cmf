@@ -217,7 +217,7 @@ executionlogs = Table(
     Index("idx_executionlogs_execution_uuid", "execution_uuid"),
     Index("idx_executionlogs_artifact_uri", "artifact_uri"),
     Index("idx_executionlogs_exec_uri", "execution_uuid", "artifact_uri"),
-
+)
 
 # Schedules for periodic syncs
 scheduled_syncs = Table(
