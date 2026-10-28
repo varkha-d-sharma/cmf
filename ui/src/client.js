@@ -323,7 +323,7 @@ class FastAPIClient {
 
   async getArtifactExecutions(pipelineName, artifactUri) {
     return this.apiClient
-      .get(`/artifact-executions/${pipelineName}`, {
+      .get(`/v1/pipelines/${encodeURIComponent(pipelineName)}/artifact/executions`, {
         params: {
           artifact_uri: artifactUri,
         },
@@ -335,7 +335,7 @@ class FastAPIClient {
 
   async getArtifactExecutionMetadata(pipelineName, executionUuid, artifactUri) {
     return this.apiClient
-      .get(`/artifact-execution-metadata/${pipelineName}`, {
+      .get(`/v1/pipelines/${encodeURIComponent(pipelineName)}/artifact/execution-metadata`, {
         params: {
           execution_uuid: executionUuid,
           artifact_uri: artifactUri,

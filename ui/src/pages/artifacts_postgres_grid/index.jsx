@@ -82,19 +82,15 @@ const sanitizeExecutionName = (value) => {
 
 const normalizeExecutionRecords = (response) => {
     const executions = response?.executions;
-    if (Array.isArray(executions) && executions.length > 0) {
-        return executions
-            .map((entry) => ({
-                execution_uuid: entry?.execution_uuid || null,
-                name: sanitizeExecutionName(entry?.name),
-            }))
-            .filter((entry) => Boolean(entry.execution_uuid));
-    }
-
-    const executionUuids = response?.execution_uuids || [];
-    return executionUuids
-        .map((uuid) => ({ execution_uuid: uuid, name: null }))
-        .filter((entry) => Boolean(entry.execution_uuid));
+    const records = Array.isArray(executions) && executions.length > 0
+        ? executions
+        : response?.execution_uuids || [];
+    return records
+        .map((entry) => ({
+            execution_uuid: typeof entry === "string" ? entry : entry?.execution_uuid,
+            name: typeof entry === "string" ? null : sanitizeExecutionName(entry?.name),
+        }))
+        .filter((entry) => typeof entry.execution_uuid === "string" && Boolean(entry.execution_uuid));
 };
 
 const ArtifactsPostgres = () => {
