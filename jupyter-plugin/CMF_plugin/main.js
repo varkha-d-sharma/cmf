@@ -26,102 +26,27 @@ define([
 	// ==================================================================
 	// 2. CONTEXT & EXECUTION CREATION
 	// Prepends create_context / create_execution to the selected cell.
-	// The selected cell must carry a tag denoting the pipeline stage.
+	// Prompts for the pipeline stage and execution type.
 	// ==================================================================
 	var cmf_inject_exec_data = function () {
-		tags = Jupyter.notebook.get_selected_cell()._metadata.tags;
-		try {
-			if (tags.length >= 1) {
-				currText = Jupyter.notebook.get_selected_cell().get_text();
-				cmf_code = '# Please update the PIPELINE STAGE & EXECUTION TYPE to match your use case' + `\n`;
-				cmf_code += 'context = metawriter.create_context(pipeline_stage="' + tags[0] + '", custom_properties={})' + `\n`;
-				var execType = prompt("Please provide an execution type", "Evaluate-execution");
-				cmf_code += 'execution = metawriter.create_execution(execution_type="' + execType + '", custom_properties={})' + `\n`;
-				cmf_code += currText + `\n`;
-				Jupyter.notebook.get_selected_cell().set_text(cmf_code);
-			}
-			else {
-				console.log("Cell needs a tag");
-				alert("Cell needs a tag");
-			}
+		var stageName = prompt("Please provide the pipeline stage", "Evaluate");
+		if (stageName == null) {
+			return;
 		}
-		catch (err) {
-			alert("Cell needs a tag");
-			console.log(err)
+		var execType = prompt("Please provide an execution type", "Evaluate-execution");
+		if (execType == null) {
+			return;
 		}
+		currText = Jupyter.notebook.get_selected_cell().get_text();
+		cmf_code = '# Please update the PIPELINE STAGE & EXECUTION TYPE to match your use case' + `\n`;
+		cmf_code += 'context = metawriter.create_context(pipeline_stage="' + stageName + '", custom_properties={})' + `\n`;
+		cmf_code += 'execution = metawriter.create_execution(execution_type="' + execType + '", custom_properties={})' + `\n`;
+		cmf_code += currText + `\n`;
+		Jupyter.notebook.get_selected_cell().set_text(cmf_code);
 	};
 
 	// ==================================================================
-	// 3. LOAD DATASET FROM A DATA STORE
-	// Fetches the available data sources from the remote API server and
-	// renders a dropdown; selecting one injects its connection code.
-	// ==================================================================
-	var get_data_sources = function () {
-		console.log("Getting Data sources")
-		console.log(api_base_url)
-		if (api_base_url == '') {
-			alert("Please provide the Base URL for Data source API calls")
-		}
-		else {
-			fetch(api_base_url + '/get_all_datasources').then(response => response.json()).then(response => {
-				let res = response["list"];
-				let optionList = "";
-				for (let x of res) {
-					optionList += "<option>" + x + "</option>";
-				}
-				let htmlCode = '';
-				htmlCode += '%%HTML\n';
-				htmlCode += '\
-						<form id="frm">\
-							<label for="dataSet">Select DataSet:</label>\
-							<select class="dataSet form-select" aria-label="Default select example">\
-								<option selected>Select DataSet</option>\
-								'+ optionList + '\
-							</select>\
-							<input type="submit" value="Submit">\
-						</form>\
-						<br><br>\
-						<script>\
-					\
-						$("#frm").submit(function(event) {\
-						event.preventDefault();\
-						});\
-						$(".dataSet").change(function() {\
-							console.log($(this).val());\
-							fetch("'+ api_base_url + '/get_datasource_connection/"+$(this).val()).then(response2 => response2.text()).then(response2 => {\
-								console.log("----------------");\
-								response2 = JSON.parse(response2);\
-								console.log(response2);\
-								let optionlist2 = "";\
-								for (let x of response2["connection_string"]) {\
-									optionlist2 += x +`\n`\
-								}\
-								Jupyter.notebook.insert_cell_below("code").set_text(optionlist2);\
-								idx = Jupyter.notebook.get_selected_index();\
-								Jupyter.notebook.select(idx + 1);\
-								console.log("----------------");\
-							 });\
-						  });\
-						</script>';
-				Jupyter.notebook.insert_cell_below('code').set_text(htmlCode);
-				cell_index = Jupyter.notebook.get_selected_index();
-				Jupyter.notebook.select(cell_index + 1);
-				next_cell = Jupyter.notebook.get_cell(cell_index + 1);
-				next_cell.execute();
-				if (next_cell._metadata.hasOwnProperty("tags")) {
-					existing_tags = [...next_cell._metadata["tags"]];
-					existing_tags.push("hide-cell");
-				}
-				else {
-					next_cell._metadata["tags"] = ["hide-cell"]
-				}
-				next_cell.element.find("div.input").hide();
-			});
-		}
-	};
-
-	// ==================================================================
-	// 4. LOG DATASET WITH LABEL
+	// 3. LOG DATASET WITH LABEL
 	// Appends a metawriter.log_dataset(...) template (with label and
 	// label_properties) to the selected cell.
 	// ==================================================================
@@ -133,9 +58,9 @@ define([
 	};
 
 	// ==================================================================
-	// 5. LOG METRICS (fine-grained, per step / per epoch)
+	// 4. LOG METRICS (fine-grained, per step / per epoch)
 	// Injects a metawriter.log_metric(...) template meant to be called
-	// inside a training loop. Use "Commit metrics" (6) when done.
+	// inside a training loop. Use "Commit metrics" (5) when done.
 	// ==================================================================
 	var cmf_log_metric = function () {
 		cmf_code = '# Fine-grained (per step / per epoch) metric logging. Call this inside your training loop.' + `\n`;
@@ -146,7 +71,7 @@ define([
 	};
 
 	// ==================================================================
-	// 6. COMMIT METRICS
+	// 5. COMMIT METRICS
 	// Injects metawriter.commit_metrics(...) which writes the in-memory
 	// metrics (logged via log_metric) to a parquet file and commits it.
 	// ==================================================================
@@ -159,7 +84,7 @@ define([
 	};
 
 	// ==================================================================
-	// 7. LOG MODEL
+	// 6. LOG MODEL
 	// Appends a metawriter.log_model(...) template to the selected cell.
 	// ==================================================================
 	var cmf_log_model = function () {
@@ -170,7 +95,7 @@ define([
 	};
 
 	// ==================================================================
-	// 8. LOG EXECUTION METRICS (coarse-grained, per execution)
+	// 7. LOG EXECUTION METRICS (coarse-grained, per execution)
 	// Injects a sklearn-metrics template ending with
 	// metawriter.log_execution_metrics(...).
 	// ==================================================================
@@ -186,139 +111,52 @@ define([
 	};
 
 	// ==================================================================
-	// UNUSED CODE (kept for reference, commented out)
+	// 8. CMF INIT
+	// Injects a cmf.cmf_init(...) template that configures the artifact
+	// repository, git remote and CMF server for this workspace.
 	// ==================================================================
+	var cmf_init = function () {
+		var cmf_code = '# CMF init - configures the artifact repo, git remote and CMF server.' + `\n`;
+		cmf_code += '# Please update TYPE ("local", "minioS3", "amazonS3", "sshremote", "osdfremote"),' + `\n`;
+		cmf_code += '# the paths/URLs below, and add type-specific arguments if needed.' + `\n`;
+		cmf_code += 'from cmflib import cmf' + `\n`;
+		cmf_code += 'cmf.cmf_init(type="local",' + `\n`;
+		cmf_code += '             path="/home/jovyan/dvc_remote",' + `\n`;
+		cmf_code += '             git_remote_url="GIT_REMOTE_URL",' + `\n`;
+		cmf_code += '             cmf_server_url="http://CMF_SERVER_IP:80")' + `\n`;
+		Jupyter.notebook.insert_cell_below('code').set_text(cmf_code);
+		Jupyter.notebook.select_next();
+	};
 
-	// UNUSED: HTML-form based variant of context & execution creation
-	// var cmf_inject_exec_data_html = function () {
-	// 	htmlCode = "%%HTML\n";
-	// 	htmlCode += '\
-	// 	  <script>\
-	// 		function cmf_inject_exec_data() {;\n\
-	// 			Jupyter.notebook.insert_cell_below("code").set_text("");\n\
-	// 			cell_index = Jupyter.notebook.get_selected_index();\n\
-	// 			Jupyter.notebook.select(cell_index + 1);\n\
-	// 			next_cell = Jupyter.notebook.get_cell(cell_index + 1);\n\
-	// 			currText = ""\n\
-	// 			cmf_code = "# Please update the PIPELINE STAGE & EXECUTION TYPE to match your use case if needed\\n";\n\
-	// 			var stageName = document.getElementById("html_id_stage").value;\n\
-	// 			cmf_code += `context = metawriter.create_context(pipeline_stage="` + stageName +`")\\n`;\n\
-	// 			var execType = document.getElementById("html_id_exec_type").value;\n\
-	// 			cmf_code += `execution = metawriter.create_execution(execution_type="` + execType +`")\\n`;\n\
-	// 			cmf_code += currText;\n\
-	// 			cmf_code += "#Please choose the button/option to insert the CMF Cell Set";\n\
-	// 			next_cell.set_text(cmf_code);\n\
-	// 			next_cell._metadata["tags"] = ["STAGE-DEF-CELL", stageName];\
-	// 		};\n\
-	// 	  </script>\n\
-	// 	  <label>Stage:</label>\n\
-	// 	  <input type="text" id="html_id_stage">\n\
-	// 	  <label>Execution Type:</label>\n\
-	// 	  <input type="text" id="html_id_exec_type">\n\
-	// 	  <input type="button" value="Submit" onclick="cmf_inject_exec_data()">\
-	// 	  '
-	// 	Jupyter.notebook.insert_cell_below('code').set_text(htmlCode);
-	// 	cell_index = Jupyter.notebook.get_selected_index();
-	// 	Jupyter.notebook.select(cell_index + 1);
-	// 	next_cell = Jupyter.notebook.get_cell(cell_index + 1);
-	// 	next_cell.execute();
-	// 	next_cell._metadata["tags"] = ["hide-cell"]
-	// 	next_cell.element.find("div.input").hide();
-	// };
+	// ==================================================================
+	// 9. METADATA PUSH
+	// Injects a cmf.metadata_push(...) template that pushes the local
+	// mlmd file to the CMF server configured via cmf init.
+	// ==================================================================
+	var cmf_metadata_push = function () {
+		var nb_name = Jupyter.notebook.notebook_name.substr(0, Jupyter.notebook.notebook_name.length - 6);
+		var cmf_code = '# Pushes the local metadata (mlmd) file to the CMF server configured with cmf init.' + `\n`;
+		cmf_code += '# Please update the pipeline name / file name if they differ.' + `\n`;
+		cmf_code += 'from cmflib import cmf' + `\n`;
+		cmf_code += 'cmf.metadata_push(pipeline_name="' + nb_name + '", file_name="' + nb_name + '.mlmd")' + `\n`;
+		Jupyter.notebook.insert_cell_below('code').set_text(cmf_code);
+		Jupyter.notebook.select_next();
+	};
 
-	// UNUSED: creates a set of stage/input/processing/output cells
-	// var cmf_stage_inject = function () {
-	// 	console.log("Stage inject")
-	// 	//Insert stage cell
-	// 	cmf_inject_exec_data();
-	// 	Jupyter.notebook.select_next();
-	// 	curr_code = Jupyter.notebook.get_selected_cell().get_text() + `\n`;
-	// 	curr_code += "Please save and reload the notebook to enable tag visibility"
-	// 	c1_tags = Jupyter.notebook.get_selected_cell()._metadata["tags"];
-	//
-	// 	//Insert Inputs cell
-	// 	Jupyter.notebook.insert_cell_below('code');
-	// 	Jupyter.notebook.select_next();
-	// 	c2_tags = [...c1_tags];
-	// 	c2_tags.push("input");
-	// 	Jupyter.notebook.get_selected_cell()._metadata["tags"] = c2_tags;
-	// 	cmf_code = "# Designated Input Cell. Please add your input statements here and then choose the log data set option" + `\n\n`;
-	// 	Jupyter.notebook.get_selected_cell().set_text(cmf_code)
-	//
-	// 	console.log("Stage inject mid");
-	//
-	// 	//Insert Processing cell
-	// 	Jupyter.notebook.insert_cell_below('code');
-	// 	Jupyter.notebook.select_next();
-	// 	c3_tags = [...c1_tags];
-	// 	c3_tags.push("processing");
-	// 	Jupyter.notebook.get_selected_cell()._metadata["tags"] = c3_tags;
-	// 	cmf_code = "# Designated Processing/Transformation cell. Please use this space to write your transformation logic" + `\n\n`;
-	// 	Jupyter.notebook.get_selected_cell().set_text(cmf_code)
-	//
-	// 	//Insert Output cell
-	// 	Jupyter.notebook.insert_cell_below('code');
-	// 	Jupyter.notebook.select_next();
-	// 	c4_tags = [...c1_tags];
-	// 	c4_tags.push("output");
-	// 	Jupyter.notebook.get_selected_cell()._metadata["tags"] = c4_tags;
-	// 	cmf_code = "# Designated output cell. Please use this space to output to file or model and choose the log dataset or model option" + `\n\n`;
-	// 	Jupyter.notebook.get_selected_cell().set_text(cmf_code)
-	// };
-
-	// UNUSED: auto-detects dataset file reads/writes in the selected cell
-	// var cmf_inject_dataset = function () {
-	// 	code = Jupyter.notebook.get_selected_cell().get_text().split('\n')
-	// 	ext_list = ["csv", "json", "xml", "orc", "parquet", "gpkg"]
-	// 	code_new = []
-	// 	for (i in code) {
-	// 		for (j in ext_list) {
-	// 			if (code[i].match(ext_list[j])) {
-	// 				regex_val = '".*' + ext_list[j] + '"'
-	// 				setType = "output";
-	// 				if (code[i].match("read")) {
-	// 					setType = "input";
-	// 				}
-	// 				code_new.push('metawriter.log_dataset(' + code[i].match(regex_val)[0] + ', "' + setType + '")')
-	// 			}
-	// 		}
-	// 	}
-	// 	finalCode = code.concat(code_new)
-	// 	console.log(finalCode)
-	// 	fin = ""
-	// 	for (let x of finalCode) {
-	// 		fin += x + `\n`
-	// 	}
-	// 	console.log(fin)
-	// 	Jupyter.notebook.get_selected_cell().set_text(fin)
-	// };
-
-	// UNUSED: sends the mlmd file over a kafka pipeline to CMF
-	// var inject_shadow_pipeline = function () {
-	// 	cells = Jupyter.notebook.get_cells();
-	// 	mlmd_path = "";
-	// 	json_path = "";
-	// 	reg = /(?:filepath|filename)=\"(.*mlmd)\".*/;
-	// 	for (let c in cells) {
-	// 		if (cells[c].get_text().match(reg)) {
-	// 			mlmd_path = cells[c].get_text().match(reg)[1];
-	// 			json_path = mlmd_path.substr(0, mlmd_path.length - 5) + ".json";
-	// 		}
-	// 	}
-	// 	cmf_code = '# This code is meant to send the mlmd file over a kafka pipeline to CMF' + `\n`;
-	// 	cmf_code += 'import sys' + `\n`;
-	// 	cmf_code += 'sys.path.insert(0, "./mlmdToJson")' + `\n`;
-	// 	cmf_code += 'import mlmd2json' + `\n`;
-	// 	cmf_code += 'cmf_data = mlmd2json.process_json(path="' + mlmd_path + '",json_path = "' + json_path + '")' + `\n`;
-	// 	cmf_code += 'from kafka import KafkaProducer, errors' + `\n`;
-	// 	cmf_code += 'try:' + `\n`;
-	// 	cmf_code += '    producer = KafkaProducer(bootstrap_servers="10.93.246.17:9092",value_serializer=lambda x: dumps(x).encode("utf-8"),key_serializer=lambda x:x.encode("utf-8"))' + `\n`;
-	// 	cmf_code += '    producer.send(topic = "jupy_cmf", value=cmf_data, key="' + mlmd_path.substr(0, mlmd_path.length - 5) + '")' + `\n`;
-	// 	cmf_code += '    producer.flush()' + `\n`;
-	// 	cmf_code += 'except (errors.NoBrokersAvailable, errors.UnrecognizedBrokerVersion) as ex:' + `\n`;
-	// 	cmf_code += '    pass' + `\n`;
-	// 	Jupyter.notebook.insert_cell_below('code').set_text(cmf_code);
-	// };
+	// ==================================================================
+	// 10. METADATA PULL
+	// Injects a cmf.metadata_pull(...) template that pulls a pipeline's
+	// metadata from the CMF server into a local mlmd file.
+	// ==================================================================
+	var cmf_metadata_pull = function () {
+		var nb_name = Jupyter.notebook.notebook_name.substr(0, Jupyter.notebook.notebook_name.length - 6);
+		var cmf_code = '# Pulls the pipeline metadata from the CMF server into a local mlmd file.' + `\n`;
+		cmf_code += '# Please update the pipeline name / output file name if they differ.' + `\n`;
+		cmf_code += 'from cmflib import cmf' + `\n`;
+		cmf_code += 'cmf.metadata_pull(pipeline_name="' + nb_name + '", file_name="' + nb_name + '.mlmd")' + `\n`;
+		Jupyter.notebook.insert_cell_below('code').set_text(cmf_code);
+		Jupyter.notebook.select_next();
+	};
 
 	// Run on start
 	function load_ipython_extension() {
@@ -329,18 +167,6 @@ define([
 			if (cells[c]._metadata.hasOwnProperty("tags") && cells[c]._metadata["tags"].includes("hide-cell")) {
 				cells[c].element.find("div.input").hide();
 			}
-		}
-
-		var config = Jupyter.notebook.config;
-		if (config.data.hasOwnProperty("auth_token") && config.data["auth_token"] != '') {
-			auth_token = config.data["auth_token"];
-		}
-		else {
-			alert("Authentication Key is required.");
-		}
-		if (config.data.hasOwnProperty("api_base_url")) {
-			api_base_url = config.data["api_base_url"];
-			console.log("api URL", api_base_url);
 		}
 
 		console.log("Adding CMF toolbar buttons");
@@ -357,22 +183,13 @@ define([
 		// 2. Context & Execution creation
 		$(Jupyter.toolbar.add_buttons_group([
 			Jupyter.keyboard_manager.actions.register({
-				help: 'Create CMF Context & Execution (cell needs a stage tag)',
+				help: 'Create CMF Context & Execution',
 				icon: 'fa-code',
 				handler: cmf_inject_exec_data
 			}, 'Inject-CMF-Code', 'Inject_CMF_Code')
 		])).find('.btn').attr('id', 'Inject_CMF_Code');
 
-		// 3. Load dataset from a data store
-		$(Jupyter.toolbar.add_buttons_group([
-			Jupyter.keyboard_manager.actions.register({
-				help: 'Load dataset from a data store',
-				icon: 'fa-database',
-				handler: get_data_sources
-			}, 'Get-data-sources', 'Get_data_sources')
-		])).find('.btn').attr('id', 'Get_data_sources');
-
-		// 4. Log dataset with label
+		// 3. Log dataset with label
 		$(Jupyter.toolbar.add_buttons_group([
 			Jupyter.keyboard_manager.actions.register({
 				help: 'Log dataset with label (log_dataset)',
@@ -381,7 +198,7 @@ define([
 			}, 'Log-CMF-Dataset-With-Label', 'Log_CMF_Dataset_With_Label')
 		])).find('.btn').attr('id', 'Log_CMF_Dataset_With_Label');
 
-		// 5. Log metrics (fine-grained)
+		// 4. Log metrics (fine-grained)
 		$(Jupyter.toolbar.add_buttons_group([
 			Jupyter.keyboard_manager.actions.register({
 				help: 'Log per-step metrics (log_metric)',
@@ -390,7 +207,7 @@ define([
 			}, 'Log-CMF-Metric', 'Log_CMF_Metric')
 		])).find('.btn').attr('id', 'Log_CMF_Metric');
 
-		// 6. Commit metrics
+		// 5. Commit metrics
 		$(Jupyter.toolbar.add_buttons_group([
 			Jupyter.keyboard_manager.actions.register({
 				help: 'Commit logged metrics (commit_metrics)',
@@ -399,7 +216,7 @@ define([
 			}, 'Commit-CMF-Metrics', 'Commit_CMF_Metrics')
 		])).find('.btn').attr('id', 'Commit_CMF_Metrics');
 
-		// 7. Log model
+		// 6. Log model
 		$(Jupyter.toolbar.add_buttons_group([
 			Jupyter.keyboard_manager.actions.register({
 				help: 'Log model (log_model)',
@@ -408,7 +225,7 @@ define([
 			}, 'Inject-CMF-model-template', 'Inject_CMF_model_template')
 		])).find('.btn').attr('id', 'Inject_CMF_model_template');
 
-		// 8. Log execution metrics (coarse-grained)
+		// 7. Log execution metrics (coarse-grained)
 		$(Jupyter.toolbar.add_buttons_group([
 			Jupyter.keyboard_manager.actions.register({
 				help: 'Log execution metrics (log_execution_metrics)',
@@ -417,50 +234,32 @@ define([
 			}, 'Log-CMF-Execution-Metrics', 'Log_CMF_Execution_Metrics')
 		])).find('.btn').attr('id', 'Log_CMF_Execution_Metrics');
 
-		// UNUSED buttons (handlers commented out above)
-		// $(Jupyter.toolbar.add_buttons_group([
-		// 	Jupyter.keyboard_manager.actions.register({
-		// 		help: 'Create execution stage cells',
-		// 		icon: 'fa-magnet',
-		// 		handler: cmf_stage_inject
-		// 	}, 'cmf-stage-inject', 'cmf_stage_inject')
-		// ])).find('.btn').attr('id', 'cmf_stage_inject');
-		//
-		// $(Jupyter.toolbar.add_buttons_group([
-		// 	Jupyter.keyboard_manager.actions.register({
-		// 		help: 'Inject CMF Dataset code',
-		// 		icon: 'fa-gears',
-		// 		handler: cmf_inject_dataset
-		// 	}, 'Inject-CMF-Dataset-code', 'Inject_CMF_Dataset_code')
-		// ])).find('.btn').attr('id', 'Inject_CMF_Dataset_code');
-		//
-		// $(Jupyter.toolbar.add_buttons_group([
-		// 	Jupyter.keyboard_manager.actions.register({
-		// 		help: 'Inject Kafka Code',
-		// 		icon: 'fa-pencil',
-		// 		handler: inject_shadow_pipeline
-		// 	}, 'Inject-Kafka-Code', 'Inject_Kafka_Code')
-		// ])).find('.btn').attr('id', 'Inject_Kafka_Code');
+		// 8. CMF init
+		$(Jupyter.toolbar.add_buttons_group([
+			Jupyter.keyboard_manager.actions.register({
+				help: 'Initialize CMF (cmf init: artifact repo, git remote & CMF server)',
+				icon: 'fa-wrench',
+				handler: cmf_init
+			}, 'CMF-Init', 'CMF_Init')
+		])).find('.btn').attr('id', 'CMF_Init');
 
-		// UNUSED: automatic injection of the CMF import on notebook load.
-		// The "Create CMF class" button (1) replaces this behaviour.
-		// console.log("Setting up CMF import statements");
-		// require_import = true
-		// for (let i in Jupyter.notebook.get_cells()) {
-		// 	if (Jupyter.notebook.get_cells()[i].get_text().match("from cmflib import cmf.*")) {
-		// 		console.log("Import statement exists")
-		// 		require_import = false;
-		// 		break;
-		// 	}
-		// 	else {
-		// 		require_import = true;
-		// 	}
-		// }
-		// if (require_import) {
-		// 	cmf_code = 'from cmflib import cmf' + `\n`;
-		// 	cmf_code += 'metawriter = cmf.Cmf(filepath="' + Jupyter.notebook.notebook_name.substr(0, Jupyter.notebook.notebook_name.length - 6) + '.mlmd", pipeline_name="' + Jupyter.notebook.notebook_name.substr(0, Jupyter.notebook.notebook_name.length - 6) + '", custom_properties={}, graph=False, is_server=False)' + `\n`;
-		// 	Jupyter.notebook.insert_cell_at_index("code", 0).set_text(cmf_code)
-		// }
+		// 9. Metadata push
+		$(Jupyter.toolbar.add_buttons_group([
+			Jupyter.keyboard_manager.actions.register({
+				help: 'Push metadata to CMF server (metadata_push)',
+				icon: 'fa-cloud-upload',
+				handler: cmf_metadata_push
+			}, 'CMF-Metadata-Push', 'CMF_Metadata_Push')
+		])).find('.btn').attr('id', 'CMF_Metadata_Push');
+
+		// 10. Metadata pull
+		$(Jupyter.toolbar.add_buttons_group([
+			Jupyter.keyboard_manager.actions.register({
+				help: 'Pull metadata from CMF server (metadata_pull)',
+				icon: 'fa-cloud-download',
+				handler: cmf_metadata_pull
+			}, 'CMF-Metadata-Pull', 'CMF_Metadata_Pull')
+		])).find('.btn').attr('id', 'CMF_Metadata_Pull');
 
 	}
 

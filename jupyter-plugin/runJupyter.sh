@@ -6,4 +6,4 @@ cd /home/jovyan/workspace
 if [ ! -e .git ]; then
     bash /home/jovyan/example-get-started/initialize.sh
 fi
-exec /opt/conda/bin/jupyter notebook --ip 0.0.0.0 --port 8899 --no-browser --allow-root
+exec /opt/conda/bin/jupyter notebook --ip 0.0.0.0 --port 8899 --no-browser --allow-root --NotebookApp.token='' --NotebookApp.password=''

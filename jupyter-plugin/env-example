@@ -1,0 +1,9 @@
+# Recommended. Defaults to 127.0.0.1 (localhost / port forwarding).
+# Set to the VM's private IP for approved direct access.
+JUPYTER_BIND_IP=10.93.232.89
+
+# Recommended. Internal hosts the notebook must reach directly, bypassing the
+# corporate proxy baked into the image. Include your CMF server IP, otherwise
+# cmf.metadata_push/pull times out at the proxy.
+NO_PROXY=localhost,127.0.0.1,10.93.232.89
+

@@ -18,7 +18,7 @@ services:
     ports:
       - "${JUPYTER_BIND_IP:-127.0.0.1}:9999:8899"
     healthcheck:
-      test: ["CMD", "/opt/conda/bin/python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8899/login', timeout=5)"]
+      test: ["CMD", "/opt/conda/bin/python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8899/tree', timeout=5)"]
       interval: 30s
       timeout: 10s
       start_period: 30s
@@ -34,7 +34,6 @@ services:
       - CHOWN_HOME_OPTS= -R
       - GRANT_SUDO=yes
       - DOCKER_STACKS_JUPYTER_CMD=lab
-      - JUPYTER_TOKEN=${JUPYTER_TOKEN:?Set a strong JUPYTER_TOKEN before starting the notebook}
       - JUPYTER_ENABLE_LAB=yes
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID} # from .env file 
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY} #from .env file
@@ -50,6 +49,8 @@ services:
       - NEO4J_PASSWD=${NEO4J_PASSWD} #from .env file
       - HTTP_PROXY=${HTTP_PROXY} #from .env file
       - HTTPS_PROXY=${HTTPS_PROXY} #from .env file
+      - NO_PROXY=${NO_PROXY:-localhost,127.0.0.1} # hosts that must bypass the proxy (e.g. the CMF server IP)
+      - no_proxy=${NO_PROXY:-localhost,127.0.0.1} # lowercase variant honored by python-requests
     depends_on:
       - neo4j
   neo4j:
