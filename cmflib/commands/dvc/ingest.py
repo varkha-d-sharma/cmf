@@ -21,7 +21,7 @@ import argparse
 import typing as t
 import pandas as pd
 
-from cmflib.cmfquery import CmfQuery
+from cmflib import cmfquery
 from cmflib.cmf import Cmf
 from cmflib.cli.command import CmdBase
 from cmflib.dvc_wrapper import git_get_repo
@@ -138,7 +138,7 @@ class CmdDVCIngest(CmdBase):
         uuid_ = str(uuid.uuid4())
         pipeline_name = ""
         cmd_exe: t.Dict[str, str] = {}
-        query = CmfQuery(mlmd_file_name)
+        query = cmfquery.CmfQuery(mlmd_file_name)
         pipelines: t.List[str] = query.get_pipeline_names()
 
         # Query mlmd to get all the executions and its commands
